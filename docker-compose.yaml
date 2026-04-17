@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+    ports:
+      - "4173:4173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_BACKEND_URL=${VITE_BACKEND_URL}
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development

@@ -1,0 +1,27 @@
+diff --git a/node_modules/@the-vault/lst-minter-widget/dist/hooks/useBalance.js b/node_modules/@the-vault/lst-minter-widget/dist/hooks/useBalance.js
+index 15f5416..202ac42 100644
+--- a/node_modules/@the-vault/lst-minter-widget/dist/hooks/useBalance.js
++++ b/node_modules/@the-vault/lst-minter-widget/dist/hooks/useBalance.js
+@@ -18,7 +18,8 @@ export default function useBalance(address, api, token) {
+                     },
+                 };
+             }
+-            const response = await fetch(`${api}/balance?address=${address}&mint=${token.mint}`);
++            console.log("DID THIS RUN?");
++            const response = await fetch(`${api}/vbalance?address=${address}&mint=${token.mint}`);
+             if (!response.ok) {
+                 throw new Error(`Failed to fetch balance: ${response.statusText}`);
+             }
+diff --git a/node_modules/@the-vault/lst-minter-widget/dist/lstMinterContent.js b/node_modules/@the-vault/lst-minter-widget/dist/lstMinterContent.js
+index 97d3d3f..6959517 100644
+--- a/node_modules/@the-vault/lst-minter-widget/dist/lstMinterContent.js
++++ b/node_modules/@the-vault/lst-minter-widget/dist/lstMinterContent.js
+@@ -17,7 +17,7 @@ export const LstMinterContent = ({ mint, api, onButtonPress, onTxReady, address,
+     const getTx = async () => {
+         // Call the stake API
+         const result = await fetch(api +
+-            `/stake?address=${address}&mint=${mint}&amount=${amount?.raw}&balance=${balance.sol.amount}${target ? `&target=${target}` : ""}`);
++            `/vstake?address=${address}&mint=${mint}&amount=${amount?.raw}&balance=${balance.sol.amount}${target ? `&target=${target}` : ""}`);
+         return await result.json();
+     };
+     return (_jsxs("div", { className: "card", children: [_jsxs("div", { className: "input-section", children: [_jsxs("div", { className: "balance", children: [_jsx("div", { children: "Available Balance:" }), _jsx("div", { className: "balance-amount", children: balance

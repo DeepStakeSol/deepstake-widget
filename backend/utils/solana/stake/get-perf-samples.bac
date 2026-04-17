@@ -1,0 +1,53 @@
+import { getBase64Encoder, Rpc, SolanaRpcApi } from "@solana/kit";
+import {
+  FixedSizeCodec,
+  getU64Codec,
+  getStructCodec,
+} from "@solana/kit";
+
+interface GetPerfSamplesInput {
+  rpc: Rpc<SolanaRpcApi>;
+  limit?: number; // default to 1
+}
+
+export interface GetPerfSamplesResponse {
+  numNonVoteTransactions: number;
+  numSlots: number;
+  numTransactions: number;
+  samplePeriodSecs: number;
+  slot: number;
+}
+
+export async function getEpochInfo({
+  rpc
+}: GetPerfSamplesInput): Promise<GetPerfSamplesResponse> {
+  //let epochInfo = await rpc.getEpochInfo().send();
+  let perfSamplesArray = await rpc.getRecentPerformanceSamples(1).send();
+  let perfSamples = perfSamplesArray[0];
+
+  console.log("perfSamples", perfSamples);
+
+  return {
+    numNonVoteTransactions: perfSamples ? Number(perfSamples.numNonVoteTransactions) : 0,
+    numSlots: perfSamples ? Number(perfSamples.numSlots) : 0,
+    numTransactions: perfSamples ? Number(perfSamples.numTransactions) : 0,
+    samplePeriodSecs: perfSamples ? Number(perfSamples.samplePeriodSecs) : 0,
+    slot: perfSamples ? Number(perfSamples.slot) : 0,
+  };
+}
+
+export interface PerfSamplesInfo {
+  numNonVoteTransactions: bigint;
+  numSlots: bigint;
+  numTransactions: bigint;
+  samplePeriodSecs: bigint;
+  slot: bigint;
+}
+
+export const perfSamplesCodec: FixedSizeCodec<PerfSamplesInfo> = getStructCodec([
+  ["numNonVoteTransactions", getU64Codec()],
+  ["numSlots", getU64Codec()],
+  ["numTransactions", getU64Codec()],
+  ["samplePeriodSecs", getU64Codec()],
+  ["slot", getU64Codec()],
+]);
