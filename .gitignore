@@ -148,3 +148,7 @@ QWEN.*
 SYSTEM_PROMPT.md
 
 .claude
+
+# local development
+staking-widget/
+docker-compose.override.yml
