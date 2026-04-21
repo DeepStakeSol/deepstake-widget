@@ -58,6 +58,7 @@ export function BSOLBalanceTable2({
             </div>
             <h2 className="stake-title">Your balance:</h2>
           </div>
+          <p className="stake-epoch-note">The data is updated once per epoch. If you have performed an action, it'll be displayed here later.</p>
 
           <>
           {isLoadingData ? (
@@ -93,7 +94,7 @@ export function BSOLBalanceTable2({
                     ))}
                     {showPendingRow && (
                       <tr className={appliedStakes.length % 2 === 0 ? "stakes-table-row-even" : "stakes-table-row-odd"}>
-                        <td className="stakes-table-cell other-pendings">Other pending stakes*</td>
+                        <td className="stakes-table-cell other-pendings">Not delegated</td>
                         <td className="stakes-table-cell stakes-table-cell-right other-pendings">
                           {pendingDifference.toFixed(9).replace(/\.?0+$/, '')}
                         </td>
@@ -173,6 +174,18 @@ export function BSOLBalanceTable2({
           font-weight: 400;
           margin: 0;
           color: #000;
+        }
+
+        .stake-epoch-note {
+          font-size: 11px;
+          color: #888;
+          margin: -8px 0 12px 0;
+          line-height: 1.4;
+          padding: 0 42px;
+        }
+
+        #root[data-theme="dark"] .stake-epoch-note {
+          color: #9F9FAC;
         }
 
         /* Empty state text */
@@ -413,7 +426,6 @@ export function BSOLBalanceTable2({
         .stakes-table-cell.other-pendings,
         #root[data-theme="dark"] .stakes-table-cell.other-pendings {
           font-style: italic;
-          color: orange;
         }
       `}</style>
 
