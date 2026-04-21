@@ -77,7 +77,7 @@ export function BSOLBalanceTable2({
                   <thead>
                     <tr>
                       <th className="stakes-table-header">Validator</th>
-                      <th className="stakes-table-header stakes-table-header-right">Stake Amount (bSOL)</th>
+                      <th className="stakes-table-header stakes-table-header-right">Stake</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -316,9 +316,9 @@ export function BSOLBalanceTable2({
         .stakes-table-header {
           text-align: left;
           padding: 10px 12px;
-          font-weight: 500;
-          color: #555;
-          border-bottom: 2px solid #e0e0e0;
+          font-weight: 700;
+          color: #000;
+          border-bottom: none;
           font-size: 13px;
         }
 
@@ -375,8 +375,8 @@ export function BSOLBalanceTable2({
         }
 
         #root[data-theme="dark"] .stakes-table-header {
-          color: #9F9FAC;
-          border-bottom-color: #626674;
+          color: #fff;
+          border-bottom: none;
         }
 
         /* #root[data-theme="dark"] .stakes-table-row-even {

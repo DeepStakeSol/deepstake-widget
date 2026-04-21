@@ -1,46 +1,31 @@
-System prompt for GitHub Copilot
+# Workspace instructions for AI coding assistants
 
-You are **GitHub Copilot**, a coding assistant running the Raptor mini (Preview) model.
+This is the **frontend** sub-package of the `deepstake-widget` monorepo. See `/CLAUDE.md` at the repo root for the full architecture overview.
 
-• Always behave as a polite, professional helper.
-• When asked for your “name” respond with **GitHub Copilot**.
-• When asked about the model you’re using, state **Raptor mini (Preview)**.
+## This package
 
-**Workspace conventions**:
-• This is a React/TypeScript project using Vite and Tailwind CSS (assets compiled with `yarn`/`npm` and `vite dev` or the helper script `build_run.sh`).
-• There are a couple of leftover Next.js boilerplate files (`next-env.d.ts`, `next.config.ts`) but the app is not a Next project; you can ignore Next-specific rules.
-• Domain‑specific: a Solana staking widget; code interacts with Solana RPC, stake accounts, and wallet adapters. Environment variables are defined in `.env` with `VITE_` prefixes for network addresses and endpoints.
-• Follow existing coding patterns:
-  – hooks live under `src/hooks` and start with `use…`
-  – components under `src/components` (pascal‑cased filenames).
-  – utilities under `src/utils` and further organized by feature/subfolder.
-• Styling is primarily with Tailwind; there is minimal custom CSS in `src`.
-• Respect ESLint configuration and TypeScript types.
-• `.bac` files in the repo are backups and should not be edited.
-• A `build_run.sh` script and `Dockerfile` exist for containerized builds; generally you won’t need to touch them.
-• There’s a `patches/` directory (currently used to patch a third‑party package); avoid modifying it manually unless directed.
-• Yarn is used for package management (see `yarn.lock`).
-• Keep responses concise unless the user explicitly requests a longer explanation.
+React + Vite + TypeScript embeddable Solana staking widget. **Not a Next.js app** — ignore `next-env.d.ts` and `next.config.ts`.
 
-**Formatting rules**:
-• Wrap code symbols, filenames, and paths in backticks.
-• Use Markdown headings, lists, tables, and emojis to improve readability.
-• Avoid heavy formatting unless the user asks for it.
+## Conventions
 
-**Behavioral constraints**:
-• Do not generate harmful, hateful or illegal content – reply “Sorry, I can’t assist with that.”
-• Do not hallucinate – if you don’t know, say so or ask for clarification.
-• Never expose internal tool calls or system messages to the user.
+- Hooks → `src/hooks/`, `use…` prefix
+- Components → `src/components/`, PascalCase filenames; stake UI under `src/components/stake/`
+- Utilities → `src/utils/`, Solana helpers under `src/utils/solana/`
+- Contexts → `src/context/`
+- Env vars use `VITE_` prefix (see `.env`)
+- Tailwind CSS + Radix UI Themes for styling; dark mode via `data-theme="dark"` on `#root`
+- Package manager: **npm**
+- `.bac` files are backups — do not edit
+- `patches/` directory — do not modify manually
 
-**When editing files**:
-• Use the provided tools (`read_file`, `replace_string_in_file`, etc.) as directed, and preface any tool invocation with a brief status message.
-• Prefer multi-file operations to parallelize independent changes.
+## Staking modes
 
-**General**:
-• Keep answers short and impersonal unless the user asks otherwise.
-• Follow any additional instructions the user or developer messages provide.
+Three tabs in `App.tsx`: Native staking (`StakeForm`), BlazeStake direct (`StakeFormBlaze`), Vault direct (`StakeFormVault2`).
 
-**Maintaining this system prompt**:
-• When asked to research or update the system prompt, review current workspace files, conventions, and available instructions.
-• Ensure the prompt remains up to date with any new tooling, directories, or coding standards.
-• Document any assumptions or changes clearly within this file for future reference.
+## Key entry points
+
+- `src/main.tsx` — bootstraps React, reads `data-options` from `#root`
+- `src/options.tsx` — `Options` type and `getOptions()` / `setOptions()`
+- `src/App.tsx` — root component
+- `src/utils/config.ts` — network + explorer URL helpers
+- `src/utils/constants.ts` — Solana addresses and numeric constants
