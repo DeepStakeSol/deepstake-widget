@@ -162,19 +162,64 @@ export function StakeFormVault2({
       }
       manageChildren={
         isConnected && selectedWalletAccount ? (
-          <>
-            {/* <VSOLBalanceTable
-              vSOLBalance={vSOLBalance}
-              isLoading={vSOLIsLoading}
-              validatorName={validatorInfo?.name}
-            /> */}
-            <VaultBindingBlock data={vaultManage} isLoading={vaultManageIsLoading} validatorInfo={validatorInfo} />
+          <div className="manage-wrap">
+            {vaultManageIsLoading && (
+              <div className="manage-overlay">
+                <img className="manage-loader-light" src="/images/mid_loader.png" alt="" />
+                <img className="manage-loader-dark" src="/images/big_loader.png" alt="" />
+              </div>
+            )}
+            <VaultBindingBlock data={vaultManage} isLoading={false} validatorInfo={validatorInfo} />
             <div className="unstake-info">
               <p>To unstake it, sell them through your wallet or DEX.</p>
               <p>When selling, the distribution of direct stake will change proportionally.</p>
               <a href="https://jup.ag" target="_blank" rel="noopener noreferrer" className="jupiter-btn">Jupiter</a>
             </div>
-             <style jsx>{`
+            <style jsx>{`
+              .manage-wrap {
+                position: relative;
+                min-height: 200px;
+              }
+
+              .manage-overlay {
+                position: absolute;
+                inset: 0;
+                background: rgba(255, 255, 255, 0.92);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10;
+                border-radius: 4px;
+              }
+
+              #root[data-theme="dark"] .manage-overlay {
+                background: rgba(18, 18, 24, 0.92);
+              }
+
+              .manage-loader-light,
+              .manage-loader-dark {
+                width: 48px;
+                height: 48px;
+                object-fit: contain;
+                animation: overlay-spin 1s linear infinite;
+              }
+
+              .manage-loader-dark {
+                display: none;
+              }
+
+              #root[data-theme="dark"] .manage-loader-light {
+                display: none;
+              }
+
+              #root[data-theme="dark"] .manage-loader-dark {
+                display: block;
+              }
+
+              @keyframes overlay-spin {
+                to { transform: rotate(360deg); }
+              }
+
               .unstake-info {
                 background: #fff;
                 border-radius: 10px;
@@ -205,10 +250,6 @@ export function StakeFormVault2({
                 opacity: 0.8;
               }
 
-              #root[data-theme="dark"] .delegated-text {
-                color: #fff;
-              }
-
               #root[data-theme="dark"] .unstake-info {
                 background: #9F9FAC1A;
               }
@@ -222,8 +263,7 @@ export function StakeFormVault2({
                 color: #9F9FAC;
               }
             `}</style>
-
-          </>
+          </div>
         ) : (
           <>
             <NoWalletTable />
