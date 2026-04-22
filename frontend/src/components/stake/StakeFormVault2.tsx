@@ -9,8 +9,10 @@ import { StakeInputSection } from "./StakeInputSection";
 import { StakeLayout } from "./StakeLayout";
 import { NoWalletTable } from "./NoWalletTable";
 import { VSOLBalanceTable } from "./VSOLBalanceTable";
+import { VaultBindingBlock } from "./VaultBindingBlock";
 import { useStakeForm } from "../../hooks/useStakeForm";
 import { ValidatorInfoResponse } from "../../utils/solana/validator";
+import { fetchVaultManage, VaultManageResponse } from "../../utils/api";
 
 import type {
   Connection as ConnectionType,
@@ -68,6 +70,19 @@ export function StakeFormVault2({
 
   const [vSOLBalance, setvSOLBalance] = useState<number>(0);
   const [vSOLIsLoading, setVSOLIsLoading] = useState(false);
+  const [vaultManage, setVaultManage] = useState<VaultManageResponse | null>(null);
+  const [vaultManageIsLoading, setVaultManageIsLoading] = useState(false);
+
+  const fetchVaultManageData = async (walletAddress: string) => {
+    setVaultManageIsLoading(true);
+    try {
+      const data = await fetchVaultManage(walletAddress, network);
+      setVaultManage(data);
+    } catch {
+      setVaultManage(null);
+    }
+    setVaultManageIsLoading(false);
+  };
 
   const fetchVSOLBalance = async (wPubkey: PublicKeyType) => {
     const VSOL_MINT = new PublicKey("vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7");
@@ -92,16 +107,19 @@ export function StakeFormVault2({
   useEffect(() => {
     if (!isConnected) {
       setvSOLBalance(0);
+      setVaultManage(null);
     }
   }, [isConnected]);
 
   useEffect(() => {
     if (!selectedWalletAccount) {
       setvSOLBalance(0);
+      setVaultManage(null);
       return;
     }
     const wPubkey = new PublicKey(selectedWalletAccount.address);
     fetchVSOLBalance(wPubkey);
+    fetchVaultManageData(selectedWalletAccount.address);
   }, [selectedWalletAccount]);
 
   const handleSuccess = useCallback(() => {
@@ -144,11 +162,14 @@ export function StakeFormVault2({
       }
       manageChildren={
         isConnected && selectedWalletAccount ? (
-          <VSOLBalanceTable
-            vSOLBalance={vSOLBalance}
-            isLoading={vSOLIsLoading}
-            validatorName={validatorInfo?.name}
-          />
+          <>
+            <VSOLBalanceTable
+              vSOLBalance={vSOLBalance}
+              isLoading={vSOLIsLoading}
+              validatorName={validatorInfo?.name}
+            />
+            <VaultBindingBlock data={vaultManage} isLoading={vaultManageIsLoading} />
+          </>
         ) : (
           <>
             <NoWalletTable />

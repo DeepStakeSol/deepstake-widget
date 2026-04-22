@@ -135,6 +135,33 @@ export async function generateWithdrawTransaction(
   return data.wireTransaction;
 }
 
+// vault manage
+export interface VaultManageResponse {
+  wallet: string;
+  binding: {
+    hasBinding: boolean;
+    validatorVoteKey?: string;
+  };
+  balance: { vsol: string };
+  stakebot: {
+    found: boolean;
+    generatedStake?: string;
+    epoch?: number;
+    sourceFile?: string;
+  };
+  uiStatus: "ready" | "updating" | "low_balance" | "no_binding" | "error";
+  message?: string;
+}
+
+export async function fetchVaultManage(
+  wallet: string,
+  network: string
+): Promise<VaultManageResponse> {
+  return getJson<VaultManageResponse>(
+    `/api/blaze/manage/vault?wallet=${wallet}&network=${network}`
+  );
+}
+
 // confirmation helper
 export interface ConfirmTxOptions {
   txid: string;
