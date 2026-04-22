@@ -1,8 +1,10 @@
 import { VaultManageResponse } from "../../utils/api";
+import { ValidatorInfoResponse } from "../../utils/solana/validator";
 
 interface Props {
   data: VaultManageResponse | null;
   isLoading: boolean;
+  validatorInfo?: ValidatorInfoResponse | null;
 }
 
 function truncateAddress(address: string, chars = 6): string {
@@ -10,25 +12,23 @@ function truncateAddress(address: string, chars = 6): string {
   return `${address.slice(0, chars)}...${address.slice(-chars)}`;
 }
 
-function formatVsol(raw: string): string {
-  const n = Number(raw) / 1e9;
-  return n.toFixed(9).replace(/\.?0+$/, "") || "0";
-}
-
-export function VaultBindingBlock({ data, isLoading }: Props) {
+export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
   if (isLoading) {
     return (
       <>
-        <div className="vb-screen">
-          <div className="vb-container">
-            <div className="vb-header">
-              <div className="vb-icon" />
-              <h2 className="vb-title">Vault:</h2>
+        <div className="vb-wrap">
+          <div className="vb-row">
+            <div className="vb-cell-left">
+              <div className="vb-cell-top vb-not-staked">NOT DIRECT STAKED TO ANY VALIDATOR</div>
+              <div className="vb-cell-bottom">
+                <span className="vb-bal-label">Your balance:</span>
+                <br />
+                <span className="vb-bal-value vb-loading-text">
+                  updating... <span className="vb-spinner" />
+                </span>
+              </div>
             </div>
-            <div className="vb-loading">
-              updating...
-              <div className="vb-spinner" />
-            </div>
+            <div className="vb-cell-right" />
           </div>
         </div>
         <VbStyles />
@@ -39,104 +39,74 @@ export function VaultBindingBlock({ data, isLoading }: Props) {
   if (!data) return null;
 
   const { uiStatus, binding, balance, stakebot } = data;
-  const vsolFormatted = formatVsol(balance.vsol);
-  const voteKeyShort = binding.validatorVoteKey
-    ? truncateAddress(binding.validatorVoteKey)
-    : null;
+
+  const vsolFormatted = (Number(balance.vsol) / 1e9).toFixed(6) + " vSOL";
+
+  const isDirectStaked = uiStatus === "ready";
+
+  let validatorDisplay: string | null = null;
+  if (isDirectStaked && binding.validatorVoteKey) {
+    if (
+      validatorInfo?.vote_identity === binding.validatorVoteKey &&
+      validatorInfo?.name
+    ) {
+      validatorDisplay = validatorInfo.name;
+    } else {
+      validatorDisplay = truncateAddress(binding.validatorVoteKey);
+    }
+  }
 
   return (
     <>
-      <div className="vb-screen">
-        <div className="vb-container">
-          <div className="vb-header">
-            <div className="vb-icon" />
-            <h2 className="vb-title">Vault:</h2>
+      <div className="vb-wrap">
+        <div className="vb-row">
+          <div className="vb-cell-left">
+            <div className="vb-cell-top">
+              {isDirectStaked && validatorDisplay ? (
+                <span
+                  className="vb-validator"
+                  title={binding.validatorVoteKey}
+                >
+                  {validatorDisplay}
+                </span>
+              ) : (
+                <span className="vb-not-staked">
+                  NOT DIRECT STAKED TO ANY VALIDATOR
+                </span>
+              )}
+            </div>
+            <div className="vb-cell-bottom">
+              <span className="vb-bal-label">Your balance:</span>
+              <br />
+              <span className="vb-bal-value">{vsolFormatted}</span>
+            </div>
           </div>
 
-          {uiStatus === "ready" && (
-            <div className="vb-rows">
-              <div className="vb-row">
-                <span className="vb-label">Validator</span>
-                <span className="vb-value vb-mono" title={binding.validatorVoteKey}>
-                  {voteKeyShort}
-                </span>
-              </div>
-              <div className="vb-row">
-                <span className="vb-label">vSOL Balance</span>
-                <span className="vb-value vb-mono">{vsolFormatted} vSOL</span>
-              </div>
-              <div className="vb-row">
-                <span className="vb-label">Stake Generated</span>
-                <span className="vb-value vb-mono">{stakebot.generatedStake} SOL</span>
-              </div>
-            </div>
-          )}
-
-          {uiStatus === "updating" && (
-            <>
-              <p className="vb-info-msg">
+          <div className="vb-cell-right">
+            {uiStatus === "ready" && (
+              <span className="vb-stake-amount">
+                {stakebot.generatedStake} SOL
+              </span>
+            )}
+            {uiStatus === "updating" && (
+              <span className="vb-msg-info">
                 The data is updated every few hours, wait until the Vault stakebot does its job.
-              </p>
-              <div className="vb-rows">
-                <div className="vb-row">
-                  <span className="vb-label">Validator</span>
-                  <span className="vb-value vb-mono" title={binding.validatorVoteKey}>
-                    {voteKeyShort}
-                  </span>
-                </div>
-                <div className="vb-row">
-                  <span className="vb-label">vSOL Balance</span>
-                  <span className="vb-value vb-mono">{vsolFormatted} vSOL</span>
-                </div>
-                <div className="vb-row">
-                  <span className="vb-label">Stake Generated</span>
-                  <span className="vb-value vb-pending">
-                    pending <div className="vb-spinner" />
-                  </span>
-                </div>
-              </div>
-            </>
-          )}
-
-          {uiStatus === "low_balance" && (
-            <>
-              <p className="vb-warn-msg">
-                This wallet has stake strength of less than 1 vSOL. 
-                You still get rewards from holding vSOL, but you don't help the validator because it don't get stake from you.
-              </p>
-              <div className="vb-rows">
-                <div className="vb-row">
-                  <span className="vb-label">vSOL Balance</span>
-                  <span className="vb-value vb-mono">{vsolFormatted} vSOL</span>
-                </div>
-                {binding.hasBinding && voteKeyShort && (
-                  <div className="vb-row">
-                    <span className="vb-label">Validator</span>
-                    <span className="vb-value vb-mono" title={binding.validatorVoteKey}>
-                      {voteKeyShort}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {uiStatus === "no_binding" && (
-            <div className="vb-rows">
-              <div className="vb-row">
-                <span className="vb-label">vSOL Balance</span>
-                <span className="vb-value vb-mono">{vsolFormatted} vSOL</span>
-              </div>
-              <div className="vb-row">
-                <span className="vb-label">Validator binding</span>
-                <span className="vb-value vb-muted">Not configured</span>
-              </div>
-            </div>
-          )}
-
-          {uiStatus === "error" && (
-            <p className="vb-warn-msg">Failed to load Vault data. Please try again later.</p>
-          )}
+              </span>
+            )}
+            {uiStatus === "low_balance" && (
+              <span className="vb-msg-warn">
+                This wallet has stake strength of less than 1 vSOL. You still get rewards from holding vSOL, but you don't help the validator because it doesn't get stake from you.
+              </span>
+            )}
+            {uiStatus === "no_binding" && (
+              <span className="vb-muted">—</span>
+            )}
+            {uiStatus === "error" && (
+              <span className="vb-msg-warn">
+                Failed to load Vault data. Please try again later.
+              </span>
+            )}
+          </div>
         </div>
       </div>
       <VbStyles />
@@ -147,64 +117,145 @@ export function VaultBindingBlock({ data, isLoading }: Props) {
 function VbStyles() {
   return (
     <style jsx>{`
-      .vb-screen {
-        padding: 0;
+      .vb-wrap {
+        width: 100%;
         box-sizing: border-box;
-        display: flex;
-        justify-content: center;
-        margin-top: 8px;
+        padding: 0 30px;
+        margin-top: 4px;
       }
 
-      .vb-container {
-        width: 100%;
-        max-width: 720px;
+      .vb-row {
+        display: flex;
+        overflow: hidden;
+        min-height: 80px;
+      }
+
+      /* Left cell: split top/bottom */
+      .vb-cell-left {
+        flex: 1;
         display: flex;
         flex-direction: column;
       }
 
-      .vb-header {
+      .vb-cell-top {
+        flex: 1;
+        padding: 10px 14px 6px 0;
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
       }
 
-      .vb-icon {
-        width: 24px;
-        height: 24px;
-        opacity: 0.7;
-        background-size: contain;
-        background-image: url(/images/coins.png);
-        flex-shrink: 0;
+      .vb-cell-bottom {
+        flex: 1;
+        padding: 8px 14px 10px 0;
       }
 
-      #root[data-theme="dark"] .vb-icon {
-        background-image: url(/images/coins_dk.png);
+      /* Right cell */
+      .vb-cell-right {
+        flex: 1;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
       }
 
-      .vb-title {
-        font-size: 15px;
+      /* Validator name */
+      .vb-validator {
+        font-size: 13px;
+        font-weight: 600;
+        color: #111;
+        font-family: monospace;
+        word-break: break-all;
+      }
+
+      #root[data-theme="dark"] .vb-validator {
+        color: #fff;
+      }
+
+      /* NOT DIRECT STAKED label */
+      .vb-not-staked {
+        font-size: 13px;
         font-weight: 400;
-        margin: 0;
-        color: #000;
+        color: #aaa;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
       }
 
-      #root[data-theme="dark"] .vb-title {
+      #root[data-theme="dark"] .vb-not-staked {
+        color: #9F9FAC;
+      }
+
+      /* Balance label + value */
+      .vb-bal-label {
+        font-size: 13px;
+        color: #888;
+      }
+
+      #root[data-theme="dark"] .vb-bal-label {
         color: #9f9fac;
       }
 
-      .vb-loading {
+      .vb-bal-value {
         font-size: 14px;
-        color: #888;
+        font-weight: 600;
+        color: #111;
+        font-family: monospace;
+      }
+
+      #root[data-theme="dark"] .vb-bal-value {
+        color: #fff;
+      }
+
+      /* Staked amount */
+      .vb-stake-amount {
+        font-size: 18px;
+        font-weight: 400;
+        color: #111;
+        font-family: monospace;
+      }
+
+      #root[data-theme="dark"] .vb-stake-amount {
+        color: #fff;
+      }
+
+      /* Info message (blue, updating) */
+      .vb-msg-info {
+        font-size: 11px;
+        color: #1a6fa8;
+        line-height: 1.5;
+      }
+
+      #root[data-theme="dark"] .vb-msg-info {
+        color: #6ab8f0;
+      }
+
+      /* Warning message (yellow, low balance) */
+      .vb-msg-warn {
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      /* Muted dash */
+      .vb-muted {
+        color: #ccc;
+        font-size: 18px;
+      }
+
+      #root[data-theme="dark"] .vb-muted {
+        color: #555;
+      }
+
+      /* Loading */
+      .vb-loading-text {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 0 36px;
+        gap: 6px;
+        font-size: 13px;
+        color: #888;
       }
 
       .vb-spinner {
-        width: 9px;
-        height: 9px;
+        display: inline-block;
+        width: 8px;
+        height: 8px;
         border: 1px solid #ccc;
         border-top-color: #fc0101;
         border-radius: 50%;
@@ -216,105 +267,6 @@ function VbStyles() {
         to {
           transform: rotate(360deg);
         }
-      }
-
-      .vb-info-msg {
-        font-size: 11px;
-        color: #555;
-        margin: 0 0 10px 36px;
-        line-height: 1.4;
-        padding: 6px 10px;
-        background: #e8f4fd;
-        border-left: 3px solid #3b9edd;
-        border-radius: 4px;
-      }
-
-      #root[data-theme="dark"] .vb-info-msg {
-        color: #9f9fac;
-        background: #1a2a3a;
-        border-left-color: #3b9edd;
-      }
-
-      .vb-warn-msg {
-        font-size: 11px;
-        color: #7a5c00;
-        margin: 0 0 10px 36px;
-        line-height: 1.4;
-        padding: 6px 10px;
-        background: #fff8e1;
-        border-left: 3px solid #f4b400;
-        border-radius: 4px;
-      }
-
-      #root[data-theme="dark"] .vb-warn-msg {
-        color: #c8a800;
-        background: #2a2200;
-        border-left-color: #f4b400;
-      }
-
-      .vb-rows {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-        padding: 0 36px;
-      }
-
-      .vb-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        padding: 6px 0;
-        border-bottom: 1px solid #f0f0f0;
-      }
-
-      .vb-row:last-child {
-        border-bottom: none;
-      }
-
-      #root[data-theme="dark"] .vb-row {
-        border-bottom-color: #2a2a2a;
-      }
-
-      .vb-label {
-        font-size: 12px;
-        color: #888;
-        flex-shrink: 0;
-      }
-
-      #root[data-theme="dark"] .vb-label {
-        color: #9f9fac;
-      }
-
-      .vb-value {
-        font-size: 13px;
-        color: #222;
-        text-align: right;
-      }
-
-      #root[data-theme="dark"] .vb-value {
-        color: #fff;
-      }
-
-      .vb-mono {
-        font-family: monospace;
-      }
-
-      .vb-muted {
-        color: #aaa;
-        font-style: italic;
-      }
-
-      #root[data-theme="dark"] .vb-muted {
-        color: #666;
-      }
-
-      .vb-pending {
-        font-size: 12px;
-        color: #888;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-style: italic;
       }
     `}</style>
   );

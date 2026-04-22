@@ -163,12 +163,66 @@ export function StakeFormVault2({
       manageChildren={
         isConnected && selectedWalletAccount ? (
           <>
-            <VSOLBalanceTable
+            {/* <VSOLBalanceTable
               vSOLBalance={vSOLBalance}
               isLoading={vSOLIsLoading}
               validatorName={validatorInfo?.name}
-            />
-            <VaultBindingBlock data={vaultManage} isLoading={vaultManageIsLoading} />
+            /> */}
+            <VaultBindingBlock data={vaultManage} isLoading={vaultManageIsLoading} validatorInfo={validatorInfo} />
+            <div className="unstake-info">
+              <p>To unstake it, sell them through your wallet or DEX.</p>
+              <p>When selling, the distribution of direct stake will change proportionally.</p>
+              <a href="https://jup.ag" target="_blank" rel="noopener noreferrer" className="jupiter-btn">Jupiter</a>
+            </div>
+             <style jsx>{`
+              .unstake-info {
+                background: #fff;
+                border-radius: 10px;
+                padding: 20px 30px 40px 30px;
+              }
+
+              .unstake-info p {
+                margin: 0 0 10px 0;
+                color: #555;
+              }
+
+              .jupiter-btn {
+                display: inline-block;
+                background: #E5E4E4;
+                color: #000;
+                text-decoration: none;
+                padding: 0 16px;
+                border-radius: 10px;
+                font-weight: 500;
+                transition: opacity 0.2s ease;
+                height: 24px;
+                width: 100px;
+                text-align: center;
+                font-size: 16px;
+              }
+
+              .jupiter-btn:hover {
+                opacity: 0.8;
+              }
+
+              #root[data-theme="dark"] .delegated-text {
+                color: #fff;
+              }
+
+              #root[data-theme="dark"] .unstake-info {
+                background: #9F9FAC1A;
+              }
+
+              #root[data-theme="dark"] .unstake-info p {
+                color: #9F9FAC;
+              }
+
+              #root[data-theme="dark"] .jupiter-btn {
+                background: #5A5A62;
+                color: #9F9FAC;
+              }
+            `}</style>
+
           </>
         ) : (
           <>
