@@ -152,3 +152,4 @@ SYSTEM_PROMPT.md
 # local development
 staking-widget/
 docker-compose.override.yml
+.spec/

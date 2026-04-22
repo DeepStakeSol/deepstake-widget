@@ -28,10 +28,11 @@ The backend serves only API routes (no pages). CORS is handled in `backend/middl
 ### Key files
 - `src/main.tsx` — entry point; reads `data-options` JSON from `#root`, calls `setOptions()`, bootstraps React
 - `src/App.tsx` — root component; tabs for Native / BlazeStake / Vault staking
+- `src/utils/api.ts` — centralized helpers for all backend API calls
 - `src/utils/config.ts` — network resolution, explorer URL helpers
 - `src/utils/constants.ts` — Solana program addresses, lamport constants, compute unit limits
 - `src/utils/network.ts` — `NetworkType = "mainnet" | "devnet"`
-- `src/context/NetworkContext.tsx` — global network state
+- `src/context/NetworkContext.tsx` — global network state; additional contexts: `BalanceCheckContext`, `SelectedWalletAccountContext`, `StakingModalContext`
 
 ### Styling
 - Tailwind CSS + Radix UI Themes
@@ -58,19 +59,27 @@ Next.js app used **only** for API routes under `app/api/`.
 |---|---|---|
 | `/api/balance` | GET | SOL balance for a wallet address |
 | `/api/dstInfo` | GET | DST (DeepStake Token) metadata |
-| `/api/stake` | POST | Build native stake transaction |
-| `/api/transaction` | POST | Submit/confirm transaction |
-| `/api/trillium` | GET/POST | Trillium-related operations |
-| `/api/unstake` | POST | Build unstake transaction |
+| `/api/stake/fetch` | GET | Fetch stake accounts for a wallet |
+| `/api/stake/generate` | POST | Build native stake transaction |
+| `/api/stake/get-epoch-info` | GET | Current epoch info |
+| `/api/stake/get-perf-samples` | GET | Performance samples (avg slot time) |
+| `/api/stake/get-validator-info` | GET | Validator metadata and logo |
+| `/api/transaction/confirm` | POST | Submit/confirm transaction |
+| `/api/trillium` | GET | Trillium info; `/api/trillium/rewards` subroute |
+| `/api/unstake/generate` | POST | Build unstake transaction |
 | `/api/vbalance` | GET | Vault token balance |
 | `/api/vstake` | POST | Build Vault stake transaction |
-| `/api/withdraw` | POST | Build stake withdrawal transaction |
+| `/api/withdraw/generate` | POST | Build stake withdrawal transaction |
 
 ### Key utils (`backend/utils/`)
-- `errors.tsx` — `ValidatorStakingError` class; API routes catch this for structured error responses
-- `solana/` — RPC connection, balance, stake account helpers
+- `errors.tsx` — `ValidatorStakingError` class and `getErrorMessage` helper; API routes catch this for structured error responses
+- `solana/` — RPC connection, balance, stake account helpers (`address.ts`, `balance.ts`, `rpc.ts`, `status.ts`, `stake/`)
 - `config.ts` / `constants.ts` / `consts.ts` — environment config and constants
-- `middleware.ts` — CORS, API-only request handling
+- `stakeInstruction.ts` / `stakePool.ts` / `depositSol.ts` — native and pool stake transaction builders
+- `dstFetch.ts` / `metadataFetch.ts` — DST token metadata fetching
+- `priorityFee.ts` — compute budget / priority fee helpers
+
+`middleware.ts` is at `backend/middleware.ts` (root level) — handles CORS and API-only request filtering.
 
 ### Environment variables
 - `APP_URL` — allowed CORS origin (frontend URL)
