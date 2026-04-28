@@ -162,6 +162,47 @@ export async function fetchVaultManage(
   );
 }
 
+// SOL balance
+export async function fetchSolBalance(
+  walletAddress: string,
+  network: string
+): Promise<number> {
+  const data = await getJson<{ solBalance: number }>(
+    `/api/balance?address=${walletAddress}&network=${network}`
+  );
+  return data.solBalance;
+}
+
+// LST token balance (bSOL, vSOL, etc.)
+export async function fetchLSTBalance(
+  walletAddress: string,
+  network: string,
+  mint: string
+): Promise<number> {
+  const data = await getJson<{ lst: string }>(
+    `/api/vbalance?address=${walletAddress}&network=${network}&mint=${mint}`
+  );
+  return Number(data.lst) / 1e9;
+}
+
+// Blaze stake transaction builder
+export interface GenerateBlazeStakeTxParams {
+  wallet: string;
+  stakeLamports: number;
+  voteIdentity?: string;
+}
+
+export async function generateBlazeStakeTransaction(
+  network: string,
+  params: GenerateBlazeStakeTxParams
+): Promise<string> {
+  const data = await postJson<{ transaction: string }>(
+    `/api/blaze/stake/generate?network=${network}`,
+    params
+  );
+  return data.transaction;
+}
+
 // confirmation helper
 export interface ConfirmTxOptions {
   txid: string;

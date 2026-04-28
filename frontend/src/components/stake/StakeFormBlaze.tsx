@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { install } from "@solana/webcrypto-ed25519-polyfill";
-import * as solanaWeb3 from '@solana/web3.js';
 import { StakeButtonBlaze } from "./StakeButtonBlaze";
 import { WalletConnectButton } from "../WalletConnectButton";
 import { StakeInputSection } from "./StakeInputSection";
@@ -11,41 +10,15 @@ import { NoWalletTable } from "./NoWalletTable";
 import { BSOLBalanceTable2 } from "./BSOLBalanceTable2";
 import { useStakeForm } from "../../hooks/useStakeForm";
 import { ValidatorInfoResponse } from "../../utils/solana/validator";
-
-import type {
-  Connection as ConnectionType,
-  PublicKey as PublicKeyType,
-} from "@solana/web3.js";
-import {
-  getAssociatedTokenAddress,
-  getAccount,
-} from "@solana/spl-token";
+import { fetchLSTBalance } from "../../utils/api";
 
 install();
 
-const { Connection, PublicKey } = solanaWeb3;
+const BSOL_MINT = "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1";
 
 interface AppliedStake {
   voteAcc: string;
   amount: number;
-}
-
-async function getBsolBalance(
-  connection: ConnectionType,
-  walletPubkey: PublicKeyType,
-  bsolMint: PublicKeyType
-): Promise<number> {
-  const ata = await getAssociatedTokenAddress(
-    bsolMint,
-    walletPubkey
-  );
-
-  try {
-    const account = await getAccount(connection, ata);
-    return Number(account.amount) / 1e9;
-  } catch (_e) {
-    return 0;
-  }
 }
 
 interface Props {
@@ -101,20 +74,11 @@ export function StakeFormBlaze({
     setAppliedStakesIsLoading(false);
   };
 
-  const fetchBSOLBalance = async (wPubkey: PublicKeyType) => {
-    const BSOL_MINT = new PublicKey("bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1");
-    const heliusApi = import.meta.env.VITE_MAINNET_HELIUS_API_KEY;
-    const vaultEndpoint = `https://mainnet.helius-rpc.com/?api-key=${heliusApi}`;
-    const connection = new Connection(vaultEndpoint);
-
+  const fetchBSOLBalance = async (walletAddress: string) => {
     setBSOLIsLoading(true);
     try {
-      const bSOLBal = await getBsolBalance(
-        connection,
-        wPubkey,
-        BSOL_MINT
-      );
-      setbSOLBalance(bSOLBal);
+      const balance = await fetchLSTBalance(walletAddress, network, BSOL_MINT);
+      setbSOLBalance(balance);
     } catch (err) {
       console.error(err);
     }
@@ -134,8 +98,7 @@ export function StakeFormBlaze({
       setAppliedStakes([]);
       return;
     }
-    const wPubkey = new PublicKey(selectedWalletAccount.address);
-    fetchBSOLBalance(wPubkey);
+    fetchBSOLBalance(selectedWalletAccount.address);
     fetchAppliedStakes(selectedWalletAccount.address);
   }, [selectedWalletAccount]);
 

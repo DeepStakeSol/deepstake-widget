@@ -5,12 +5,8 @@ import { SelectedWalletAccountContext } from "../context/SelectedWalletAccountCo
 import { PRIORITY_FEE_BUFFER, STAKE_PROGRAM } from "../utils/constants";
 import { useIsWalletConnected } from "./useIsWalletConnected";
 import { GetStakeAccountResponse } from "../utils/solana/stake/get-stake-accounts";
-import { createRpcConnection } from "../utils/solana/rpc";
-import { getBalance } from "../utils/solana/balance";
-import { address } from "@solana/kit";
-import { LAMPORTS_PER_SOL } from "../utils/constants";
 import { useNetwork } from "../context/NetworkContext";
-import { fetchStakeAccounts } from "../utils/api";
+import { fetchStakeAccounts, fetchSolBalance } from "../utils/api";
 
 export function useStakeForm() {
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
@@ -81,19 +77,8 @@ export function useStakeForm() {
   }, []);
 
   async function updBalance() {
-    if (!selectedWalletAccount) {
-      return;
-    }
-
-    const rpc = createRpcConnection(network);
-
-    const lamports = await getBalance({
-      rpc,
-      address: address(selectedWalletAccount.address),
-    });
-
-    const solBigInt = Number(lamports) / LAMPORTS_PER_SOL;
-    const solBalance = Number(solBigInt);
+    if (!selectedWalletAccount) return;
+    const solBalance = await fetchSolBalance(selectedWalletAccount.address, network);
     setBalance(solBalance);
   }
 

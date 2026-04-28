@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { install } from "@solana/webcrypto-ed25519-polyfill";
-import * as solanaWeb3 from '@solana/web3.js';
 import { StakeButtonVault2 } from "./StakeButtonVault2";
 import { WalletConnectButton } from "../WalletConnectButton";
 import { StakeInputSection } from "./StakeInputSection";
@@ -12,38 +11,11 @@ import { VSOLBalanceTable } from "./VSOLBalanceTable";
 import { VaultBindingBlock } from "./VaultBindingBlock";
 import { useStakeForm } from "../../hooks/useStakeForm";
 import { ValidatorInfoResponse } from "../../utils/solana/validator";
-import { fetchVaultManage, VaultManageResponse } from "../../utils/api";
-
-import type {
-  Connection as ConnectionType,
-  PublicKey as PublicKeyType,
-} from "@solana/web3.js";
-import {
-  getAssociatedTokenAddress,
-  getAccount,
-} from "@solana/spl-token";
+import { fetchVaultManage, fetchLSTBalance, VaultManageResponse } from "../../utils/api";
 
 install();
 
-const { Connection, PublicKey } = solanaWeb3;
-
-async function getVsolBalance(
-  connection: ConnectionType,
-  walletPubkey: PublicKeyType,
-  vsolMint: PublicKeyType
-): Promise<number> {
-  const ata = await getAssociatedTokenAddress(
-    vsolMint,
-    walletPubkey
-  );
-
-  try {
-    const account = await getAccount(connection, ata);
-    return Number(account.amount) / 1e9;
-  } catch (_e) {
-    return 0;
-  }
-}
+const VSOL_MINT = "vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7";
 
 interface Props {
   validatorInfo: ValidatorInfoResponse | null;
@@ -84,20 +56,11 @@ export function StakeFormVault2({
     setVaultManageIsLoading(false);
   };
 
-  const fetchVSOLBalance = async (wPubkey: PublicKeyType) => {
-    const VSOL_MINT = new PublicKey("vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7");
-    const heliusApi = import.meta.env.VITE_MAINNET_HELIUS_API_KEY;
-    const vaultEndpoint = `https://mainnet.helius-rpc.com/?api-key=${heliusApi}`;
-    const connection = new Connection(vaultEndpoint);
-
+  const fetchVSOLBalance = async (walletAddress: string) => {
     setVSOLIsLoading(true);
     try {
-      const vSOLBal = await getVsolBalance(
-        connection,
-        wPubkey,
-        VSOL_MINT
-      );
-      setvSOLBalance(vSOLBal);
+      const balance = await fetchLSTBalance(walletAddress, network, VSOL_MINT);
+      setvSOLBalance(balance);
     } catch (err) {
       console.error(err);
     }
@@ -117,8 +80,7 @@ export function StakeFormVault2({
       setVaultManage(null);
       return;
     }
-    const wPubkey = new PublicKey(selectedWalletAccount.address);
-    fetchVSOLBalance(wPubkey);
+    fetchVSOLBalance(selectedWalletAccount.address);
     fetchVaultManageData(selectedWalletAccount.address);
   }, [selectedWalletAccount]);
 
