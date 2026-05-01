@@ -85,7 +85,7 @@ export function StakeAccountsTable({ stakeAccounts, selectedRow, onSelectRow, cu
   }
 
   const notReadyForUnstake = (epochStatus: string) => {
-    return epochStatus !== "active" && epochStatus !== "activating";
+    return epochStatus !== "active";
   }
 
   return (
@@ -334,7 +334,7 @@ export function StakeAccountsTable({ stakeAccounts, selectedRow, onSelectRow, cu
             onSuccess={onSuccess}
 
             selectedRow={selectedRow}
-            isDisabled={!selectedRow || epochStatus(selectedRow.deactivationEpoch, selectedRow.activationEpoch) !== "deactivated" }
+            isDisabled={!selectedRow || !["deactivated", "activating"].includes(epochStatus(selectedRow.deactivationEpoch, selectedRow.activationEpoch))}
         />
       </Flex>
 
