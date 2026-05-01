@@ -214,11 +214,11 @@ export function StakingModal() {
                     <a
                       href={getExplorerTxUrl({
                         signature: successData.signature,
-                        explorer: "solana-fm"
+                        explorer: "orbmarkets"
                       })}
                       className="sol-links"
                     >
-                      Solana FM
+                      Orb
                     </a>
                   </Flex>
                 )}

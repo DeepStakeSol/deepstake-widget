@@ -206,7 +206,7 @@ export function StakeSuccessModal({
                   window.open(
                     getExplorerTxUrl({
                       signature: signature,
-                      explorer: "solana-fm"
+                      explorer: "orbmarkets"
                     }),
                     "_blank"
                   );

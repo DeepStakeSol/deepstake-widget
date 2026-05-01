@@ -53,11 +53,11 @@ export function getCurrentChain(): `solana:${string}` {
 
 interface ExplorerTxUrlParams {
   signature: string;
-  explorer: "solana-explorer" | "solscan" | "solana-fm";
+  explorer: "solana-explorer" | "solscan" | "orbmarkets";
 }
 interface ExplorerAccountUrlParams {
   account: string;
-  explorer: "solana-explorer" | "solscan" | "solana-fm";
+  explorer: "solana-explorer" | "solscan" | "orbmarkets";
 }
 
 export function getExplorerTxUrl({
@@ -73,17 +73,15 @@ export function getExplorerTxUrl({
     case "solscan":
       baseUrl = "https://solscan.io/tx/";
       break;
-    case "solana-fm":
-      baseUrl = "https://solana.fm/tx/";
+    case "orbmarkets":
+      baseUrl = "https://orbmarkets.io/tx/";
       break;
     default:
       throw new Error(`Invalid explorer specified: ${explorer}`);
   }
 
   const clusterExtension =
-    networkConfig.identifier === "devnet"
-      ? `?cluster=devnet${explorer === "solana-fm" ? "-alpha" : ""}`
-      : "";
+    networkConfig.identifier === "devnet" ? `?cluster=devnet` : "";
 
   return `${baseUrl}${signature}${clusterExtension}`;
 }
@@ -105,17 +103,15 @@ export function getExplorerAccountUrl({
     case "solscan":
       baseUrl = "https://solscan.io/account/";
       break;
-    case "solana-fm":
-      baseUrl = "https://solana.fm/address/";
+    case "orbmarkets":
+      baseUrl = "https://orbmarkets.io/account/";
       break;
     default:
       throw new Error(`Invalid explorer specified: ${explorer}`);
   }
 
   const clusterExtension =
-    networkConfig.identifier === "devnet"
-      ? `?cluster=devnet${explorer === "solana-fm" ? "-alpha" : ""}`
-      : "";
+    networkConfig.identifier === "devnet" ? `?cluster=devnet` : "";
 
   return `${baseUrl}${account}${clusterExtension}`;
 }

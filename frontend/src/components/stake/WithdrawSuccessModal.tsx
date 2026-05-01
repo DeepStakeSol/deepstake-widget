@@ -129,11 +129,11 @@ export function WithdrawSuccessModal({
                   <a
                     href={getExplorerTxUrl({
                       signature: signature,
-                      explorer: "solana-fm",
+                      explorer: "orbmarkets",
                     })}
                     className="sol-links"
                   >
-                    Solana FM
+                    Orb
                   </a>
                 </Flex>
               )}
