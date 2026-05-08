@@ -134,7 +134,6 @@ export function StakeFormVault2({
             <VaultBindingBlock data={vaultManage} isLoading={false} validatorInfo={validatorInfo} />
             <div className="unstake-info">
               <p>To unstake it, sell them through your wallet or DEX.</p>
-              <p>When selling, the distribution of direct stake will change proportionally.</p>
               <a href="https://jup.ag" target="_blank" rel="noopener noreferrer" className="jupiter-btn">Jupiter</a>
             </div>
             <style jsx>{`

@@ -128,6 +128,7 @@ export function BSOLBalanceTable2({
             )}
             <div className="unstake-info">
               <p>To unstake it, sell them through your wallet or DEX.</p>
+              <p>When selling, the distribution of direct stake will change proportionally.</p>
               <a href="https://jup.ag" target="_blank" rel="noopener noreferrer" className="jupiter-btn">Jupiter</a>
             </div>
           </div>
