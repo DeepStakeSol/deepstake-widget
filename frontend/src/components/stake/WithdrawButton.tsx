@@ -56,7 +56,6 @@ export function WithdrawButton({
       if (!transactionSendingSigner) return;
 
       if (!selectedRow) return;
-      alert(`Withdrawing from: ${selectedRow.address}`);
 
       setError(NO_ERROR);
       setIsSendingTX(true);

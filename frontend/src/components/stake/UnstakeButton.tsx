@@ -49,7 +49,6 @@ export function UnstakeButton({
       if (!transactionSendingSigner) return;
 
       if (!selectedRow) return;
-      alert(`Unstaking from: ${selectedRow.address}`);
 
       setError(NO_ERROR);
       setIsSendingTX(true);
