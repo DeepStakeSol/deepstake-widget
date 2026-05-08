@@ -42,10 +42,8 @@ export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
 
   const vsolFormatted = (Number(balance.vsol) / 1e9).toFixed(6) + " vSOL";
 
-  const isDirectStaked = uiStatus === "ready";
-
   let validatorDisplay: string | null = null;
-  if (isDirectStaked && binding.validatorVoteKey) {
+  if (binding.hasBinding && binding.validatorVoteKey) {
     if (
       validatorInfo?.vote_identity === binding.validatorVoteKey &&
       validatorInfo?.name
@@ -62,7 +60,7 @@ export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
         <div className="vb-row">
           <div className="vb-cell-left">
             <div className="vb-cell-top">
-              {isDirectStaked && validatorDisplay ? (
+              {validatorDisplay ? (
                 <span
                   className="vb-validator"
                   title={binding.validatorVoteKey}
