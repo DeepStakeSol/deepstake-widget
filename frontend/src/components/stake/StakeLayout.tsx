@@ -34,13 +34,23 @@ export function StakeLayout({ stakeChildren, manageChildren }: StakeLayoutProps)
             </Tabs.Trigger>
           </Tabs.List>
 
-          <Tabs.Content value="stake">{stakeChildren}</Tabs.Content>
-          <Tabs.Content value="manage">{manageChildren}</Tabs.Content>
+          <Tabs.Content value="stake" className="stake-tab-content">
+            {stakeChildren}
+          </Tabs.Content>
+          <Tabs.Content value="manage" className="stake-tab-content">
+            {manageChildren}
+          </Tabs.Content>
         </Tabs.Root>
       </Flex>
       <style jsx>{`
         .stake-form {
           background-color: #fff;  
+        }
+
+        .stake-tab-content {
+          height: 315px;
+          overflow-x: hidden;
+          overflow-y: auto;
         }
 
         .tabs-level2 {
