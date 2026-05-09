@@ -1,15 +1,15 @@
-import { VaultManageResponse } from "../../utils/api";
-import { ValidatorInfoResponse } from "../../utils/solana/validator";
+import { VaultManageResponse } from '../../utils/api'
+import { ValidatorInfoResponse } from '../../utils/solana/validator'
 
 interface Props {
-  data: VaultManageResponse | null;
-  isLoading: boolean;
-  validatorInfo?: ValidatorInfoResponse | null;
+  data: VaultManageResponse | null
+  isLoading: boolean
+  validatorInfo?: ValidatorInfoResponse | null
 }
 
 function truncateAddress(address: string, chars = 6): string {
-  if (address.length <= chars * 2 + 2) return address;
-  return `${address.slice(0, chars)}...${address.slice(-chars)}`;
+  if (address.length <= chars * 2 + 2) return address
+  return `${address.slice(0, chars)}...${address.slice(-chars)}`
 }
 
 export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
@@ -17,6 +17,10 @@ export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
     return (
       <>
         <div className="vb-wrap">
+          <div className="vb-header-row">
+            <span>Validator</span>
+            <span>Summary stake</span>
+          </div>
           <div className="vb-row">
             <div className="vb-cell-left">
               <div className="vb-cell-top vb-not-staked">NOT DIRECT STAKED TO ANY VALIDATOR</div>
@@ -33,44 +37,40 @@ export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
         </div>
         <VbStyles />
       </>
-    );
+    )
   }
 
-  if (!data) return null;
+  if (!data) return null
 
-  const { uiStatus, binding, balance, stakebot } = data;
+  const { uiStatus, binding, balance } = data
 
-  const vsolFormatted = (Number(balance.vsol) / 1e9).toFixed(6) + " vSOL";
+  const vsolFormatted = (Number(balance.vsol) / 1e9).toFixed(6) + ' vSOL'
 
-  let validatorDisplay: string | null = null;
+  let validatorDisplay: string | null = null
   if (binding.hasBinding && binding.validatorVoteKey) {
-    if (
-      validatorInfo?.vote_identity === binding.validatorVoteKey &&
-      validatorInfo?.name
-    ) {
-      validatorDisplay = validatorInfo.name;
+    if (validatorInfo?.vote_identity === binding.validatorVoteKey && validatorInfo?.name) {
+      validatorDisplay = validatorInfo.name
     } else {
-      validatorDisplay = truncateAddress(binding.validatorVoteKey);
+      validatorDisplay = truncateAddress(binding.validatorVoteKey)
     }
   }
 
   return (
     <>
       <div className="vb-wrap">
+        <div className="vb-header-row">
+          <span>Validator</span>
+          <span>Summary stake</span>
+        </div>
         <div className="vb-row">
           <div className="vb-cell-left">
             <div className="vb-cell-top">
               {validatorDisplay ? (
-                <span
-                  className="vb-validator"
-                  title={binding.validatorVoteKey}
-                >
+                <span className="vb-validator" title={binding.validatorVoteKey}>
                   {validatorDisplay}
                 </span>
               ) : (
-                <span className="vb-not-staked">
-                  NOT DIRECT STAKED TO ANY VALIDATOR
-                </span>
+                <span className="vb-not-staked">NOT DIRECT STAKED TO ANY VALIDATOR</span>
               )}
             </div>
             <div className="vb-cell-bottom">
@@ -81,27 +81,23 @@ export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
           </div>
 
           <div className="vb-cell-right">
-            {uiStatus === "ready" && (
-              <span className="vb-stake-amount">
-                {stakebot.generatedStake} SOL
+            {uiStatus === 'error' ? (
+              <span className="vb-msg-warn">
+                Failed to load Vault data. Please try again later.
               </span>
-            )}
-            {uiStatus === "updating" && (
+            ) : uiStatus === 'updating' ? (
               <span className="vb-msg-info">
                 The data is updated every few hours, wait until the Vault stakebot does its job.
               </span>
-            )}
-            {uiStatus === "low_balance" && (
+            ) : uiStatus === 'low_balance' ? (
               <span className="vb-msg-warn">
-                This wallet has stake strength of less than 1 vSOL. You still get rewards from holding vSOL, but you don't help the validator because it doesn't get stake from you.
+                This wallet has stake strength of less than 1 vSOL. You still get rewards from
+                holding vSOL, but you don't help the validator because it don't get stake from you.
               </span>
-            )}
-            {uiStatus === "no_binding" && (
-              <span className="vb-muted">—</span>
-            )}
-            {uiStatus === "error" && (
-              <span className="vb-msg-warn">
-                Failed to load Vault data. Please try again later.
+            ) : (
+              <span className="vb-stake-amount">
+                {vsolFormatted}
+                <span className="q-mark-icon" data-tooltip="Including all possible strategies." />
               </span>
             )}
           </div>
@@ -109,7 +105,7 @@ export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
       </div>
       <VbStyles />
     </>
-  );
+  )
 }
 
 function VbStyles() {
@@ -120,11 +116,33 @@ function VbStyles() {
         box-sizing: border-box;
         padding: 0 30px;
         margin-top: 4px;
+        overflow: visible;
+      }
+
+      .vb-header-row {
+        display: flex;
+        overflow: hidden;
+      }
+
+      .vb-header-row span {
+        flex: 1;
+        padding: 0 14px 0 0;
+        font-size: 12px;
+        font-weight: 600;
+        color: #888;
+      }
+
+      .vb-header-row span:last-child {
+        padding: 0 14px;
+      }
+
+      #root[data-theme='dark'] .vb-header-row span {
+        color: #9f9fac;
       }
 
       .vb-row {
         display: flex;
-        overflow: hidden;
+        overflow: visible;
         min-height: 80px;
       }
 
@@ -140,6 +158,7 @@ function VbStyles() {
         padding: 10px 14px 6px 0;
         display: flex;
         align-items: center;
+        min-width: 0;
       }
 
       .vb-cell-bottom {
@@ -150,9 +169,10 @@ function VbStyles() {
       /* Right cell */
       .vb-cell-right {
         flex: 1;
-        padding: 12px 14px;
+        padding: 10px 14px 6px;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
+        overflow: visible;
       }
 
       /* Validator name */
@@ -161,10 +181,12 @@ function VbStyles() {
         font-weight: 600;
         color: #111;
         font-family: monospace;
-        word-break: break-all;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
-      #root[data-theme="dark"] .vb-validator {
+      #root[data-theme='dark'] .vb-validator {
         color: #fff;
       }
 
@@ -177,8 +199,8 @@ function VbStyles() {
         text-transform: uppercase;
       }
 
-      #root[data-theme="dark"] .vb-not-staked {
-        color: #9F9FAC;
+      #root[data-theme='dark'] .vb-not-staked {
+        color: #9f9fac;
       }
 
       /* Balance label + value */
@@ -187,7 +209,7 @@ function VbStyles() {
         color: #888;
       }
 
-      #root[data-theme="dark"] .vb-bal-label {
+      #root[data-theme='dark'] .vb-bal-label {
         color: #9f9fac;
       }
 
@@ -198,7 +220,7 @@ function VbStyles() {
         font-family: monospace;
       }
 
-      #root[data-theme="dark"] .vb-bal-value {
+      #root[data-theme='dark'] .vb-bal-value {
         color: #fff;
       }
 
@@ -208,10 +230,58 @@ function VbStyles() {
         font-weight: 400;
         color: #111;
         font-family: monospace;
+        display: inline-flex;
+        align-items: center;
+        white-space: nowrap;
       }
 
-      #root[data-theme="dark"] .vb-stake-amount {
+      #root[data-theme='dark'] .vb-stake-amount {
         color: #fff;
+      }
+
+      .q-mark-icon {
+        display: inline-block;
+        width: 13px;
+        height: 13px;
+        margin-left: 5px;
+        background-image: url(/images/q_mark.png);
+        background-size: contain;
+        position: relative;
+        cursor: help;
+        flex-shrink: 0;
+      }
+
+      .q-mark-icon:hover::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        right: 100%;
+        top: -8px;
+        margin-right: 4px;
+        width: 96px;
+        min-height: 38px;
+        background: #e5e4e4;
+        color: #000;
+        font-size: 9px;
+        font-weight: 400;
+        border-radius: 6px;
+        padding: 6px 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        z-index: 1000;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        line-height: 1.1;
+        white-space: normal;
+      }
+
+      #root[data-theme='dark'] .q-mark-icon {
+        background-image: url(/images/q_mark_dk.png);
+      }
+
+      #root[data-theme='dark'] .q-mark-icon:hover::after {
+        background: #090f19;
+        color: #9f9fac;
       }
 
       /* Info message (blue, updating) */
@@ -221,7 +291,7 @@ function VbStyles() {
         line-height: 1.5;
       }
 
-      #root[data-theme="dark"] .vb-msg-info {
+      #root[data-theme='dark'] .vb-msg-info {
         color: #6ab8f0;
       }
 
@@ -237,7 +307,7 @@ function VbStyles() {
         font-size: 18px;
       }
 
-      #root[data-theme="dark"] .vb-muted {
+      #root[data-theme='dark'] .vb-muted {
         color: #555;
       }
 
@@ -267,5 +337,5 @@ function VbStyles() {
         }
       }
     `}</style>
-  );
+  )
 }
