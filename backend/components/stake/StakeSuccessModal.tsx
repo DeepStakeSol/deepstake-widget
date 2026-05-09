@@ -110,6 +110,7 @@ export function StakeSuccessModal({
                       : "#"
                   }
                   target="_blank"
+                  rel="noopener noreferrer"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -135,6 +136,7 @@ export function StakeSuccessModal({
                       : "#"
                   }
                   target="_blank"
+                  rel="noopener noreferrer"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -153,6 +155,7 @@ export function StakeSuccessModal({
                 <Link
                   href={`https://stakewiz.com/validator/${getValidatorAddress()}`}
                   target="_blank"
+                  rel="noopener noreferrer"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -178,7 +181,8 @@ export function StakeSuccessModal({
                       signature: signature,
                       explorer: "solana-explorer"
                     }),
-                    "_blank"
+                    "_blank",
+                    "noopener,noreferrer"
                   );
                 }}
                 style={{ flex: 1 }}
@@ -193,7 +197,8 @@ export function StakeSuccessModal({
                       signature: signature,
                       explorer: "solscan"
                     }),
-                    "_blank"
+                    "_blank",
+                    "noopener,noreferrer"
                   );
                 }}
                 style={{ flex: 1 }}
@@ -208,7 +213,8 @@ export function StakeSuccessModal({
                       signature: signature,
                       explorer: "orbmarkets"
                     }),
-                    "_blank"
+                    "_blank",
+                    "noopener,noreferrer"
                   );
                 }}
                 style={{ flex: 1 }}

@@ -33,6 +33,7 @@ export function ValidatorInfo({ apy }: ValidatorInfoProps) {
             <Link
               size="1"
               target="_blank"
+              rel="noopener noreferrer"
               href={`https://stakewiz.com/validator/${getValidatorAddress()}`}
               style={{
                 display: "flex",

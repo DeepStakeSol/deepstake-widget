@@ -107,6 +107,8 @@ export function StakeSuccessModal({
                           signature: signature,
                           explorer: "solana-explorer"
                         })}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="sol-links"
                   >
                     Explorer
@@ -116,6 +118,8 @@ export function StakeSuccessModal({
                           signature: signature,
                           explorer: "solscan"
                         })}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="sol-links"
                   >
                     Solscan
@@ -126,6 +130,8 @@ export function StakeSuccessModal({
                           signature: signature,
                           explorer: "orbmarkets"
                         })}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="sol-links"
                   >
                     Orb

@@ -154,6 +154,7 @@ export function WalletModal() {
               <Link
                 href="https://docs.solana.com/wallet-guide"
                 target="_blank"
+                rel="noopener noreferrer"
                 style={{ color: "#000", cursor: "pointer", fontWeight: "bold" }}
               >
                 Learn about wallets

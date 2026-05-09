@@ -198,6 +198,8 @@ export function StakingModal() {
                         signature: successData.signature,
                         explorer: "solana-explorer"
                       })}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="sol-links"
                     >
                       Explorer
@@ -207,6 +209,8 @@ export function StakingModal() {
                         signature: successData.signature,
                         explorer: "solscan"
                       })}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="sol-links"
                     >
                       Solscan
@@ -216,6 +220,8 @@ export function StakingModal() {
                         signature: successData.signature,
                         explorer: "orbmarkets"
                       })}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="sol-links"
                     >
                       Orb

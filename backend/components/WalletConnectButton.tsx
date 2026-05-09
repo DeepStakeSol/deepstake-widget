@@ -129,6 +129,7 @@ function WalletConnectButton() {
                 <Link
                   href="https://docs.solana.com/wallet-guide"
                   target="_blank"
+                  rel="noopener noreferrer"
                   style={{ color: "#009fd1", cursor: "pointer" }}
                 >
                   Learn about wallets
