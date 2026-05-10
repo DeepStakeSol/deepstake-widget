@@ -10,6 +10,7 @@ services:
       - "4173:4173"
     volumes:
       - ./frontend:/app
+      - ./shared:/app/dist
       - /app/node_modules
     environment:
       - VITE_BACKEND_URL=${VITE_BACKEND_URL}
@@ -25,6 +26,8 @@ services:
       - "3000:3000"
     volumes:
       - ./backend:/app
+      - ./shared:/shared:ro
       - /app/node_modules
     environment:
       - NODE_ENV=development
+      - SHARED_FILES_DIR=/shared

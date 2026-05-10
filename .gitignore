@@ -153,3 +153,5 @@ SYSTEM_PROMPT.md
 staking-widget/
 docker-compose.override.yml
 .spec/
+shared/
+!shared/.gitkeep
