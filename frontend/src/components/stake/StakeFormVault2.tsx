@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { Card } from "@radix-ui/themes";
 import { install } from "@solana/webcrypto-ed25519-polyfill";
 import { StakeButtonVault2 } from "./StakeButtonVault2";
 import { WalletConnectButton } from "../WalletConnectButton";
 import { StakeInputSection } from "./StakeInputSection";
 import { StakeLayout } from "./StakeLayout";
 import { NoWalletTable } from "./NoWalletTable";
-import { VSOLBalanceTable } from "./VSOLBalanceTable";
 import { VaultBindingBlock } from "./VaultBindingBlock";
 import { useStakeForm } from "../../hooks/useStakeForm";
 import { getImageUrl } from "../../utils/imageUrl";
@@ -41,12 +41,13 @@ export function StakeFormVault2({
     inSufficientBalance,
   } = useStakeForm();
 
-  const [vSOLBalance, setvSOLBalance] = useState<number>(0);
-  const [vSOLIsLoading, setVSOLIsLoading] = useState(false);
+  const isDevnet = network === "devnet";
+  const [, setvSOLBalance] = useState<number>(0);
+  const [, setVSOLIsLoading] = useState(false);
   const [vaultManage, setVaultManage] = useState<VaultManageResponse | null>(null);
   const [vaultManageIsLoading, setVaultManageIsLoading] = useState(false);
 
-  const fetchVaultManageData = async (walletAddress: string) => {
+  const fetchVaultManageData = useCallback(async (walletAddress: string) => {
     setVaultManageIsLoading(true);
     try {
       const data = await fetchVaultManage(walletAddress, network);
@@ -55,9 +56,9 @@ export function StakeFormVault2({
       setVaultManage(null);
     }
     setVaultManageIsLoading(false);
-  };
+  }, [network]);
 
-  const fetchVSOLBalance = async (walletAddress: string) => {
+  const fetchVSOLBalance = useCallback(async (walletAddress: string) => {
     setVSOLIsLoading(true);
     try {
       const balance = await fetchLSTBalance(walletAddress, network, VSOL_MINT);
@@ -66,16 +67,24 @@ export function StakeFormVault2({
       console.error(err);
     }
     setVSOLIsLoading(false);
-  };
+  }, [network]);
 
   useEffect(() => {
-    if (!isConnected) {
+    if (isDevnet || !isConnected) {
       setvSOLBalance(0);
       setVaultManage(null);
     }
-  }, [isConnected]);
+  }, [isDevnet, isConnected]);
 
   useEffect(() => {
+    if (isDevnet) {
+      setvSOLBalance(0);
+      setVaultManage(null);
+      setVSOLIsLoading(false);
+      setVaultManageIsLoading(false);
+      return;
+    }
+
     if (!selectedWalletAccount) {
       setvSOLBalance(0);
       setVaultManage(null);
@@ -83,12 +92,53 @@ export function StakeFormVault2({
     }
     fetchVSOLBalance(selectedWalletAccount.address);
     fetchVaultManageData(selectedWalletAccount.address);
-  }, [selectedWalletAccount]);
+  }, [fetchVSOLBalance, fetchVaultManageData, isDevnet, selectedWalletAccount]);
 
   const handleSuccess = useCallback(() => {
     resetFormAndRefreshBalance();
     setvSOLBalance(0);
   }, [resetFormAndRefreshBalance]);
+
+  if (isDevnet) {
+    return (
+      <Card
+        size="3"
+        className="stake-form vault-devnet-card"
+        style={{ padding: "25px 50px" }}
+      >
+        <div className="vault-devnet-empty">
+          The Vault only works in the mainnet cluster
+        </div>
+        <style jsx>{`
+          .vault-devnet-card {
+            background-color: #fff;
+          }
+
+          .vault-devnet-empty {
+            min-height: 376px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #000;
+            font-size: 16px;
+            font-weight: 500;
+            line-height: 1.4;
+          }
+
+          #root[data-theme="dark"] .vault-devnet-card {
+            background-color: #9f9fac29;
+            color: #9F9FAC;
+            border: 0;
+          }
+
+          #root[data-theme="dark"] .vault-devnet-empty {
+            color: #9F9FAC;
+          }
+        `}</style>
+      </Card>
+    );
+  }
 
   return (
     <StakeLayout
