@@ -1,4 +1,5 @@
 import './table.css'
+import { cssImageUrl } from '../../utils/imageUrl'
 
 
 export function NoAccountsTable() {
@@ -53,7 +54,7 @@ export function NoAccountsTable() {
           height: 24px;
           opacity: 0.7;
           background-size: contain;
-          background-image: url(/images/coins.png);
+          background-image: ${cssImageUrl("/images/coins.png")};
         }
 
         .stake-title {
@@ -77,7 +78,7 @@ export function NoAccountsTable() {
 
         #root[data-theme="dark"] .stake-icon .img {
           background-size: contain;
-          background-image: url(/images/coins_dk.png);
+          background-image: ${cssImageUrl("/images/coins_dk.png")};
         }
 
         #root[data-theme="dark"] .stake-title {

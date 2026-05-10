@@ -1,6 +1,7 @@
 import { shortenAddress } from "../../utils/solana/address";
 import { PRIORITY_FEE_BUFFER, STAKE_PROGRAM, LAMPORTS_PER_SOL, PRIORITY_FEE_BUFFER_LAMPORTS, UI_DECIMALS, UI_SCALE } from "../../utils/constants";
 import { WalletDisconnectButton } from "../WalletDisconnectButton";
+import { cssImageUrl } from "../../utils/imageUrl";
 
 interface WalletInfoProps {
   isConnected: boolean;
@@ -153,17 +154,17 @@ export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, on
         }
 
         .wallet-icon.w-open {
-          background-image: url(/images/wallet_open.png);
+          background-image: ${cssImageUrl("/images/wallet_open.png")};
         }
         .wallet-icon.w-closed {
-          background-image: url(/images/wallet_closed.png);
+          background-image: ${cssImageUrl("/images/wallet_closed.png")};
         }
 
         #root[data-theme="dark"] .wallet-icon.w-open {
-          background-image: url(/images/wallet_open_dk.png);
+          background-image: ${cssImageUrl("/images/wallet_open_dk.png")};
         }
         #root[data-theme="dark"] .wallet-icon.w-closed {
-          background-image: url(/images/wallet_closed_dk.png);
+          background-image: ${cssImageUrl("/images/wallet_closed_dk.png")};
         }
 
         #root[data-theme="dark"] .wallet-pubkey {

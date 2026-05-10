@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import './table.css'
+import { cssImageUrl } from '../../utils/imageUrl'
 
 interface AppliedStake {
   voteAcc: string
@@ -189,7 +190,7 @@ export function BSOLBalanceTable2({
           height: 24px;
           opacity: 0.7;
           background-size: contain;
-          background-image: url(/images/coins.png);
+          background-image: ${cssImageUrl("/images/coins.png")};
         }
 
         .stake-title {
@@ -333,7 +334,7 @@ export function BSOLBalanceTable2({
 
         #root[data-theme='dark'] .stake-icon .img {
           background-size: contain;
-          background-image: url(/images/coins_dk.png);
+          background-image: ${cssImageUrl("/images/coins_dk.png")};
         }
 
         /* Stakes table styles */

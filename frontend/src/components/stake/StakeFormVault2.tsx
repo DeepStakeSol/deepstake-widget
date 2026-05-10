@@ -10,6 +10,7 @@ import { NoWalletTable } from "./NoWalletTable";
 import { VSOLBalanceTable } from "./VSOLBalanceTable";
 import { VaultBindingBlock } from "./VaultBindingBlock";
 import { useStakeForm } from "../../hooks/useStakeForm";
+import { getImageUrl } from "../../utils/imageUrl";
 import { ValidatorInfoResponse } from "../../utils/solana/validator";
 import { fetchVaultManage, fetchLSTBalance, VaultManageResponse } from "../../utils/api";
 
@@ -127,8 +128,8 @@ export function StakeFormVault2({
           <div className="manage-wrap">
             {vaultManageIsLoading && (
               <div className="manage-overlay">
-                <img className="manage-loader-light" src="/images/mid_loader.png" alt="" />
-                <img className="manage-loader-dark" src="/images/big_loader.png" alt="" />
+                <img className="manage-loader-light" src={getImageUrl("/images/mid_loader.png")} alt="" />
+                <img className="manage-loader-dark" src={getImageUrl("/images/big_loader.png")} alt="" />
               </div>
             )}
             <VaultBindingBlock data={vaultManage} isLoading={false} validatorInfo={validatorInfo} />

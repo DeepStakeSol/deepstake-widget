@@ -8,6 +8,7 @@ import './table.css'
 import { UnstakeButton } from './UnstakeButton'
 import { WithdrawButton } from './WithdrawButton'
 import { UiWalletAccount } from '@wallet-standard/react'
+import { cssImageUrl } from '../../utils/imageUrl'
 
 interface StakeAccountsTableProps {
   network: string
@@ -376,7 +377,7 @@ export function StakeAccountsTable({
           height: 24px;
           opacity: 0.7;
           background-size: contain;
-          background-image: url(/images/coins.png);
+          background-image: ${cssImageUrl("/images/coins.png")};
         }
 
         .stake-title {
@@ -394,7 +395,7 @@ export function StakeAccountsTable({
           width: 14px;
           height: 14px;
           background-size: contain;
-          background-image: url(/images/icon-copy.png);
+          background-image: ${cssImageUrl("/images/icon-copy.png")};
         }
 
         .pg-button {
@@ -424,12 +425,12 @@ export function StakeAccountsTable({
 
         #root[data-theme="dark"] .stake-icon .img {
           background-size: contain;
-          background-image: url(/images/coins_dk.png);
+          background-image: ${cssImageUrl("/images/coins_dk.png")};
         }
 
         #root[data-theme="dark"] .vi-copy-btn {
           background-size: contain;
-          background-image: url(/images/icon-copy_dk.png);
+          background-image: ${cssImageUrl("/images/icon-copy_dk.png")};
         }
 
         #root[data-theme="dark"] .pg-button {

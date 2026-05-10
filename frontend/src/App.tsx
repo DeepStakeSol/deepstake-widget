@@ -12,6 +12,7 @@ import { ValidatorInfo } from "./components/stake/ValidatorInfo";
 import { fetchValidatorInfo, ValidatorInfoResponse, fetchValidatorLogo } from "./utils/solana/validator";
 import { fetchEpochInfo, fetchPerfSamples } from "./utils/api";
 import { useNetwork } from "./context/NetworkContext";
+import { cssImageUrl } from "./utils/imageUrl";
 
 
 function App() {
@@ -199,24 +200,24 @@ function App() {
         }
 
         .tabs-trigger.tab-native {
-          background-image: url(/images/native_stake.png);
+          background-image: ${cssImageUrl("/images/native_stake.png")};
         }
         .tabs-trigger.tab-native[data-state="active"] {
-          background-image: url(/images/native_stake_selected.png);
+          background-image: ${cssImageUrl("/images/native_stake_selected.png")};
         }
 
         .tabs-trigger.tab-blaze {
-          background-image: url(/images/blaze_stake.png);
+          background-image: ${cssImageUrl("/images/blaze_stake.png")};
         }
         .tabs-trigger.tab-blaze[data-state="active"] {
-          background-image: url(/images/blaze_stake_selected.png);
+          background-image: ${cssImageUrl("/images/blaze_stake_selected.png")};
         }
 
         .tabs-trigger.tab-vault {
-          background-image: url(/images/vault_stake.png);
+          background-image: ${cssImageUrl("/images/vault_stake.png")};
         }
         .tabs-trigger.tab-vault[data-state="active"] {
-          background-image: url(/images/vault_stake_selected.png);
+          background-image: ${cssImageUrl("/images/vault_stake_selected.png")};
         }
         
         #root[data-theme="dark"] .tabs-trigger {
@@ -230,24 +231,24 @@ function App() {
         }
 
         #root[data-theme="dark"] .tab-native {
-          background-image: url(/images/native_stake_dk.png);
+          background-image: ${cssImageUrl("/images/native_stake_dk.png")};
         }
         #root[data-theme="dark"] .tab-native[data-state="active"] {
-          background-image: url(/images/native_stake_selected_dk.png);
+          background-image: ${cssImageUrl("/images/native_stake_selected_dk.png")};
         }
 
         #root[data-theme="dark"] .tab-blaze {
-          background-image: url(/images/blaze_stake_dk.png);
+          background-image: ${cssImageUrl("/images/blaze_stake_dk.png")};
         }
         #root[data-theme="dark"] .tab-blaze[data-state="active"] {
-          background-image: url(/images/blaze_stake_selected_dk.png);
+          background-image: ${cssImageUrl("/images/blaze_stake_selected_dk.png")};
         }
 
         #root[data-theme="dark"] .tab-vault {
-          background-image: url(/images/vault_stake_dk.png);
+          background-image: ${cssImageUrl("/images/vault_stake_dk.png")};
         }
         #root[data-theme="dark"] .tab-vault[data-state="active"] {
-          background-image: url(/images/vault_stake_selected_dk.png);
+          background-image: ${cssImageUrl("/images/vault_stake_selected_dk.png")};
         }
 
         .rt-BaseDialogContent {

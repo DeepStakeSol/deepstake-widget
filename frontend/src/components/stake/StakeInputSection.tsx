@@ -7,6 +7,7 @@ import {
 import { WalletInfo } from "./WalletInfo";
 import { WalletBalance } from "./WalletBalance";
 import { ValidatorInfoResponse } from "../../utils/solana/validator";
+import { getImageUrl } from "../../utils/imageUrl";
 
 interface StakeInputSectionProps {
   isConnected: boolean;
@@ -81,7 +82,7 @@ export function StakeInputSection({
           {/* First row: input + SOL + MAX */}
           <div style={styles.row} className="sw-input-container">
             <img
-              src="/images/sol_logo.png"
+              src={getImageUrl("/images/sol_logo.png")}
               alt="logo"
               style={styles.logo}
             />

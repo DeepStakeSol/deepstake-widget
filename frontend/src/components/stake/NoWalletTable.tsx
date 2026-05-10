@@ -1,5 +1,6 @@
 import './table.css'
 import "@fontsource/outfit/500.css";
+import { cssImageUrl } from '../../utils/imageUrl'
 
 
 export function NoWalletTable() {
@@ -54,7 +55,7 @@ export function NoWalletTable() {
           width: 96px;
           height: 96px;
           background-size: contain;
-          background-image: url(/images/table_no_wallet.png);
+          background-image: ${cssImageUrl("/images/table_no_wallet.png")};
         }
 
         /* Title */
@@ -78,7 +79,7 @@ export function NoWalletTable() {
 
         #root[data-theme="dark"] .wallet-icon .img {
           background-size: contain;
-          background-image: url(/images/table_no_wallet_dk.png);
+          background-image: ${cssImageUrl("/images/table_no_wallet_dk.png")};
         }
 
         #root[data-theme="dark"] .wallet-title {

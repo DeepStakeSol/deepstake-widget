@@ -14,6 +14,7 @@ import {
 import {
   getExplorerTxUrl
 } from "../../utils/config";
+import { getImageUrl } from "../../utils/imageUrl";
 
 interface StakeBlazeSuccessModalProps {
   isOpen: boolean;
@@ -65,7 +66,7 @@ export function StakeBlazeSuccessModal({
               </Dialog.Title>
 
               <img 
-                    src="/images/staking_sol_logo.png" 
+                    src={getImageUrl("/images/staking_sol_logo.png")} 
                     alt="staking logo" 
                     width={130}
                     height={117}

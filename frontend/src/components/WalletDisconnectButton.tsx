@@ -2,6 +2,7 @@
 import { useContext } from "react";
 import { useWallets, useDisconnect, UiWallet } from "@wallet-standard/react";
 import { SelectedWalletAccountContext } from "../context/SelectedWalletAccountContext";
+import { cssImageUrl } from "../utils/imageUrl";
 
 function WalletDisconnectButton() {
   const [selectedWalletAccount, setSelectedWalletAccount] = useContext(
@@ -33,12 +34,12 @@ function WalletDisconnectButton() {
           cursor: pointer;
           width: 20px;
           height: 20px;
-          background-image: url(/images/disconnect.png);
+          background-image: ${cssImageUrl("/images/disconnect.png")};
           background-size: contain;
         }
 
         #root[data-theme="dark"] .disconnect-logo {
-          background-image: url(/images/disconnect_dk.png);
+          background-image: ${cssImageUrl("/images/disconnect_dk.png")};
         }
       `}</style>
     </>

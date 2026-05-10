@@ -3,6 +3,7 @@
 import { Flex, Text } from "@radix-ui/themes";
 import { useStakingModal } from "../context/StakingModalContext";
 import { getExplorerTxUrl } from "../utils/config";
+import { getImageUrl } from "../utils/imageUrl";
 
 export function StakingModal() {
   const { isShowing, isTransactionShowing, successData, hideSuccessModal } = useStakingModal();
@@ -46,7 +47,7 @@ export function StakingModal() {
                 </Flex>
 
                 <img
-                  src="/images/staking_sol_logo.png"
+                  src={getImageUrl("/images/staking_sol_logo.png")}
                   alt="staking logo"
                   width={130}
                   height={117}
@@ -106,7 +107,7 @@ export function StakingModal() {
                 </Flex>
 
                 <img
-                  src="/images/big_loader.png"
+                  src={getImageUrl("/images/big_loader.png")}
                   alt="loading"
                   width={130}
                   height={117}
@@ -150,7 +151,7 @@ export function StakingModal() {
                 </Flex>
 
                 <img
-                  src="/images/staking_sol_logo.png"
+                  src={getImageUrl("/images/staking_sol_logo.png")}
                   alt="staking logo"
                   width={130}
                   height={117}

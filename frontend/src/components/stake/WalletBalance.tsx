@@ -1,4 +1,5 @@
 import { ValidatorInfoResponse } from "../../utils/solana/validator";
+import { cssImageUrl } from "../../utils/imageUrl";
 
 interface WalletBalanceProps {
   balance: number;
@@ -67,7 +68,7 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
           width: 13px;
           height: 13px;
           margin-left: 5px;
-          background-image: url(/images/q_mark.png);
+          background-image: ${cssImageUrl("/images/q_mark.png")};
           background-size: contain;
           position: relative;
           cursor: help;
@@ -98,7 +99,7 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
         }
 
         #root[data-theme="dark"] .q-mark-icon {
-          background-image: url(/images/q_mark_dk.png);
+          background-image: ${cssImageUrl("/images/q_mark_dk.png")};
         }
 
         #root[data-theme="dark"] .q-mark-icon:hover::after {

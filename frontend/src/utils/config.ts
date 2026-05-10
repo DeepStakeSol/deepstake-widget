@@ -24,16 +24,44 @@ const networks: Record<NetworkType, NetworkConfig> = {
   }
 };
 
+const DEFAULT_NETWORK: NetworkType = "devnet";
+const warnedInvalidNetworks = new Set<string>();
+
 function isValidNetwork(network: string): network is NetworkType {
   return VALID_NETWORKS.includes(network as NetworkType);
 }
 
-function getNetworkConfig(): NetworkConfig {
-  const currentNetwork =
-    import.meta.env.VITE_NEXT_PUBLIC_NETWORK_ENV?.toLowerCase() || "devnet";
-  if (!isValidNetwork(currentNetwork)) {
-    throw new Error(`Invalid network specified: ${currentNetwork}`);
+function normalizeNetwork(value: unknown): string | null {
+  return typeof value === "string" ? value.toLowerCase() : null;
+}
+
+function warnInvalidNetwork(source: string, network: string) {
+  const key = `${source}:${network}`;
+  if (warnedInvalidNetworks.has(key)) return;
+  warnedInvalidNetworks.add(key);
+  console.warn(
+    `Invalid ${source} network specified: ${network}. Falling back to the next configured network.`
+  );
+}
+
+export function getConfiguredNetwork(): NetworkType {
+  const optionNetwork = normalizeNetwork(getOptions()?.network);
+  if (optionNetwork) {
+    if (isValidNetwork(optionNetwork)) return optionNetwork;
+    warnInvalidNetwork("widget option", optionNetwork);
   }
+
+  const envNetwork = normalizeNetwork(import.meta.env.VITE_NEXT_PUBLIC_NETWORK_ENV);
+  if (envNetwork) {
+    if (isValidNetwork(envNetwork)) return envNetwork;
+    warnInvalidNetwork("environment", envNetwork);
+  }
+
+  return DEFAULT_NETWORK;
+}
+
+function getNetworkConfig(): NetworkConfig {
+  const currentNetwork = getConfiguredNetwork();
   return networks[currentNetwork];
 }
 

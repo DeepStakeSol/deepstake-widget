@@ -11,10 +11,12 @@ services:
     volumes:
       - ./frontend:/app
       - ./shared:/app/dist
+      - ./images:/images:ro
       - /app/node_modules
     environment:
       - VITE_BACKEND_URL=${VITE_BACKEND_URL}
       - DISABLE_BACKEND_PREFIX=${DISABLE_BACKEND_PREFIX:-false}
+      - IMAGE_URL_PREFIX=${IMAGE_URL_PREFIX:-}
     depends_on:
       - backend
 
@@ -28,7 +30,9 @@ services:
     volumes:
       - ./backend:/app
       - ./shared:/shared:ro
+      - ./images:/images:ro
       - /app/node_modules
     environment:
       - NODE_ENV=development
       - SHARED_FILES_DIR=/shared
+      - IMAGES_DIR=/images

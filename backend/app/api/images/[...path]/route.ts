@@ -9,9 +9,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(_request: NextRequest, context: StaticFileRouteContext) {
-  return serveStaticFile(context, process.env.SHARED_FILES_DIR || "/shared");
+  return serveStaticFile(context, process.env.IMAGES_DIR || "/images");
 }
 
 export async function HEAD(_request: NextRequest, context: StaticFileRouteContext) {
-  return serveStaticFileHead(context, process.env.SHARED_FILES_DIR || "/shared");
+  return serveStaticFileHead(context, process.env.IMAGES_DIR || "/images");
 }

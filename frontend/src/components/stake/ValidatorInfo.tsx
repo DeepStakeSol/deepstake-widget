@@ -2,6 +2,7 @@ import { getValidatorAddress } from "../../utils/config";
 import { shortenAddress } from "../../utils/solana/address";
 import { ValidatorInfoResponse } from "../../utils/solana/validator";
 import { useState } from "react";
+import { cssImageUrl } from "../../utils/imageUrl";
 
 interface Props {
   validatorInfo: ValidatorInfoResponse | null;
@@ -121,12 +122,12 @@ export function ValidatorInfo({ validatorInfo, logoUrl }: Props) {
           width: 14px;
           height: 14px;
           background-size: contain;
-          background-image: url(/images/icon-copy.png);
+          background-image: ${cssImageUrl("/images/icon-copy.png")};
         }
 
         #root[data-theme="dark"] .vi-copy-btn {
           background-size: contain;
-          background-image: url(/images/icon-copy_dk.png);
+          background-image: ${cssImageUrl("/images/icon-copy_dk.png")};
         }
 
         .vi-description {

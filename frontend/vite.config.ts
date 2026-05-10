@@ -49,7 +49,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   
   return {
-    envPrefix: ["VITE_", "DISABLE_BACKEND_PREFIX"],
+    envPrefix: ["VITE_", "DISABLE_BACKEND_PREFIX", "IMAGE_URL_PREFIX"],
     plugins: [
       react(),
       nodePolyfills(),
