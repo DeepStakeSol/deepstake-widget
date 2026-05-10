@@ -3,14 +3,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  const frontendURL = process.env.APP_URL?.toLowerCase() || "http://localhost:8080";
-  
   // Check if the request is for an API route
   if (request.nextUrl.pathname.startsWith('/api')) {
     if (request.method === "OPTIONS") {
       console.log("OPTIONS request happen");
       const res = new NextResponse(null, { status: 204 });
-      res.headers.set("Access-Control-Allow-Origin", frontendURL);
+      res.headers.set("Access-Control-Allow-Origin", "*");
       res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
       res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
       res.headers.set("Access-Control-Max-Age", "86400");
@@ -20,8 +18,9 @@ export function middleware(request: NextRequest) {
     const response = NextResponse.next();
     // Set custom headers
     //response.headers.set('X-Custom-Header', 'MyCustomValue');
-    response.headers.set('Access-Control-Allow-Origin', frontendURL);
+    response.headers.set('Access-Control-Allow-Origin', "*");
     response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
     return response;
   }
