@@ -1,8 +1,7 @@
 import { getValidatorAddress } from "../../utils/config";
+import { getBackendUrl } from "../backendUrl";
 
-const API_BASR_URL = import.meta.env.VITE_BACKEND_URL;
 const VALIDATOR_INFO_URL = "https://api.stakewiz.com/validator";
-const BACKEND_TRILLIUM_REWARDS_URL = `${API_BASR_URL}/api/trillium/rewards`;
 
 export interface ValidatorIdentity {
   rank: number;
@@ -151,7 +150,7 @@ export const fetchValidatorLogo = async (): Promise<string | null> => {
   const validatorIdentity = getValidatorAddress();
 
   try {
-    const url = new URL(BACKEND_TRILLIUM_REWARDS_URL, window.location.origin);
+    const url = new URL(getBackendUrl("/trillium/rewards"), window.location.origin);
     url.searchParams.append("validatorIdentity", validatorIdentity);
 
     const response = await fetch(url);

@@ -5,19 +5,20 @@ import {
   getCachedStakeAccounts,
   setCachedStakeAccounts,
 } from "./stakeAccountsCache";
-
-const apiBaseURL = import.meta.env.VITE_BACKEND_URL;
+import { getBackendUrl } from "./backendUrl";
 
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${apiBaseURL}${path}`);
+  const url = getBackendUrl(path);
+  const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`HTTP error ${res.status} when fetching ${path}`);
+    throw new Error(`HTTP error ${res.status} when fetching ${url}`);
   }
   return (await res.json()) as T;
 }
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${apiBaseURL}${path}`, {
+  const url = getBackendUrl(path);
+  const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -25,7 +26,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    throw new Error(`HTTP error ${res.status} when posting ${path}`);
+    throw new Error(`HTTP error ${res.status} when posting ${url}`);
   }
   return (await res.json()) as T;
 }
@@ -39,7 +40,7 @@ export async function fetchStakeAccounts(
   if (cached !== null) return cached;
 
   const data = await getJson<{ stakeAccounts?: GetStakeAccountResponse[] }>(
-    `/api/stake/fetch?owner=${owner}&network=${network}`
+    `/stake/fetch?owner=${owner}&network=${network}`
   );
   const accounts = data.stakeAccounts || [];
   setCachedStakeAccounts(owner, network, accounts);
@@ -62,7 +63,7 @@ export async function fetchEpochInfo(
   network: string
 ): Promise<EpochInfoResponse> {
   return await getJson<EpochInfoResponse>(
-    `/api/stake/get-epoch-info?network=${network}`
+    `/stake/get-epoch-info?network=${network}`
   );
 }
 
@@ -80,7 +81,7 @@ export async function fetchPerfSamples(
   network: string
 ): Promise<PerfSamplesResponse> {
   return await getJson<PerfSamplesResponse>(
-    `/api/stake/get-perf-samples?network=${network}`
+    `/stake/get-perf-samples?network=${network}`
   );
 }
 
@@ -97,7 +98,7 @@ export async function generateStakeTransaction(
   params: GenerateStakeTxParams
 ): Promise<Base64EncodedWireTransaction> {
   const data = await postJson<{ wireTransaction: Base64EncodedWireTransaction }>(
-    `/api/stake/generate?network=${network}`,
+    `/stake/generate?network=${network}`,
     params
   );
   return data.wireTransaction;
@@ -113,7 +114,7 @@ export async function generateUnstakeTransaction(
   params: GenerateUnstakeTxParams
 ): Promise<Base64EncodedWireTransaction> {
   const data = await postJson<{ wireTransaction: Base64EncodedWireTransaction }>(
-    `/api/unstake/generate?network=${network}`,
+    `/unstake/generate?network=${network}`,
     params
   );
   return data.wireTransaction;
@@ -129,7 +130,7 @@ export async function generateWithdrawTransaction(
   params: GenerateWithdrawTxParams
 ): Promise<Base64EncodedWireTransaction> {
   const data = await postJson<{ wireTransaction: Base64EncodedWireTransaction }>(
-    `/api/withdraw/generate?network=${network}`,
+    `/withdraw/generate?network=${network}`,
     params
   );
   return data.wireTransaction;
@@ -158,7 +159,7 @@ export async function fetchVaultManage(
   network: string
 ): Promise<VaultManageResponse> {
   return getJson<VaultManageResponse>(
-    `/api/blaze/manage/vault?wallet=${wallet}&network=${network}`
+    `/blaze/manage/vault?wallet=${wallet}&network=${network}`
   );
 }
 
@@ -168,7 +169,7 @@ export async function fetchSolBalance(
   network: string
 ): Promise<number> {
   const data = await getJson<{ solBalance: number }>(
-    `/api/balance?address=${walletAddress}&network=${network}`
+    `/balance?address=${walletAddress}&network=${network}`
   );
   return data.solBalance;
 }
@@ -180,7 +181,7 @@ export async function fetchLSTBalance(
   mint: string
 ): Promise<number> {
   const data = await getJson<{ lst: string }>(
-    `/api/vbalance?address=${walletAddress}&network=${network}&mint=${mint}`
+    `/vbalance?address=${walletAddress}&network=${network}&mint=${mint}`
   );
   return Number(data.lst) / 1e9;
 }
@@ -197,7 +198,7 @@ export async function generateBlazeStakeTransaction(
   params: GenerateBlazeStakeTxParams
 ): Promise<string> {
   const data = await postJson<{ transaction: string }>(
-    `/api/blaze/stake/generate?network=${network}`,
+    `/blaze/stake/generate?network=${network}`,
     params
   );
   return data.transaction;
@@ -216,7 +217,7 @@ export async function confirmTransaction(
   options: ConfirmTxOptions
 ): Promise<void> {
   const data = await postJson<{ error?: string }>(
-    `/api/transaction/confirm?network=${network}`,
+    `/transaction/confirm?network=${network}`,
     options
   );
   if (data.error) {
