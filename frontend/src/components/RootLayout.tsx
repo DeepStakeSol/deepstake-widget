@@ -21,7 +21,8 @@ const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <NetworkLabel />
                 <Section style={{
                   flex: 1,
-                  width: "640px"
+                  width: "100%",
+                  height: "100%"
                 }}>{children}</Section>
                 <StakingModal />
                 <WalletModal />
@@ -31,6 +32,9 @@ const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <style jsx global>{`
             .sw-container {
               position: relative;
+              width: 640px;
+              height: 734px;
+              overflow: hidden;
               border-radius: 15px;
               background-color: #F2F1F1;
               border: 2px solid #CECED380;
