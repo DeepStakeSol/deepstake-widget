@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { Card, Flex } from "@radix-ui/themes";
 import * as Tabs from "@radix-ui/react-tabs";
 import { StakeForm } from "./components/stake/StakeForm";
@@ -13,16 +13,75 @@ import { fetchValidatorInfo, ValidatorInfoResponse, fetchValidatorLogo } from ".
 import { fetchEpochInfo, fetchPerfSamples } from "./utils/api";
 import { useNetwork } from "./context/NetworkContext";
 import { cssImageUrl } from "./utils/imageUrl";
+import { getOptions, WidgetTab } from "./options";
 
+type TabConfig = {
+  id: WidgetTab;
+  value: string;
+  className: string;
+  label: ReactNode;
+};
+
+const ALL_TABS: TabConfig[] = [
+  {
+    id: "native",
+    value: "stake",
+    className: "tab-native",
+    label: (
+      <>
+        Native <br />
+        staking
+      </>
+    )
+  },
+  {
+    id: "blaze",
+    value: "stake2",
+    className: "tab-blaze",
+    label: (
+      <>
+        Direct staking <br />
+        BlazeStake
+      </>
+    )
+  },
+  {
+    id: "vault",
+    value: "stake3",
+    className: "tab-vault",
+    label: (
+      <>
+        Direct staking <br />
+        Vault
+      </>
+    )
+  }
+];
+
+const VALID_TAB_IDS = new Set<WidgetTab>(ALL_TABS.map((tab) => tab.id));
+
+function isWidgetTab(value: unknown): value is WidgetTab {
+  return typeof value === "string" && VALID_TAB_IDS.has(value as WidgetTab);
+}
+
+function getEnabledTabs(): TabConfig[] {
+  const configuredTabs = getOptions()?.tabs;
+  if (!Array.isArray(configuredTabs)) return ALL_TABS;
+
+  const enabledTabIds = new Set(configuredTabs.filter(isWidgetTab));
+  if (enabledTabIds.size === 0) return ALL_TABS;
+
+  return ALL_TABS.filter((tab) => enabledTabIds.has(tab.id));
+}
 
 function App() {
-
   const [currentEpoch, setCurrentEpoch] = useState<number>(0);
   const [currentProgress, setCurrentProgress] = useState<number>(0);
   const [secondsRemainToEpochEnd, setSecondsRemainToEpochEnd] = useState<number>(0);
   const [validatorInfo, setValidatorInfo] = useState<ValidatorInfoResponse | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const { network } = useNetwork();
+  const enabledTabs = getEnabledTabs();
 
   useEffect(() => {
       const fetchValidatorData = async () => {
@@ -97,7 +156,7 @@ function App() {
         /> }
 
         
-          <Tabs.Root defaultValue="stake" style={{ width: "100%" }}>
+          <Tabs.Root defaultValue={enabledTabs[0].value} style={{ width: "100%" }}>
             <Card
               size="3"
               className="sw-main-tabs"
@@ -109,54 +168,41 @@ function App() {
                   gap: 7,
                 }}
               >
-                <Tabs.Trigger
-                  value="stake"
-                  className="tabs-trigger tab-native"
-                >
-                  Native <br/>
-                  staking
-                </Tabs.Trigger>
-
-                <Tabs.Trigger
-                  value="stake2"
-                  className="tabs-trigger tab-blaze"
-                >
-                  Direct staking <br/>
-                  BlazeStake
-                </Tabs.Trigger>
-
-                <Tabs.Trigger
-                  value="stake3"
-                  className="tabs-trigger tab-vault"
-                >
-                  Direct staking <br/>
-                  Vault
-                </Tabs.Trigger>
+                {enabledTabs.map((tab) => (
+                  <Tabs.Trigger
+                    key={tab.id}
+                    value={tab.value}
+                    className={`tabs-trigger ${tab.className}`}
+                  >
+                    {tab.label}
+                  </Tabs.Trigger>
+                ))}
               </Tabs.List>
             </Card>
 
-            <Tabs.Content value="stake">
-              <StakeForm 
-                currentEpoch={currentEpoch}
-                validatorInfo={validatorInfo}
-                secondsRemainToEpochEnd={secondsRemainToEpochEnd}
-              />
-
-            </Tabs.Content>
-
-            <Tabs.Content value="stake2">
-              <StakeFormBlaze 
-                validatorInfo={validatorInfo}
-                secondsRemainToEpochEnd={secondsRemainToEpochEnd}
-              />
-            </Tabs.Content>
-
-            <Tabs.Content value="stake3">
-              <StakeFormVault2
-                validatorInfo={validatorInfo}
-                secondsRemainToEpochEnd={secondsRemainToEpochEnd}
-              />
-            </Tabs.Content>
+            {enabledTabs.map((tab) => (
+              <Tabs.Content key={tab.id} value={tab.value}>
+                {tab.id === "native" && (
+                  <StakeForm
+                    currentEpoch={currentEpoch}
+                    validatorInfo={validatorInfo}
+                    secondsRemainToEpochEnd={secondsRemainToEpochEnd}
+                  />
+                )}
+                {tab.id === "blaze" && (
+                  <StakeFormBlaze
+                    validatorInfo={validatorInfo}
+                    secondsRemainToEpochEnd={secondsRemainToEpochEnd}
+                  />
+                )}
+                {tab.id === "vault" && (
+                  <StakeFormVault2
+                    validatorInfo={validatorInfo}
+                    secondsRemainToEpochEnd={secondsRemainToEpochEnd}
+                  />
+                )}
+              </Tabs.Content>
+            ))}
           </Tabs.Root>
       </Flex>
     </RootLayout>

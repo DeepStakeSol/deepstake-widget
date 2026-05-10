@@ -107,7 +107,8 @@ Add a root element and script tag to the page where the widget should appear:
   data-options='{
     "vote_account": "YOUR_VALIDATOR_VOTE_ACCOUNT",
     "theme": "light",
-    "network": "mainnet"
+    "network": "mainnet",
+    "tabs": ["native", "blaze", "vault"]
   }'
 ></div>
 
@@ -129,6 +130,7 @@ For production, replace the script URL with your public backend URL:
 | `vote_account` | Yes | Solana vote account address | Validator vote account that native staking targets. |
 | `theme` | No | `light`, `dark` | Widget theme. Defaults to `light`. |
 | `network` | No | `mainnet`, `devnet` | Solana cluster used by API calls, wallet chain checks, and explorer links. Overrides `VITE_NEXT_PUBLIC_NETWORK_ENV`. |
+| `tabs` | No | `native`, `blaze`, `vault` | Top-level staking tabs to show. Defaults to all tabs. |
 
 Example:
 
@@ -138,7 +140,8 @@ Example:
   data-options='{
     "vote_account": "DeEpSdaw8uBLQ5T2HQhDf8fBSVbm13jGqJwoSF3HTpL5",
     "theme": "dark",
-    "network": "devnet"
+    "network": "devnet",
+    "tabs": ["native", "blaze"]
   }'
 ></div>
 ```
