@@ -52,11 +52,48 @@ export function StakeFormVault2({
     try {
       const data = await fetchVaultManage(walletAddress, network);
       setVaultManage(data);
+      return data;
     } catch {
       setVaultManage(null);
+      return null;
+    } finally {
+      setVaultManageIsLoading(false);
     }
-    setVaultManageIsLoading(false);
   }, [network]);
+
+  const logVaultManageData = useCallback((data: VaultManageResponse | null) => {
+    if (!data) {
+      // eslint-disable-next-line no-console
+      console.info("[Vault Manage]", {
+        hasVaultDirectedStakeBinding: false,
+        latestStakebotDataContainsGeneratedStake: false,
+        latestStakebotDataUrl: null,
+      });
+      return;
+    }
+
+    // eslint-disable-next-line no-console
+    console.info("[Vault Manage]", {
+      hasVaultDirectedStakeBinding: data.binding.hasBinding,
+      latestStakebotDataContainsGeneratedStake: data.stakebot.found,
+      latestStakebotDataUrl: data.stakebot.sourceUrl ?? null,
+    });
+  }, []);
+
+  const handleManageOpen = useCallback(async () => {
+    if (isDevnet || !isConnected || !selectedWalletAccount) {
+      return;
+    }
+
+    const data = await fetchVaultManageData(selectedWalletAccount.address);
+    logVaultManageData(data);
+  }, [
+    fetchVaultManageData,
+    isConnected,
+    isDevnet,
+    logVaultManageData,
+    selectedWalletAccount,
+  ]);
 
   const fetchVSOLBalance = useCallback(async (walletAddress: string) => {
     setVSOLIsLoading(true);
@@ -283,6 +320,7 @@ export function StakeFormVault2({
           </>
         )
       }
+      onManageOpen={handleManageOpen}
     />
   );
 }

@@ -82,7 +82,8 @@ export async function GET(request: NextRequest) {
         found: stakebot.found,
         generatedStake: stakebot.found ? stakebot.generatedStake : undefined,
         epoch: stakebot.epoch,
-        sourceFile: stakebot.sourceFile
+        sourceFile: stakebot.sourceFile,
+        sourceUrl: stakebot.sourceUrl
       },
       uiStatus
     });

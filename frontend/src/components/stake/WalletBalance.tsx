@@ -37,7 +37,7 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
           <div className="binfo-row">
             <span className="binfo-key">
               Fee / Commission :
-              <div className="q-mark-icon" data-tooltip={`You will receive ${100 - (validatorInfo?.commission || 0)}% of the inflation commissions`}></div>
+              <div className="q-mark-icon binfo-tooltip-icon" data-tooltip={`You will receive ${100 - (validatorInfo?.commission || 0)}% of the inflation commissions`}></div>
             </span>
             <span className="binfo-value">{validatorInfo?.commission}%</span>
           </div>
@@ -45,7 +45,7 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
             <div className="binfo-row">
               <span className="binfo-key">
                 MEV Commission :
-                <div className="q-mark-icon" data-tooltip={`You will receive ${100 - commissionMEV}% of the MEV commissions`}></div>
+                <div className="q-mark-icon binfo-tooltip-icon" data-tooltip={`You will receive ${100 - commissionMEV}% of the MEV commissions`}></div>
               </span>
               <span className="binfo-value">{commissionMEV}%</span>
             </div>
@@ -96,6 +96,20 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
           z-index: 1000;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
           line-height: 1.1;
+        }
+
+        .binfo-tooltip-icon:hover::after {
+          left: auto;
+          right: 100%;
+          top: auto;
+          bottom: 100%;
+          transform: none;
+          margin-left: 0;
+          margin-right: 8px;
+          margin-bottom: 6px;
+          width: 132px;
+          height: auto;
+          min-height: 38px;
         }
 
         #root[data-theme="dark"] .q-mark-icon {

@@ -7,9 +7,10 @@ interface StakeLayoutProps {
   stakeChildren: ReactNode;
   /** content to render inside the "Manage" tab */
   manageChildren: ReactNode;
+  onManageOpen?: () => void;
 }
 
-export function StakeLayout({ stakeChildren, manageChildren }: StakeLayoutProps) {
+export function StakeLayout({ stakeChildren, manageChildren, onManageOpen }: StakeLayoutProps) {
   return (
     <Card
       size="3"
@@ -17,7 +18,15 @@ export function StakeLayout({ stakeChildren, manageChildren }: StakeLayoutProps)
       style={{ padding: "25px 50px" }}
     >
       <Flex direction="column" gap="5">
-        <Tabs.Root defaultValue="stake" style={{ width: "100%" }}>
+        <Tabs.Root
+          defaultValue="stake"
+          style={{ width: "100%" }}
+          onValueChange={(value) => {
+            if (value === "manage") {
+              onManageOpen?.();
+            }
+          }}
+        >
           <Tabs.List
             style={{
               display: "flex",

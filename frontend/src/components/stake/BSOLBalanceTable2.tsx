@@ -13,6 +13,7 @@ interface BSOLBalanceTableProps {
   validatorName?: string
   appliedStakes?: AppliedStake[]
   isAppliedStakesLoading?: boolean
+  showValidatorPlaceholder?: boolean
 }
 
 function truncateAddress(address: string, chars = 4): string {
@@ -30,6 +31,7 @@ export function BSOLBalanceTable2({
   validatorName,
   appliedStakes = [],
   isAppliedStakesLoading = false,
+  showValidatorPlaceholder = false,
 }: BSOLBalanceTableProps) {
   useEffect(() => {
     const style = document.createElement('style')
@@ -49,7 +51,8 @@ export function BSOLBalanceTable2({
 
   const appliedStakesSum = appliedStakes.reduce((sum, stake) => sum + stake.amount, 0)
   const pendingDifference = bSOLBalance - appliedStakesSum
-  const showPendingRow = pendingDifference > 0.000000001
+  const showPendingRow = !showValidatorPlaceholder && pendingDifference > 0.000000001
+  const shouldShowTable = appliedStakes.length > 0 || showValidatorPlaceholder
 
   return (
     <>
@@ -79,7 +82,7 @@ export function BSOLBalanceTable2({
               </div>
             ) : (
               <div className="stakes-table-container">
-                {appliedStakes.length > 0 ? (
+                {shouldShowTable ? (
                   <table className="stakes-table">
                     <thead>
                       <tr>
@@ -88,6 +91,14 @@ export function BSOLBalanceTable2({
                       </tr>
                     </thead>
                     <tbody>
+                      {showValidatorPlaceholder && appliedStakes.length === 0 && (
+                        <tr className="stakes-table-row-even">
+                          <td className="stakes-table-cell">-</td>
+                          <td className="stakes-table-cell stakes-table-cell-right">
+                            {formatAmount(bSOLBalance)} bSOL
+                          </td>
+                        </tr>
+                      )}
                       {appliedStakes.map((stake, index) => (
                         <tr
                           key={stake.voteAcc}

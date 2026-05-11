@@ -48,8 +48,16 @@ export function StakeFormBlaze({
   const [bSOLIsLoading, setBSOLIsLoading] = useState(false);
   const [appliedStakes, setAppliedStakes] = useState<AppliedStake[]>([]);
   const [appliedStakesIsLoading, setAppliedStakesIsLoading] = useState(false);
+  const isDevnet = network === "devnet";
+  const manageValidatorName = isDevnet ? undefined : validatorInfo?.name;
 
   const fetchAppliedStakes = async (walletAddress: string) => {
+    if (isDevnet) {
+      setAppliedStakes([]);
+      setAppliedStakesIsLoading(false);
+      return;
+    }
+
     setAppliedStakesIsLoading(true);
     try {
       const response = await fetch(
@@ -100,7 +108,7 @@ export function StakeFormBlaze({
     }
     fetchBSOLBalance(selectedWalletAccount.address);
     fetchAppliedStakes(selectedWalletAccount.address);
-  }, [selectedWalletAccount]);
+  }, [isDevnet, selectedWalletAccount]);
 
   const handleSuccess = useCallback(() => {
     resetFormAndRefreshBalance();
@@ -145,9 +153,10 @@ export function StakeFormBlaze({
           <BSOLBalanceTable2
             bSOLBalance={bSOLBalance}
             isLoading={bSOLIsLoading}
-            validatorName={validatorInfo?.name}
+            validatorName={manageValidatorName}
             appliedStakes={appliedStakes}
             isAppliedStakesLoading={appliedStakesIsLoading}
+            showValidatorPlaceholder={isDevnet}
           />
         ) : (
           <>

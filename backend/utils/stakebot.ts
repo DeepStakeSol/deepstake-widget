@@ -135,13 +135,23 @@ export async function getStakebotStake(wallet: string, connection: Connection) {
 
   const dataRes = await fetch(latestFile.download_url);
   if (!dataRes.ok) {
-    return { found: false, epoch, sourceFile: latestFile.name };
+    return {
+      found: false,
+      epoch,
+      sourceFile: latestFile.name,
+      sourceUrl: latestFile.download_url
+    };
   }
 
   const data = (await dataRes.json()) as unknown;
   const stakebotAmount = findStakebotAmount(wallet, data);
   if (!stakebotAmount) {
-    return { found: false, epoch, sourceFile: latestFile.name };
+    return {
+      found: false,
+      epoch,
+      sourceFile: latestFile.name,
+      sourceUrl: latestFile.download_url
+    };
   }
 
   const generatedStake = (stakebotAmount.amountLamports / 1e9).toString();
@@ -150,6 +160,7 @@ export async function getStakebotStake(wallet: string, connection: Connection) {
     found: true,
     generatedStake,
     epoch,
-    sourceFile: latestFile.name
+    sourceFile: latestFile.name,
+    sourceUrl: latestFile.download_url
   };
 }

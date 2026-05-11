@@ -149,6 +149,7 @@ export interface VaultManageResponse {
     generatedStake?: string;
     epoch?: number;
     sourceFile?: string;
+    sourceUrl?: string;
   };
   uiStatus: "ready" | "updating" | "low_balance" | "no_binding" | "error";
   message?: string;
