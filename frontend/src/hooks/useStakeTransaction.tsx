@@ -2,15 +2,17 @@
 
 import { useCallback, useState } from "react";
 import { UiWalletAccount } from "@wallet-standard/react";
-import { useWalletAccountTransactionSendingSigner } from "@solana/react";
+import { useWalletAccountTransactionSigner } from "@solana/react";
 import {
   generateKeyPairSigner,
   getBase58Decoder,
   getBase64Encoder,
+  getBase64EncodedWireTransaction,
   getTransactionDecoder,
   partiallySignTransaction,
 } from "@solana/kit";
 import { getCurrentChain, getValidatorAddress } from "../utils/config";
+import { createRpcConnection } from "../utils/solana/rpc";
 import { LAMPORTS_PER_SOL } from "../utils/constants";
 import { GetStakeAccountResponse } from "../utils/solana/stake/get-stake-accounts";
 import {
@@ -49,7 +51,7 @@ export function useStakeTransaction({
   onDataLoaded,
 }: UseStakeTransactionOptions) {
   const currentChain = getCurrentChain();
-  const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
+  const walletSigner = useWalletAccountTransactionSigner(
     account,
     currentChain
   );
@@ -63,7 +65,7 @@ export function useStakeTransaction({
   const handleSubmit = useCallback(
     async (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault();
-      if (!stakeAmount || !transactionSendingSigner) return;
+      if (!stakeAmount || !walletSigner) return;
 
       setError(undefined);
       setIsSendingTransaction(true);
@@ -79,7 +81,7 @@ export function useStakeTransaction({
         );
 
         // Step 1: Generate the transaction message
-        const wireTransaction = await generateStakeTransaction(network, {
+        const serverTransaction = await generateStakeTransaction(network, {
           newAccountAddress: newAccount.address,
           stakeLamports: stakeLamportsAmount,
           stakerAddress: account.address,
@@ -87,19 +89,14 @@ export function useStakeTransaction({
         });
 
         const base64Encoder = getBase64Encoder();
-        const transactionBytes = base64Encoder.encode(wireTransaction);
+        const transactionBytes = base64Encoder.encode(serverTransaction);
         const transactionDecoder = getTransactionDecoder();
         const decodedTransaction = transactionDecoder.decode(transactionBytes);
-        const partialSignedTransaction = await partiallySignTransaction(
-          [newAccount.keyPair],
-          decodedTransaction
-        );
-        // leverages the wallet's transaction sending signer and rpc
-        const rawSignature =
-          await transactionSendingSigner.signAndSendTransactions([
-            partialSignedTransaction,
-          ]);
-        const signature = getBase58Decoder().decode(rawSignature[0]);
+        const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction]);
+        const fullySignedTx = await partiallySignTransaction([newAccount.keyPair], walletSignedTx);
+        const rpc = createRpcConnection(network);
+        const wireTransaction = getBase64EncodedWireTransaction(fullySignedTx);
+        const signature = await rpc.sendTransaction(wireTransaction, { encoding: "base64" }).send();
 
         // Call the new confirmation API endpoint
         await confirmTransaction(network, {
@@ -130,7 +127,7 @@ export function useStakeTransaction({
           );
       }
     },
-    [account, stakeAmount, transactionSendingSigner, network, onDataLoaded]
+    [account, stakeAmount, walletSigner, network, onDataLoaded]
   );
 
   const handleCloseModal = useCallback(() => {
