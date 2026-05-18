@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { UiWalletAccount } from "@wallet-standard/react";
-import { useWalletAccountTransactionSendingSigner } from "@solana/react";
+import { useWalletAccountTransactionSigner } from "@solana/react";
 import {
+  createKeyPairFromBytes,
   getBase58Decoder,
+  getBase64EncodedWireTransaction,
   getTransactionDecoder,
+  partiallySignTransaction,
 } from "@solana/kit";
 import { getCurrentChain } from "../../utils/config";
+import { createRpcConnection } from "../../utils/solana/rpc";
 import { StakeButtonBase } from "./StakeButtonBase";
 import { useStakingModal } from "../../context/StakingModalContext";
 
 import * as solanaWeb3 from '@solana/web3.js';
-
-import { VersionedTransaction } from "@solana/web3.js";
 
 interface StakeButtonProps {
   network: string;
@@ -48,7 +50,7 @@ export function StakeButtonVault2({
 }: StakeButtonProps) {
   const { showSuccessModal, hideSuccessModal } = useStakingModal();
   const currentChain = getCurrentChain();
-  const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
+  const walletSigner = useWalletAccountTransactionSigner(
     account,
     currentChain
   );
@@ -62,7 +64,7 @@ export function StakeButtonVault2({
     async (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault();
                   
-      if (!stakeAmount || !transactionSendingSigner) return;
+      if (!stakeAmount || !walletSigner) return;
 
       setCurrentError(NO_ERROR);
       setIsSubmittingTransaction(true);
@@ -92,24 +94,18 @@ export function StakeButtonVault2({
           };
 
           const fetchedTX = await fetchVaultTransaction();
-          const serializedTxBase64 = fetchedTX.transaction;
+          const { transaction: serializedTxBase64, ephemeralKey } = fetchedTX;
 
-          const tx = VersionedTransaction.deserialize(
-            Buffer.from(serializedTxBase64, "base64")
-          );
-
-          // useWallet way
-          const szTx = tx.serialize();
-
-          const transactionDecoder = getTransactionDecoder();
-          const decodedTransaction = transactionDecoder.decode(szTx);
-
-          // leverages the wallet's transaction sending signer and rpc
-          const rawSignature =
-            await transactionSendingSigner.signAndSendTransactions([
-              decodedTransaction
-            ]);
-          const signature = getBase58Decoder().decode(rawSignature[0]);
+          const txBytes = Uint8Array.from(Buffer.from(serializedTxBase64, "base64"));
+          const decodedTransaction = getTransactionDecoder().decode(txBytes);
+          const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction]);
+          const ephemeralKeyPair = await createKeyPairFromBytes(new Uint8Array(Buffer.from(ephemeralKey, "base64")));
+          const fullySignedTx = await partiallySignTransaction([ephemeralKeyPair], walletSignedTx);
+          const rpc = createRpcConnection(network);
+          const signature = await rpc.sendTransaction(
+            getBase64EncodedWireTransaction(fullySignedTx),
+            { encoding: "base64" }
+          ).send();
 
           // ===========================
           // === CONFIRM TRANSACTION ===
@@ -131,7 +127,7 @@ export function StakeButtonVault2({
         setIsSubmittingTransaction(false);
       }
     },
-    [account, transactionSendingSigner, NO_ERROR]
+    [account, walletSigner, NO_ERROR]
   );
 
   const handleVaultCloseModal = useCallback(() => {

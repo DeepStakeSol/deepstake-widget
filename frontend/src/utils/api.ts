@@ -194,15 +194,19 @@ export interface GenerateBlazeStakeTxParams {
   voteIdentity?: string;
 }
 
+export interface GenerateBlazeStakeTxResponse {
+  transaction: string;
+  ephemeralKey: string;
+}
+
 export async function generateBlazeStakeTransaction(
   network: string,
   params: GenerateBlazeStakeTxParams
-): Promise<string> {
-  const data = await postJson<{ transaction: string }>(
+): Promise<GenerateBlazeStakeTxResponse> {
+  return postJson<GenerateBlazeStakeTxResponse>(
     `/blaze/stake/generate?network=${network}`,
     params
   );
-  return data.transaction;
 }
 
 // confirmation helper

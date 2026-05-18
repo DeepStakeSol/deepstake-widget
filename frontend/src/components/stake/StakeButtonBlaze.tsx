@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { UiWalletAccount } from "@wallet-standard/react";
-import { useWalletAccountTransactionSendingSigner } from "@solana/react";
+import { useWalletAccountTransactionSigner } from "@solana/react";
 import { StakeButtonBase } from "./StakeButtonBase";
 import { useStakingModal } from "../../context/StakingModalContext";
-import { getBase58Decoder, getTransactionDecoder } from "@solana/kit";
+import {
+  createKeyPairFromBytes,
+  getBase58Decoder,
+  getBase64EncodedWireTransaction,
+  getTransactionDecoder,
+  partiallySignTransaction,
+} from "@solana/kit";
 import { getCurrentChain } from "../../utils/config";
+import { createRpcConnection } from "../../utils/solana/rpc";
 import { confirmTransaction, generateBlazeStakeTransaction, fetchLSTBalance } from "../../utils/api";
 
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
@@ -38,7 +45,7 @@ export function StakeButtonBlaze({
 }: StakeButtonProps) {
   const { showSuccessModal, hideSuccessModal } = useStakingModal();
   const currentChain = getCurrentChain();
-  const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
+  const walletSigner = useWalletAccountTransactionSigner(
     account,
     currentChain
   );
@@ -52,7 +59,7 @@ export function StakeButtonBlaze({
     async (evt: React.MouseEvent<HTMLButtonElement>) => {
       evt.preventDefault();
 
-      if (!stakeAmount || !transactionSendingSigner) return;
+      if (!stakeAmount || !walletSigner) return;
 
       setCurrentError(NO_ERROR);
       setIsSubmittingTransaction(true);
@@ -63,7 +70,7 @@ export function StakeButtonBlaze({
           parseFloat(stakeAmount) * LAMPORTS_PER_SOL
         );
 
-        const txBase64 = await generateBlazeStakeTransaction(network, {
+        const { transaction: txBase64, ephemeralKey } = await generateBlazeStakeTransaction(network, {
           wallet: account.address,
           stakeLamports: stakeLamportsAmount,
           voteIdentity,
@@ -71,11 +78,14 @@ export function StakeButtonBlaze({
 
         const txBytes = Uint8Array.from(Buffer.from(txBase64, "base64"));
         const decodedTransaction = getTransactionDecoder().decode(txBytes);
-
-        const rawSignature = await transactionSendingSigner.signAndSendTransactions([
-          decodedTransaction,
-        ]);
-        const signature = getBase58Decoder().decode(rawSignature[0]);
+        const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction]);
+        const ephemeralKeyPair = await createKeyPairFromBytes(new Uint8Array(Buffer.from(ephemeralKey, "base64")));
+        const fullySignedTx = await partiallySignTransaction([ephemeralKeyPair], walletSignedTx);
+        const rpc = createRpcConnection(network);
+        const signature = await rpc.sendTransaction(
+          getBase64EncodedWireTransaction(fullySignedTx),
+          { encoding: "base64" }
+        ).send();
 
         await confirmTransaction(network, {
           txid: signature,
@@ -108,7 +118,7 @@ export function StakeButtonBlaze({
         onBSOLIsLoading(false);
       }
     },
-    [account, transactionSendingSigner, NO_ERROR]
+    [account, walletSigner, NO_ERROR]
   );
 
   const handleBlazeCloseModal = useCallback(() => {
