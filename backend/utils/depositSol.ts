@@ -1,10 +1,7 @@
 import {
   type Connection,
-  type Keypair,
   LAMPORTS_PER_SOL,
   PublicKey,
-  type Signer,
-  SystemProgram,
   type TransactionInstruction,
 } from "@solana/web3.js";
 import {
@@ -57,7 +54,6 @@ export async function depositSol(
   stakePoolAddress: PublicKey,
   from: PublicKey,
   lamports: number,
-  userSolTransfer: Keypair,
   destinationTokenAccount?: PublicKey,
   referrerTokenAccount?: PublicKey,
   depositAuthority?: PublicKey,
@@ -77,18 +73,7 @@ export async function depositSol(
   );
   const stakePool = stakePoolAccount.account.data;
 
-  // Ephemeral SOL account just to do the transfer
-  const signers: Signer[] = [userSolTransfer];
   const instructions: TransactionInstruction[] = [];
-
-  // Create the ephemeral SOL account
-  instructions.push(
-    SystemProgram.transfer({
-      fromPubkey: from,
-      toPubkey: userSolTransfer.publicKey,
-      lamports,
-    }),
-  );
 
   // Create token account if not specified
   if (!destinationTokenAccount) {
@@ -116,7 +101,7 @@ export async function depositSol(
     StakePoolInstruction.depositSol({
       stakePool: stakePoolAddress,
       reserveStake: stakePool.reserveStake,
-      fundingAccount: userSolTransfer.publicKey,
+      fundingAccount: from,
       destinationPoolAccount: destinationTokenAccount,
       managerFeeAccount: stakePool.managerFeeAccount,
       referralPoolAccount: referrerTokenAccount ?? destinationTokenAccount,
@@ -127,8 +112,5 @@ export async function depositSol(
     }),
   );
 
-  return {
-    instructions,
-    signers,
-  };
+  return { instructions };
 }

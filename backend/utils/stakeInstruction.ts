@@ -22,7 +22,6 @@ export async function getStakeInstruction(
   balance: BigNumber,
   enteredAmount: BigNumber,
   vsolReserves: PublicKey,
-  userSolTransfer: Keypair,
   connection: Connection,
 ) {
   let instructions: TransactionInstruction[] = [];
@@ -57,7 +56,6 @@ export async function getStakeInstruction(
     new PublicKey(STAKE_POOL_ADDRESS),
     payer,
     amount.toNumber(),
-    userSolTransfer,
     vsolAta
   );
   for (const ix of depositSolIx.instructions) {

@@ -13,7 +13,12 @@ import {
   createAssociatedTokenAccountInstruction,
   getAccount,
 } from "@solana/spl-token";
-import { depositSol, stakePoolInfo } from "@solana/spl-stake-pool";
+import {
+  getStakePoolAccount,
+  STAKE_POOL_PROGRAM_ID,
+  StakePoolInstruction,
+  stakePoolInfo,
+} from "@solana/spl-stake-pool";
 import { getRpcEndpoint } from "@/utils/solana/rpc";
 import { getPriorityFeeEstimate } from "@/utils/priorityFee";
 import {
@@ -70,20 +75,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const depositTx = await depositSol(
-      connection,
-      stakePoolAddr,
-      walletPubkey,
-      stakeLamports,
-      undefined,
-      bsolAta
+    const [withdrawAuthority] = await PublicKey.findProgramAddress(
+      [stakePoolAddr.toBuffer(), Buffer.from("withdraw")],
+      STAKE_POOL_PROGRAM_ID,
     );
+    const stakePoolAccount = await getStakePoolAccount(connection, stakePoolAddr);
+    const stakePool = stakePoolAccount.account.data;
 
     const { blockhash } = await connection.getLatestBlockhash("finalized");
 
     const ixs: TransactionInstruction[] = [];
     if (createAtaIx) ixs.push(createAtaIx);
-    ixs.push(...depositTx.instructions);
+    ixs.push(
+      StakePoolInstruction.depositSol({
+        stakePool: stakePoolAddr,
+        reserveStake: stakePool.reserveStake,
+        fundingAccount: walletPubkey,
+        destinationPoolAccount: bsolAta,
+        managerFeeAccount: stakePool.managerFeeAccount,
+        referralPoolAccount: bsolAta,
+        poolMint: stakePool.poolMint,
+        lamports: stakeLamports,
+        withdrawAuthority,
+      }),
+    );
 
     if (voteIdentity) {
       const memo = JSON.stringify({
@@ -117,10 +132,6 @@ export async function POST(request: NextRequest) {
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = walletPubkey;
     transaction.add(...ixs);
-
-    if (depositTx.signers.length > 0) {
-      transaction.partialSign(...depositTx.signers);
-    }
 
     const serialized = transaction.serialize({
       verifySignatures: false,

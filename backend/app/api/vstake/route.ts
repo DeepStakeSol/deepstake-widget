@@ -11,7 +11,6 @@ import { NextResponse } from "next/server";
 import {
   ComputeBudgetProgram,
   Connection,
-  Keypair,
   PublicKey,
   TransactionMessage,
   VersionedTransaction,
@@ -73,7 +72,6 @@ export async function GET(request: NextRequest) {
     
 
     const target = searchParams.get("target");
-    const userSolTransfer = Keypair.generate();
     const ixs = [];
     if(target) {
     // create direct stake instruction
@@ -91,7 +89,6 @@ export async function GET(request: NextRequest) {
     new BigNumber(amount),
     new BigNumber(balance),
     PublicKey.default,
-    userSolTransfer,
     connection,
   ));
   const recentBlockhash = await connection.getLatestBlockhash();
@@ -121,7 +118,6 @@ export async function GET(request: NextRequest) {
     payerKey: new PublicKey(address),
   }).compileToV0Message();
   const tx = new VersionedTransaction(message);
-  tx.sign([userSolTransfer]);
   return NextResponse.json({
     transaction: Buffer.from(tx.serialize()).toString("base64"),
   });
