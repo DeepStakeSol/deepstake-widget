@@ -10,6 +10,7 @@ import { getCurrentChain } from "../../utils/config";
 import { createRpcConnection } from "../../utils/solana/rpc";
 import { StakeButtonBase } from "./StakeButtonBase";
 import { useStakingModal } from "../../context/StakingModalContext";
+import { getBackendUrl } from "../../utils/backendUrl";
 
 import * as solanaWeb3 from '@solana/web3.js';
 
@@ -87,8 +88,7 @@ export function StakeButtonVault2({
               const url = useExternalApi
                 ? import.meta.env.VITE_VAULT_TX_URL +
                     `?address=${account?.address}&mint=${mint}&amount=${stakeLamportsAmount}&balance=${balanceLamports}${target ? `&target=${target}` : ""}`
-                : `${import.meta.env.VITE_BACKEND_URL}/api/vstake` +
-                    `?address=${account?.address}&mint=${mint}&amount=${stakeLamportsAmount}&balance=${balanceLamports}&network=${network}${target ? `&target=${target}` : ""}`;
+                : getBackendUrl(`/vstake?address=${account?.address}&mint=${mint}&amount=${stakeLamportsAmount}&balance=${balanceLamports}&network=${network}${target ? `&target=${target}` : ""}`);
 
               const result = await fetch(url);
               return await result.json();
