@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { UiWalletAccount } from "@wallet-standard/react";
 import { useWalletAccountTransactionSigner } from "@solana/react";
 import {
+  type Base64EncodedWireTransaction,
   getBase64EncodedWireTransaction,
   getTransactionDecoder,
 } from "@solana/kit";
@@ -93,10 +94,19 @@ export function StakeButtonVault2({
           const fetchedTX = await fetchVaultTransaction();
           const { transaction: serializedTxBase64 } = fetchedTX;
 
+          const rpc = createRpcConnection(network);
+
+          const simResult = await rpc.simulateTransaction(
+            serializedTxBase64 as Base64EncodedWireTransaction,
+            { encoding: "base64", sigVerify: false, commitment: "processed" }
+          ).send();
+          if (simResult.value.err) {
+            throw new Error(`Transaction simulation failed: ${JSON.stringify(simResult.value.err)}`);
+          }
+
           const txBytes = Uint8Array.from(Buffer.from(serializedTxBase64, "base64"));
           const decodedTransaction = getTransactionDecoder().decode(txBytes);
           const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction]);
-          const rpc = createRpcConnection(network);
           const signature = await rpc.sendTransaction(
             getBase64EncodedWireTransaction(walletSignedTx),
             { encoding: "base64" }
