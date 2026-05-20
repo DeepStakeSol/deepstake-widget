@@ -4,7 +4,7 @@ import { findDirectorAddress } from '@thevault/directed-stake';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import NodeWalletRaw from '@coral-xyz/anchor/dist/cjs/nodewallet.js';
 // @ts-ignore
-const NodeWallet = NodeWalletRaw.default;
+const NodeWallet = NodeWalletRaw.default ?? NodeWalletRaw;
 
 export async function getDirectInstruction(owner: string, target: string, connection: Connection) {
     const directorAddress = findDirectorAddress(new PublicKey(owner));

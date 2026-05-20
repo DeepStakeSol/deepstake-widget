@@ -82,16 +82,22 @@ export function StakeButtonVault2({
           const fetchVaultTransaction = async () => {
               const mint = import.meta.env.VITE_VAULT_MINT;
               const target = voteIdentity;
+              const useExternalApi = import.meta.env.VITE_VAULT_USE_EXTERNAL_API === "true";
 
-              const url = import.meta.env.VITE_VAULT_TX_URL +
-                  `?address=${account?.address}&mint=${mint}&amount=${stakeLamportsAmount}&balance=${balanceLamports}${target ? `&target=${target}` : ""}`;
+              const url = useExternalApi
+                ? import.meta.env.VITE_VAULT_TX_URL +
+                    `?address=${account?.address}&mint=${mint}&amount=${stakeLamportsAmount}&balance=${balanceLamports}${target ? `&target=${target}` : ""}`
+                : `${import.meta.env.VITE_BACKEND_URL}/api/vstake` +
+                    `?address=${account?.address}&mint=${mint}&amount=${stakeLamportsAmount}&balance=${balanceLamports}&network=${network}${target ? `&target=${target}` : ""}`;
 
-              // Call the stake API
               const result = await fetch(url);
               return await result.json();
           };
 
           const fetchedTX = await fetchVaultTransaction();
+          if (fetchedTX.error) {
+            throw new Error(fetchedTX.error);
+          }
           const { transaction: serializedTxBase64 } = fetchedTX;
 
           const rpc = createRpcConnection(network);
