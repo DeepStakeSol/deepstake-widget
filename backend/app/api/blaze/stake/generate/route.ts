@@ -1,9 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import {
+  ComputeBudgetProgram,
   Connection,
   PublicKey,
   Transaction,
   TransactionInstruction,
+  TransactionMessage,
+  VersionedTransaction,
 } from "@solana/web3.js";
 import {
   getAssociatedTokenAddressSync,
@@ -12,6 +15,7 @@ import {
 } from "@solana/spl-token";
 import { depositSol, stakePoolInfo } from "@solana/spl-stake-pool";
 import { getRpcEndpoint } from "@/utils/solana/rpc";
+import { getPriorityFeeEstimate } from "@/utils/priorityFee";
 import {
   BSOL_MINT,
   getBlazeStakePoolAddress,
@@ -77,21 +81,16 @@ export async function POST(request: NextRequest) {
 
     const { blockhash } = await connection.getLatestBlockhash("finalized");
 
-    const transaction = new Transaction();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = walletPubkey;
-
-    if (createAtaIx) {
-      transaction.add(createAtaIx);
-    }
-    transaction.add(...depositTx.instructions);
+    const ixs: TransactionInstruction[] = [];
+    if (createAtaIx) ixs.push(createAtaIx);
+    ixs.push(...depositTx.instructions);
 
     if (voteIdentity) {
       const memo = JSON.stringify({
         type: "cls/validator_stake/lamports",
         value: { validator: voteIdentity },
       });
-      transaction.add(
+      ixs.push(
         new TransactionInstruction({
           keys: [{ pubkey: walletPubkey, isSigner: true, isWritable: true }],
           programId: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
@@ -99,6 +98,25 @@ export async function POST(request: NextRequest) {
         })
       );
     }
+
+    const testMessage = new TransactionMessage({
+      recentBlockhash: blockhash,
+      instructions: ixs,
+      payerKey: walletPubkey,
+    }).compileToV0Message();
+    const testTx = new VersionedTransaction(testMessage);
+
+    const { priorityFeeEstimate: microLamports } = await getPriorityFeeEstimate("Medium", testTx, rpcUrl);
+    const sim = await connection.simulateTransaction(testTx);
+    const units = (sim.value.unitsConsumed ?? 200_000) + 3000;
+
+    ixs.unshift(ComputeBudgetProgram.setComputeUnitPrice({ microLamports }));
+    ixs.unshift(ComputeBudgetProgram.setComputeUnitLimit({ units }));
+
+    const transaction = new Transaction();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = walletPubkey;
+    transaction.add(...ixs);
 
     const serialized = transaction.serialize({
       verifySignatures: false,
