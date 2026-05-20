@@ -118,6 +118,10 @@ export async function POST(request: NextRequest) {
     transaction.feePayer = walletPubkey;
     transaction.add(...ixs);
 
+    if (depositTx.signers.length > 0) {
+      transaction.partialSign(...depositTx.signers);
+    }
+
     const serialized = transaction.serialize({
       verifySignatures: false,
       requireAllSignatures: false,
@@ -125,9 +129,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       transaction: Buffer.from(serialized).toString("base64"),
-      ephemeralKey: depositTx.signers.length > 0
-        ? Buffer.from(depositTx.signers[0].secretKey).toString("base64")
-        : undefined,
     });
   } catch (error) {
     console.error("Blaze stake generate error:", error);

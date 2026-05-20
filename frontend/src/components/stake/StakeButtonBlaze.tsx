@@ -4,11 +4,8 @@ import { useWalletAccountTransactionSigner } from "@solana/react";
 import { StakeButtonBase } from "./StakeButtonBase";
 import { useStakingModal } from "../../context/StakingModalContext";
 import {
-  createKeyPairFromBytes,
-  getBase58Decoder,
   getBase64EncodedWireTransaction,
   getTransactionDecoder,
-  partiallySignTransaction,
 } from "@solana/kit";
 import { getCurrentChain } from "../../utils/config";
 import { createRpcConnection } from "../../utils/solana/rpc";
@@ -70,7 +67,7 @@ export function StakeButtonBlaze({
           parseFloat(stakeAmount) * LAMPORTS_PER_SOL
         );
 
-        const { transaction: txBase64, ephemeralKey } = await generateBlazeStakeTransaction(network, {
+        const { transaction: txBase64 } = await generateBlazeStakeTransaction(network, {
           wallet: account.address,
           stakeLamports: stakeLamportsAmount,
           voteIdentity,
@@ -79,11 +76,9 @@ export function StakeButtonBlaze({
         const txBytes = Uint8Array.from(Buffer.from(txBase64, "base64"));
         const decodedTransaction = getTransactionDecoder().decode(txBytes);
         const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction]);
-        const ephemeralKeyPair = await createKeyPairFromBytes(new Uint8Array(Buffer.from(ephemeralKey, "base64")));
-        const fullySignedTx = await partiallySignTransaction([ephemeralKeyPair], walletSignedTx);
         const rpc = createRpcConnection(network);
         const signature = await rpc.sendTransaction(
-          getBase64EncodedWireTransaction(fullySignedTx),
+          getBase64EncodedWireTransaction(walletSignedTx),
           { encoding: "base64" }
         ).send();
 

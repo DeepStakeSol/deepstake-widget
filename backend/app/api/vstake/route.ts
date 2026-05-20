@@ -121,8 +121,8 @@ export async function GET(request: NextRequest) {
     payerKey: new PublicKey(address),
   }).compileToV0Message();
   const tx = new VersionedTransaction(message);
+  tx.sign([userSolTransfer]);
   return NextResponse.json({
     transaction: Buffer.from(tx.serialize()).toString("base64"),
-    ephemeralKey: Buffer.from(userSolTransfer.secretKey).toString("base64"),
   });
 }
