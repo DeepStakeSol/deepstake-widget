@@ -1,3 +1,5 @@
+import { createContext, useContext } from "react";
+
 export type WidgetTab = "native" | "blaze" | "vault";
 
 export interface Options {
@@ -7,12 +9,8 @@ export interface Options {
   tabs?: WidgetTab[];
 }
 
-let options: Options | null = null;
+export const OptionsContext = createContext<Options | null>(null);
 
-export function setOptions(value: Options) {
-  options = value;
-}
-
-export function getOptions(): Options | null {
-  return options;
+export function useOptions(): Options | null {
+  return useContext(OptionsContext);
 }

@@ -219,7 +219,7 @@ export function BSOLBalanceTable2({
           padding: 0 42px;
         }
 
-        #root[data-theme='dark'] .stake-epoch-note {
+        [data-widget="deepstake"][data-theme='dark'] .stake-epoch-note {
           color: #9f9fac;
         }
 
@@ -268,19 +268,19 @@ export function BSOLBalanceTable2({
           opacity: 0.8;
         }
 
-        #root[data-theme='dark'] .delegated-text {
+        [data-widget="deepstake"][data-theme='dark'] .delegated-text {
           color: #fff;
         }
 
-        #root[data-theme='dark'] .unstake-info {
+        [data-widget="deepstake"][data-theme='dark'] .unstake-info {
           background: #9f9fac1a;
         }
 
-        #root[data-theme='dark'] .unstake-info p {
+        [data-widget="deepstake"][data-theme='dark'] .unstake-info p {
           color: #9f9fac;
         }
 
-        #root[data-theme='dark'] .jupiter-btn {
+        [data-widget="deepstake"][data-theme='dark'] .jupiter-btn {
           background: #5a5a62;
           color: #9f9fac;
         }
@@ -314,11 +314,11 @@ export function BSOLBalanceTable2({
           color: #222;
         }
 
-        #root[data-theme='dark'] .balance-value {
+        [data-widget="deepstake"][data-theme='dark'] .balance-value {
           color: #fff;
         }
 
-        #root[data-theme='dark'] .balance-label {
+        [data-widget="deepstake"][data-theme='dark'] .balance-label {
           color: #fff;
         }
 
@@ -339,11 +339,11 @@ export function BSOLBalanceTable2({
           }
         }
 
-        #root[data-theme='dark'] .stake-title {
+        [data-widget="deepstake"][data-theme='dark'] .stake-title {
           color: #9f9fac;
         }
 
-        #root[data-theme='dark'] .stake-icon .img {
+        [data-widget="deepstake"][data-theme='dark'] .stake-icon .img {
           background-size: contain;
           background-image: ${cssImageUrl("/images/coins_dk.png")};
         }
@@ -422,44 +422,44 @@ export function BSOLBalanceTable2({
           font-size: 14px;
         }
 
-        #root[data-theme='dark'] .stakes-table-header {
+        [data-widget="deepstake"][data-theme='dark'] .stakes-table-header {
           color: #fff;
           border-bottom: none;
         }
 
-        /* #root[data-theme="dark"] .stakes-table-row-even {
+        /* [data-widget="deepstake"][data-theme="dark"] .stakes-table-row-even {
           background: #1a1a1a;
         }
 
-        #root[data-theme="dark"] .stakes-table-row-odd {
+        [data-widget="deepstake"][data-theme="dark"] .stakes-table-row-odd {
           background: #222;
         } */
 
-        #root[data-theme='dark'] .stakes-table-row-even:hover,
-        #root[data-theme='dark'] .stakes-table-row-odd:hover {
+        [data-widget="deepstake"][data-theme='dark'] .stakes-table-row-even:hover,
+        [data-widget="deepstake"][data-theme='dark'] .stakes-table-row-odd:hover {
           background: #2a2a2a;
         }
 
-        #root[data-theme='dark'] .stakes-table-cell {
+        [data-widget="deepstake"][data-theme='dark'] .stakes-table-cell {
           color: #fff;
           /*border-bottom-color: #626674;*/
         }
 
-        /* #root[data-theme="dark"] .stakes-table-total {
+        /* [data-widget="deepstake"][data-theme="dark"] .stakes-table-total {
           background: #2a2a2a !important;
         } */
 
-        #root[data-theme='dark'] .stakes-table-total:hover {
+        [data-widget="deepstake"][data-theme='dark'] .stakes-table-total:hover {
           background: #2a2a2a !important;
         }
 
-        #root[data-theme='dark'] .stakes-table-total-label,
-        #root[data-theme='dark'] .stakes-table-total-value {
+        [data-widget="deepstake"][data-theme='dark'] .stakes-table-total-label,
+        [data-widget="deepstake"][data-theme='dark'] .stakes-table-total-value {
           color: #fff;
         }
 
         .stakes-table-cell.other-pendings,
-        #root[data-theme='dark'] .stakes-table-cell.other-pendings {
+        [data-widget="deepstake"][data-theme='dark'] .stakes-table-cell.other-pendings {
           font-style: italic;
         }
       `}</style>

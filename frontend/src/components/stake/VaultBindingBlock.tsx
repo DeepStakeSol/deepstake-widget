@@ -137,7 +137,7 @@ function VbStyles() {
         padding: 0 14px;
       }
 
-      #root[data-theme='dark'] .vb-header-row span {
+      [data-widget="deepstake"][data-theme='dark'] .vb-header-row span {
         color: #9f9fac;
       }
 
@@ -187,7 +187,7 @@ function VbStyles() {
         white-space: nowrap;
       }
 
-      #root[data-theme='dark'] .vb-validator {
+      [data-widget="deepstake"][data-theme='dark'] .vb-validator {
         color: #fff;
       }
 
@@ -200,7 +200,7 @@ function VbStyles() {
         text-transform: uppercase;
       }
 
-      #root[data-theme='dark'] .vb-not-staked {
+      [data-widget="deepstake"][data-theme='dark'] .vb-not-staked {
         color: #9f9fac;
       }
 
@@ -210,7 +210,7 @@ function VbStyles() {
         color: #888;
       }
 
-      #root[data-theme='dark'] .vb-bal-label {
+      [data-widget="deepstake"][data-theme='dark'] .vb-bal-label {
         color: #9f9fac;
       }
 
@@ -221,7 +221,7 @@ function VbStyles() {
         font-family: monospace;
       }
 
-      #root[data-theme='dark'] .vb-bal-value {
+      [data-widget="deepstake"][data-theme='dark'] .vb-bal-value {
         color: #fff;
       }
 
@@ -236,7 +236,7 @@ function VbStyles() {
         white-space: nowrap;
       }
 
-      #root[data-theme='dark'] .vb-stake-amount {
+      [data-widget="deepstake"][data-theme='dark'] .vb-stake-amount {
         color: #fff;
       }
 
@@ -276,11 +276,11 @@ function VbStyles() {
         white-space: normal;
       }
 
-      #root[data-theme='dark'] .q-mark-icon {
+      [data-widget="deepstake"][data-theme='dark'] .q-mark-icon {
         background-image: ${cssImageUrl("/images/q_mark_dk.png")};
       }
 
-      #root[data-theme='dark'] .q-mark-icon:hover::after {
+      [data-widget="deepstake"][data-theme='dark'] .q-mark-icon:hover::after {
         background: #090f19;
         color: #9f9fac;
       }
@@ -292,7 +292,7 @@ function VbStyles() {
         line-height: 1.5;
       }
 
-      #root[data-theme='dark'] .vb-msg-info {
+      [data-widget="deepstake"][data-theme='dark'] .vb-msg-info {
         color: #6ab8f0;
       }
 
@@ -308,7 +308,7 @@ function VbStyles() {
         font-size: 18px;
       }
 
-      #root[data-theme='dark'] .vb-muted {
+      [data-widget="deepstake"][data-theme='dark'] .vb-muted {
         color: #555;
       }
 

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 import { getConfiguredNetwork, NetworkType } from "../utils/config";
+import { useOptions } from "../options";
 
 type NetworkContextType = {
   network: NetworkType;
@@ -9,7 +10,8 @@ type NetworkContextType = {
 const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
 
 export const NetworkProvider = ({ children }: { children: ReactNode }) => {
-  const [network, setNetwork] = useState<NetworkType>(getConfiguredNetwork);
+  const options = useOptions();
+  const [network, setNetwork] = useState<NetworkType>(() => getConfiguredNetwork(options));
 
   return (
     <NetworkContext.Provider value={{ network, setNetwork }}>

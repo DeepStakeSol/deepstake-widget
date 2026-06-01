@@ -165,12 +165,12 @@ export function UnstakeButton({
           cursor: not-allowed;
         }
 
-        #root[data-theme="dark"] .action-button {
+        [data-widget="deepstake"][data-theme="dark"] .action-button {
           background: #D9D9D9;
           color: #0D1625;
         }
 
-        #root[data-theme="dark"] .action-button:disabled {
+        [data-widget="deepstake"][data-theme="dark"] .action-button:disabled {
           background: #83848d;
           color: #5A5A62;
           cursor: not-allowed;

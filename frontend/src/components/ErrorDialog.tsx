@@ -153,12 +153,12 @@ export function ErrorDialog({ error, onClose, title }: Props) {
           padding: 24px;
         }
 
-        #root[data-theme="dark"] .error-dialog-overlay {
+        [data-widget="deepstake"][data-theme="dark"] .error-dialog-overlay {
           background-color: #0d1625db;
           backdrop-filter: blur(4px);
         }
 
-        #root[data-theme="dark"] .error-dialog-content {
+        [data-widget="deepstake"][data-theme="dark"] .error-dialog-content {
           background-color: #353844;
           border-color: #9f9fac40;
           color: #fff;

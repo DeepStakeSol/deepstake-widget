@@ -12,6 +12,7 @@ import {
   partiallySignTransaction,
 } from "@solana/kit";
 import { getCurrentChain, getValidatorAddress } from "../utils/config";
+import { useOptions } from "../options";
 import { createRpcConnection } from "../utils/solana/rpc";
 import { LAMPORTS_PER_SOL } from "../utils/constants";
 import { GetStakeAccountResponse } from "../utils/solana/stake/get-stake-accounts";
@@ -56,6 +57,7 @@ export function useStakeTransaction({
     currentChain
   );
 
+  const options = useOptions();
   const [isSendingTransaction, setIsSendingTransaction] = useState(false);
   const [lastSignature, setLastSignature] = useState<string | undefined>();
   const [lastStakeAccount, setLastStakeAccount] = useState<string | undefined>();
@@ -85,7 +87,7 @@ export function useStakeTransaction({
           newAccountAddress: newAccount.address,
           stakeLamports: stakeLamportsAmount,
           stakerAddress: account.address,
-          voteAccount: getValidatorAddress(),
+          voteAccount: getValidatorAddress(options),
         });
 
         const base64Encoder = getBase64Encoder();

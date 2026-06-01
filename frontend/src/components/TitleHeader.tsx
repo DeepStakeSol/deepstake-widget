@@ -119,25 +119,25 @@ export const TitleHeader = ({
         </div>
       </div>
       <style jsx >{`
-        #root .sw-network-select {
+        [data-widget="deepstake"] .sw-network-select {
           color: #000000;
           background-color: #FDFDFD;
         }
 
-        #root[data-theme="dark"] .sw-network-select {
+        [data-widget="deepstake"][data-theme="dark"] .sw-network-select {
           color: #9F9FAC;
           background-color: #9F9FAC40;
         }
 
-        #root[data-theme="dark"] .sw-network-header {
+        [data-widget="deepstake"][data-theme="dark"] .sw-network-header {
           color: #fff;
         }
 
-        #root[data-theme="dark"] .sw-network-epoch {
+        [data-widget="deepstake"][data-theme="dark"] .sw-network-epoch {
           color: #fff;
         }
 
-        #root[data-theme="dark"] .sw-network-epoch-remain {
+        [data-widget="deepstake"][data-theme="dark"] .sw-network-epoch-remain {
           color: #fff;
         }
       `}</style>

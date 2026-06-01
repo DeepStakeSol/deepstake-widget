@@ -112,11 +112,11 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
           min-height: 38px;
         }
 
-        #root[data-theme="dark"] .q-mark-icon {
+        [data-widget="deepstake"][data-theme="dark"] .q-mark-icon {
           background-image: ${cssImageUrl("/images/q_mark_dk.png")};
         }
 
-        #root[data-theme="dark"] .q-mark-icon:hover::after {
+        [data-widget="deepstake"][data-theme="dark"] .q-mark-icon:hover::after {
           background: #090F19;
           color: #9F9FAC;
         }
@@ -139,7 +139,7 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
           font-weight: 500;
         }
 
-        #root[data-theme="dark"] .binfo-left > span {
+        [data-widget="deepstake"][data-theme="dark"] .binfo-left > span {
           color: #fff;
         }
 

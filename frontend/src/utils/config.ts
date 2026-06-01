@@ -1,5 +1,5 @@
 import { Address, address } from "@solana/kit";
-import { getOptions } from "../options";
+import { Options } from "../options";
 
 export type NetworkConfig = {
   identifier: NetworkType;
@@ -44,8 +44,8 @@ function warnInvalidNetwork(source: string, network: string) {
   );
 }
 
-export function getConfiguredNetwork(): NetworkType {
-  const optionNetwork = normalizeNetwork(getOptions()?.network);
+export function getConfiguredNetwork(options?: Options | null): NetworkType {
+  const optionNetwork = normalizeNetwork(options?.network);
   if (optionNetwork) {
     if (isValidNetwork(optionNetwork)) return optionNetwork;
     warnInvalidNetwork("widget option", optionNetwork);
@@ -65,8 +65,7 @@ function getNetworkConfig(): NetworkConfig {
   return networks[currentNetwork];
 }
 
-export function getValidatorAddress(): Address {
-  const options = getOptions();
+export function getValidatorAddress(options: Options | null): Address {
   const validatorAddress = options?.vote_account;
   
   if (!validatorAddress) {

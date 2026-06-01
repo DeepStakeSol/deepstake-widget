@@ -2,6 +2,7 @@ import { getValidatorAddress } from "../../utils/config";
 import { shortenAddress } from "../../utils/solana/address";
 import { ValidatorInfoResponse } from "../../utils/solana/validator";
 import { useState } from "react";
+import { useOptions } from "../../options";
 import { cssImageUrl } from "../../utils/imageUrl";
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function ValidatorInfo({ validatorInfo, logoUrl }: Props) {
+  const options = useOptions();
   const [copied, setCopied] = useState(false);
 
   const handleCopyIdentity = async () => {
@@ -38,7 +40,7 @@ export function ValidatorInfo({ validatorInfo, logoUrl }: Props) {
         </div>
 
         <div className="vi-subtitle">
-          <span>Vote Account: {shortenAddress(getValidatorAddress())}</span>
+          <span>Vote Account: {shortenAddress(getValidatorAddress(options))}</span>
           <div
             className="vi-copy-btn"
             onClick={handleCopyIdentity}
@@ -51,29 +53,29 @@ export function ValidatorInfo({ validatorInfo, logoUrl }: Props) {
         </div>
       </div>
       <style>{`
-        #root .vi-validator-card {
+        [data-widget="deepstake"] .vi-validator-card {
           color: #000000;
           background-color: #F2F1F1;
         }
 
-        #root .vi-subtitle {
+        [data-widget="deepstake"] .vi-subtitle {
           color: #9F9FAC;
         }
 
-        #root .vi-description {
+        [data-widget="deepstake"] .vi-description {
           color: #555;
         }
 
-        #root[data-theme="dark"] .vi-validator-card {
+        [data-widget="deepstake"][data-theme="dark"] .vi-validator-card {
           color: #9F9FAC;
           background-color: #0D1625;
         }
 
-        #root[data-theme="dark"]  .vi-subtitle {
+        [data-widget="deepstake"][data-theme="dark"]  .vi-subtitle {
           color: #9F9FAC;
         }
 
-        #root[data-theme="dark"]  .vi-description {
+        [data-widget="deepstake"][data-theme="dark"]  .vi-description {
           color: #9F9FAC;
         }
 
@@ -125,7 +127,7 @@ export function ValidatorInfo({ validatorInfo, logoUrl }: Props) {
           background-image: ${cssImageUrl("/images/icon-copy.png")};
         }
 
-        #root[data-theme="dark"] .vi-copy-btn {
+        [data-widget="deepstake"][data-theme="dark"] .vi-copy-btn {
           background-size: contain;
           background-image: ${cssImageUrl("/images/icon-copy_dk.png")};
         }

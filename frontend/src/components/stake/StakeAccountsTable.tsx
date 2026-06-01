@@ -402,38 +402,38 @@ export function StakeAccountsTable({
           background: #fff;
         }
 
-        #root[data-theme="dark"] .epoch-status {
+        [data-widget="deepstake"][data-theme="dark"] .epoch-status {
           background-color: #353844;
           color: #F2F1F1;
         }
 
-        #root[data-theme="dark"] .table-row {
+        [data-widget="deepstake"][data-theme="dark"] .table-row {
           color: #9F9FAC;
         }
 
-        #root[data-theme="dark"] .table-header {
+        [data-widget="deepstake"][data-theme="dark"] .table-header {
           color: #fff;
         }
 
-        #root[data-theme="dark"] .stake-table {
+        [data-widget="deepstake"][data-theme="dark"] .stake-table {
           backgroud-color: #313846;
         }
 
-        #root[data-theme="dark"] .stake-title {
+        [data-widget="deepstake"][data-theme="dark"] .stake-title {
           color: #9F9FAC;
         }
 
-        #root[data-theme="dark"] .stake-icon .img {
+        [data-widget="deepstake"][data-theme="dark"] .stake-icon .img {
           background-size: contain;
           background-image: ${cssImageUrl("/images/coins_dk.png")};
         }
 
-        #root[data-theme="dark"] .vi-copy-btn {
+        [data-widget="deepstake"][data-theme="dark"] .vi-copy-btn {
           background-size: contain;
           background-image: ${cssImageUrl("/images/icon-copy_dk.png")};
         }
 
-        #root[data-theme="dark"] .pg-button {
+        [data-widget="deepstake"][data-theme="dark"] .pg-button {
           background-color: #9f9fac00;
           color: #D9D9D9;
         }

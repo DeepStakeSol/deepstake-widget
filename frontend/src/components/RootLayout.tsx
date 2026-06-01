@@ -40,7 +40,7 @@ const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               border: 2px solid #CECED380;
             }
 
-            #root[data-theme="dark"] > .sw-container {
+            [data-widget="deepstake"][data-theme="dark"] > .sw-container {
               background-color: #0D1625;
               border-color: #9F9FAC40;
             }

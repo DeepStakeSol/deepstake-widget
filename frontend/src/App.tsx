@@ -13,7 +13,7 @@ import { fetchValidatorInfo, ValidatorInfoResponse, fetchValidatorLogo } from ".
 import { fetchEpochInfo, fetchPerfSamples } from "./utils/api";
 import { useNetwork } from "./context/NetworkContext";
 import { cssImageUrl } from "./utils/imageUrl";
-import { getOptions, WidgetTab } from "./options";
+import { useOptions, WidgetTab } from "./options";
 
 type TabConfig = {
   id: WidgetTab;
@@ -64,11 +64,10 @@ function isWidgetTab(value: unknown): value is WidgetTab {
   return typeof value === "string" && VALID_TAB_IDS.has(value as WidgetTab);
 }
 
-function getEnabledTabs(): TabConfig[] {
-  const configuredTabs = getOptions()?.tabs;
-  if (!Array.isArray(configuredTabs)) return ALL_TABS;
+function getEnabledTabs(tabs?: WidgetTab[]): TabConfig[] {
+  if (!Array.isArray(tabs)) return ALL_TABS;
 
-  const enabledTabIds = new Set(configuredTabs.filter(isWidgetTab));
+  const enabledTabIds = new Set(tabs.filter(isWidgetTab));
   if (enabledTabIds.size === 0) return ALL_TABS;
 
   return ALL_TABS.filter((tab) => enabledTabIds.has(tab.id));
@@ -81,12 +80,16 @@ function App() {
   const [validatorInfo, setValidatorInfo] = useState<ValidatorInfoResponse | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const { network } = useNetwork();
-  const enabledTabs = getEnabledTabs();
+  const options = useOptions();
+  const enabledTabs = getEnabledTabs(options?.tabs);
+  const voteAccount = options?.vote_account ?? "";
 
   useEffect(() => {
+      if (!voteAccount) return;
+
       const fetchValidatorData = async () => {
         try {
-          const data = await fetchValidatorInfo();
+          const data = await fetchValidatorInfo(voteAccount);
           setValidatorInfo(data);
         } catch (error) {
           console.error("Failed to fetch validator_info:", error);
@@ -96,7 +99,7 @@ function App() {
 
       const fetchLogo = async () => {
         try {
-          const logo = await fetchValidatorLogo();
+          const logo = await fetchValidatorLogo(voteAccount);
           setLogoUrl(logo);
         } catch (error) {
           console.error("Failed to fetch validator_logo:", error);
@@ -130,7 +133,7 @@ function App() {
         .catch((error) =>
           console.error("Failed to fetch epoch/perf data:", error)
         );
-      }, [network]);
+      }, [network, voteAccount]);
   
   return (
     <>
@@ -208,12 +211,12 @@ function App() {
     </RootLayout>
 
     <style jsx global>{`
-        #root .sw-main-tabs {
+        [data-widget="deepstake"] .sw-main-tabs {
           color: #000000;
           background: #fff;
         }
 
-        #root[data-theme="dark"] .sw-main-tabs {
+        [data-widget="deepstake"][data-theme="dark"] .sw-main-tabs {
           color: #9F9FAC;
           background-color: #9f9fac66;
           border: 0;
@@ -266,34 +269,34 @@ function App() {
           background-image: ${cssImageUrl("/images/vault_stake_selected.png")};
         }
         
-        #root[data-theme="dark"] .tabs-trigger {
+        [data-widget="deepstake"][data-theme="dark"] .tabs-trigger {
           background-color: #9f9fac00;
           color: #9F9FAC;
         }
 
-        #root[data-theme="dark"] .tabs-trigger[data-state="active"] {
+        [data-widget="deepstake"][data-theme="dark"] .tabs-trigger[data-state="active"] {
           background-color: #9f9fac00;
           color: #000;
         }
 
-        #root[data-theme="dark"] .tab-native {
+        [data-widget="deepstake"][data-theme="dark"] .tab-native {
           background-image: ${cssImageUrl("/images/native_stake_dk.png")};
         }
-        #root[data-theme="dark"] .tab-native[data-state="active"] {
+        [data-widget="deepstake"][data-theme="dark"] .tab-native[data-state="active"] {
           background-image: ${cssImageUrl("/images/native_stake_selected_dk.png")};
         }
 
-        #root[data-theme="dark"] .tab-blaze {
+        [data-widget="deepstake"][data-theme="dark"] .tab-blaze {
           background-image: ${cssImageUrl("/images/blaze_stake_dk.png")};
         }
-        #root[data-theme="dark"] .tab-blaze[data-state="active"] {
+        [data-widget="deepstake"][data-theme="dark"] .tab-blaze[data-state="active"] {
           background-image: ${cssImageUrl("/images/blaze_stake_selected_dk.png")};
         }
 
-        #root[data-theme="dark"] .tab-vault {
+        [data-widget="deepstake"][data-theme="dark"] .tab-vault {
           background-image: ${cssImageUrl("/images/vault_stake_dk.png")};
         }
-        #root[data-theme="dark"] .tab-vault[data-state="active"] {
+        [data-widget="deepstake"][data-theme="dark"] .tab-vault[data-state="active"] {
           background-image: ${cssImageUrl("/images/vault_stake_selected_dk.png")};
         }
 

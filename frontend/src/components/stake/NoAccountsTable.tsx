@@ -76,12 +76,12 @@ export function NoAccountsTable() {
           margin: 0 0 6px 0;
         }
 
-        #root[data-theme="dark"] .stake-icon .img {
+        [data-widget="deepstake"][data-theme="dark"] .stake-icon .img {
           background-size: contain;
           background-image: ${cssImageUrl("/images/coins_dk.png")};
         }
 
-        #root[data-theme="dark"] .stake-title {
+        [data-widget="deepstake"][data-theme="dark"] .stake-title {
           color: #9F9FAC;
         }
 

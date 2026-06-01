@@ -77,12 +77,12 @@ export function NoWalletTable() {
           margin: 0;
         }
 
-        #root[data-theme="dark"] .wallet-icon .img {
+        [data-widget="deepstake"][data-theme="dark"] .wallet-icon .img {
           background-size: contain;
           background-image: ${cssImageUrl("/images/table_no_wallet_dk.png")};
         }
 
-        #root[data-theme="dark"] .wallet-title {
+        [data-widget="deepstake"][data-theme="dark"] .wallet-title {
           color: #fff;
         }
       `}</style>

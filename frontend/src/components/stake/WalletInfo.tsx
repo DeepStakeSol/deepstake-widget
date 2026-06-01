@@ -160,14 +160,14 @@ export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, on
           background-image: ${cssImageUrl("/images/wallet_closed.png")};
         }
 
-        #root[data-theme="dark"] .wallet-icon.w-open {
+        [data-widget="deepstake"][data-theme="dark"] .wallet-icon.w-open {
           background-image: ${cssImageUrl("/images/wallet_open_dk.png")};
         }
-        #root[data-theme="dark"] .wallet-icon.w-closed {
+        [data-widget="deepstake"][data-theme="dark"] .wallet-icon.w-closed {
           background-image: ${cssImageUrl("/images/wallet_closed_dk.png")};
         }
 
-        #root[data-theme="dark"] .wallet-pubkey {
+        [data-widget="deepstake"][data-theme="dark"] .wallet-pubkey {
           color: #9F9FAC;
         }
 
@@ -186,13 +186,13 @@ export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, on
           background: #D9D8D8;
         }
 
-        #root[data-theme="dark"] .max-btn {
+        [data-widget="deepstake"][data-theme="dark"] .max-btn {
           border: 1px solid #9F9FAC;
           background: #0D1625;
           color: #9F9FAC;
         }
 
-        #root[data-theme="dark"] .max-btn:hover {
+        [data-widget="deepstake"][data-theme="dark"] .max-btn:hover {
           background: #D9D8D8;
           color: #0D1625;
         }

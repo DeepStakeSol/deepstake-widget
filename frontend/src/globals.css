@@ -4,93 +4,89 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Radix UI token defaults — must stay on :root so the theme's CSS vars resolve */
 :root {
     --background: #0a0a0a;
     --foreground: #ededed;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+/* ─── Widget root isolation ──────────────────────────────────────────────── */
+
+/* Cut all inherited styles from the host page */
+[data-widget="deepstake"] {
+  all: initial;
+  display: block;
+  font-family: 'Outfit', Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Box sizing rules */
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
+/* Apply box-sizing inside the widget */
+[data-widget="deepstake"] *,
+[data-widget="deepstake"] *::before,
+[data-widget="deepstake"] *::after {
+  box-sizing: border-box;
 }
 
-/* Remove default margin */
-body,
-h1,
-h2,
-h3,
-h4,
-p,
-figure,
-blockquote,
-dl,
-dd {
-    margin: 0;
+/*
+ * Revert semantic elements to browser UA defaults so that any explicit
+ * host-page rules (e.g. "section { background: red }") don't bleed in.
+ * The widget's own scoped classes override these with higher specificity.
+ */
+[data-widget="deepstake"] section,
+[data-widget="deepstake"] button,
+[data-widget="deepstake"] h1,
+[data-widget="deepstake"] h2,
+[data-widget="deepstake"] h3,
+[data-widget="deepstake"] h4,
+[data-widget="deepstake"] p,
+[data-widget="deepstake"] figure,
+[data-widget="deepstake"] blockquote,
+[data-widget="deepstake"] dl,
+[data-widget="deepstake"] dd,
+[data-widget="deepstake"] ul,
+[data-widget="deepstake"] ol,
+[data-widget="deepstake"] li,
+[data-widget="deepstake"] input,
+[data-widget="deepstake"] textarea,
+[data-widget="deepstake"] select,
+[data-widget="deepstake"] form,
+[data-widget="deepstake"] a,
+[data-widget="deepstake"] img,
+[data-widget="deepstake"] table,
+[data-widget="deepstake"] thead,
+[data-widget="deepstake"] tbody,
+[data-widget="deepstake"] tr,
+[data-widget="deepstake"] th,
+[data-widget="deepstake"] td {
+  all: revert;
+  box-sizing: border-box;
 }
 
-/* Remove list styles on ul, ol elements with a list role, which suggests default styling will be removed */
-ul[role='list'],
-ol[role='list'] {
-    list-style: none;
+/* Re-apply font inheritance inside the widget for form elements */
+[data-widget="deepstake"] input,
+[data-widget="deepstake"] button,
+[data-widget="deepstake"] textarea,
+[data-widget="deepstake"] select {
+  font: inherit;
 }
 
-/* Set core root defaults */
-html:focus-within {
-    scroll-behavior: smooth;
-}
-
-/* Set core body defaults */
-body {
-    min-height: 100vh;
-    text-rendering: optimizeSpeed;
-    line-height: 1.5;
-}
-
-/* A elements that don't have a class get default styles */
-a:not([class]) {
-    text-decoration-skip-ink: auto;
-}
-
-/* Make images easier to work with */
-img,
-picture {
-    max-width: 100%;
-    display: block;
-}
-
-/* Inherit fonts for inputs and buttons */
-input,
-button,
-textarea,
-select {
-    font: inherit;
-}
-
-/* Remove all animations, transitions and smooth scroll for people that prefer not to see them */
+/* Respect reduced-motion preference for widget animations only */
 @media (prefers-reduced-motion: reduce) {
-    html:focus-within {
-        scroll-behavior: auto;
-    }
-
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
-    }
+  [data-widget="deepstake"] *,
+  [data-widget="deepstake"] *::before,
+  [data-widget="deepstake"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-/* Add these styles at the end of the file */
+/* ─── Radix UI component overrides ──────────────────────────────────────── */
+
 .rt-BaseMenuItem {
     cursor: pointer;
     border: none;

@@ -38,7 +38,7 @@ function WalletDisconnectButton() {
           background-size: contain;
         }
 
-        #root[data-theme="dark"] .disconnect-logo {
+        [data-widget="deepstake"][data-theme="dark"] .disconnect-logo {
           background-image: ${cssImageUrl("/images/disconnect_dk.png")};
         }
       `}</style>

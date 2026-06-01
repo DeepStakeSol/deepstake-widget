@@ -153,19 +153,19 @@ export function VSOLBalanceTable({
           opacity: 0.8;
         }
 
-        #root[data-theme="dark"] .delegated-text {
+        [data-widget="deepstake"][data-theme="dark"] .delegated-text {
           color: #fff;
         }
 
-        #root[data-theme="dark"] .unstake-info {
+        [data-widget="deepstake"][data-theme="dark"] .unstake-info {
           background: #9F9FAC1A;
         }
 
-        #root[data-theme="dark"] .unstake-info p {
+        [data-widget="deepstake"][data-theme="dark"] .unstake-info p {
           color: #9F9FAC;
         }
 
-        #root[data-theme="dark"] .jupiter-btn {
+        [data-widget="deepstake"][data-theme="dark"] .jupiter-btn {
           background: #5A5A62;
           color: #9F9FAC;
         }
@@ -199,11 +199,11 @@ export function VSOLBalanceTable({
           color: #222;
         }
 
-        #root[data-theme="dark"] .balance-value {
+        [data-widget="deepstake"][data-theme="dark"] .balance-value {
           color: #fff;
         }
 
-        #root[data-theme="dark"] .balance-label {
+        [data-widget="deepstake"][data-theme="dark"] .balance-label {
           color: #fff;
         }
 
@@ -223,11 +223,11 @@ export function VSOLBalanceTable({
           }
         }
 
-        #root[data-theme="dark"] .stake-title {
+        [data-widget="deepstake"][data-theme="dark"] .stake-title {
           color: #9F9FAC;
         }
 
-        #root[data-theme="dark"] .stake-icon .img {
+        [data-widget="deepstake"][data-theme="dark"] .stake-icon .img {
           background-size: contain;
           background-image: ${cssImageUrl("/images/coins_dk.png")};
         }

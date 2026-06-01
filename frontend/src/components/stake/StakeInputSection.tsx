@@ -137,46 +137,46 @@ export function StakeInputSection({
           color: #000;
         }
 
-        #root[data-theme="dark"] .sw-input-container {
+        [data-widget="deepstake"][data-theme="dark"] .sw-input-container {
           background: #0D1625;
         }
 
-        #root[data-theme="dark"] .sw-input-container > input,
-        #root[data-theme="dark"] .sw-input-container > input:focus {
+        [data-widget="deepstake"][data-theme="dark"] .sw-input-container > input,
+        [data-widget="deepstake"][data-theme="dark"] .sw-input-container > input:focus {
           background: #0D1625;
         }
 
-        #root[data-theme="dark"] .sw-input-container > input {
+        [data-widget="deepstake"][data-theme="dark"] .sw-input-container > input {
           color: #9F9FAC;
         }
 
-        #root[data-theme="dark"] .sw-input-container > input:focus {
+        [data-widget="deepstake"][data-theme="dark"] .sw-input-container > input:focus {
           color: #fff;
         }
 
-        #root[data-theme="dark"] .sw-input-container > input::placeholder {
+        [data-widget="deepstake"][data-theme="dark"] .sw-input-container > input::placeholder {
           color: #9F9FAC;
           opacity: 1; /* prevents faded look in some browsers */
         }
 
         /* Older browsers (rarely needed today) */
-        #root[data-theme="dark"] .sw-input-container > input::-webkit-input-placeholder {
+        [data-widget="deepstake"][data-theme="dark"] .sw-input-container > input::-webkit-input-placeholder {
           color: #9F9FAC;
         }
 
-        #root[data-theme="dark"] .sw-input-container > input::-moz-placeholder {
+        [data-widget="deepstake"][data-theme="dark"] .sw-input-container > input::-moz-placeholder {
           color: #9F9FAC;
         }
 
-        #root[data-theme="dark"] .sw-input-container > input:-ms-input-placeholder {
+        [data-widget="deepstake"][data-theme="dark"] .sw-input-container > input:-ms-input-placeholder {
           color: #9F9FAC;
         }
 
-        #root[data-theme="dark"] .sw-input-container {
+        [data-widget="deepstake"][data-theme="dark"] .sw-input-container {
           border: 1px solid #0D1625;
         }
 
-        #root[data-theme="dark"] .sw-input-container > .sol-label {
+        [data-widget="deepstake"][data-theme="dark"] .sw-input-container > .sol-label {
           color: #fff;
         }
       `}</style>

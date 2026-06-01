@@ -87,13 +87,13 @@ export function StakeLayout({ stakeChildren, manageChildren, onManageOpen }: Sta
           text-align: left;
         }
 
-        #root[data-theme="dark"] .stake-form {
+        [data-widget="deepstake"][data-theme="dark"] .stake-form {
           background-color: #9f9fac29;
           color: #9F9FAC;
           border: 0;
         }
 
-        #root[data-theme="dark"] .tabs-level2 {
+        [data-widget="deepstake"][data-theme="dark"] .tabs-level2 {
           font-size: 15px;
           padding: 8px 0;
           cursor: pointer;
@@ -107,7 +107,7 @@ export function StakeLayout({ stakeChildren, manageChildren, onManageOpen }: Sta
           text-align: left;
         }
 
-        #root[data-theme="dark"] .tabs-level2[data-state="active"] {
+        [data-widget="deepstake"][data-theme="dark"] .tabs-level2[data-state="active"] {
           color: #fff;
           font-size: 15px;
           font-weight: 600;

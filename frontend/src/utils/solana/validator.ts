@@ -1,4 +1,3 @@
-import { getValidatorAddress } from "../../utils/config";
 import { getBackendUrl } from "../backendUrl";
 
 const VALIDATOR_INFO_URL = "https://api.stakewiz.com/validator";
@@ -127,10 +126,9 @@ interface TrilliumRewardItem {
   [key: string]: unknown;
 }
 
-export const fetchValidatorInfo = async (): Promise<ValidatorInfoResponse> => {
+export const fetchValidatorInfo = async (voteAccount: string): Promise<ValidatorInfoResponse> => {
   try {
-    const identity = getValidatorAddress();
-    const url = new URL(`${VALIDATOR_INFO_URL}/${identity}`);
+    const url = new URL(`${VALIDATOR_INFO_URL}/${voteAccount}`);
 
     const response = await fetch(url);
 
@@ -146,12 +144,10 @@ export const fetchValidatorInfo = async (): Promise<ValidatorInfoResponse> => {
   }
 };
 
-export const fetchValidatorLogo = async (): Promise<string | null> => {
-  const validatorIdentity = getValidatorAddress();
-
+export const fetchValidatorLogo = async (voteAccount: string): Promise<string | null> => {
   try {
     const url = new URL(getBackendUrl("/trillium/rewards"), window.location.origin);
-    url.searchParams.append("validatorIdentity", validatorIdentity);
+    url.searchParams.append("validatorIdentity", voteAccount);
 
     const response = await fetch(url);
 
@@ -167,7 +163,7 @@ export const fetchValidatorLogo = async (): Promise<string | null> => {
     }
 
     const matchingItem = data.find(
-      (item) => item.vote_account_pubkey === validatorIdentity
+      (item) => item.vote_account_pubkey === voteAccount
     );
 
     return matchingItem?.icon_url || null;

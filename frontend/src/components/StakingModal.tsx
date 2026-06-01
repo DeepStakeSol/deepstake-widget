@@ -297,36 +297,36 @@ export function StakingModal() {
           height: 320px;
         }
 
-        #root[data-theme="dark"] .staking-overlay,
-        #root[data-theme="dark"] .success-overlay,
-        #root[data-theme="dark"] .transaction-overlay {
+        [data-widget="deepstake"][data-theme="dark"] .staking-overlay,
+        [data-widget="deepstake"][data-theme="dark"] .success-overlay,
+        [data-widget="deepstake"][data-theme="dark"] .transaction-overlay {
           background-color: #0d1625db;
           backdrop-filter: blur(4px);
         }
 
-        #root[data-theme="dark"] .staking-modal,
-        #root[data-theme="dark"] .success-modal,
-        #root[data-theme="dark"] .transaction-modal {
+        [data-widget="deepstake"][data-theme="dark"] .staking-modal,
+        [data-widget="deepstake"][data-theme="dark"] .success-modal,
+        [data-widget="deepstake"][data-theme="dark"] .transaction-modal {
           background-color: #353844 !important;
           color: #fff !important;
         }
 
-        #root[data-theme="dark"] .staking-dialog-title,
-        #root[data-theme="dark"] .success-dialog-title,
-        #root[data-theme="dark"] .transaction-dialog-title {
+        [data-widget="deepstake"][data-theme="dark"] .staking-dialog-title,
+        [data-widget="deepstake"][data-theme="dark"] .success-dialog-title,
+        [data-widget="deepstake"][data-theme="dark"] .transaction-dialog-title {
           color: #fff !important;
         }
 
-        #root[data-theme="dark"] .staking-dialog-description,
-        #root[data-theme="dark"] .success-dialog-description {
+        [data-widget="deepstake"][data-theme="dark"] .staking-dialog-description,
+        [data-widget="deepstake"][data-theme="dark"] .success-dialog-description {
           color: #fff !important;
         }
 
-        #root[data-theme="dark"] .success-close-btn {
+        [data-widget="deepstake"][data-theme="dark"] .success-close-btn {
           color: #fff !important;
         }
 
-        #root[data-theme="dark"] .sol-links {
+        [data-widget="deepstake"][data-theme="dark"] .sol-links {
           color: #fff !important;
         }
 

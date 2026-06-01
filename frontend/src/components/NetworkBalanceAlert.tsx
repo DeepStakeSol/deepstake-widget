@@ -93,24 +93,24 @@ export function NetworkBalanceAlert() {
           padding: 4px 8px;
           border-radius: 4px;
         }
-        #root[data-theme="dark"] .alert-overlay {
+        [data-widget="deepstake"][data-theme="dark"] .alert-overlay {
           background-color: #0d1625db;
           backdrop-filter: blur(4px);
         }
-        #root[data-theme="dark"] .alert-modal {
+        [data-widget="deepstake"][data-theme="dark"] .alert-modal {
           background-color: #353844 !important;
           color: #fff !important;
         }
-        #root[data-theme="dark"] .alert-close-btn {
+        [data-widget="deepstake"][data-theme="dark"] .alert-close-btn {
           color: #fff !important;
         }
-        #root[data-theme="dark"] .alert-title {
+        [data-widget="deepstake"][data-theme="dark"] .alert-title {
           color: #fff !important;
         }
-        #root[data-theme="dark"] .alert-description {
+        [data-widget="deepstake"][data-theme="dark"] .alert-description {
           color: #fff !important;
         }
-        #root[data-theme="dark"] .button-close2 {
+        [data-widget="deepstake"][data-theme="dark"] .button-close2 {
           background: #D9D9D9 !important;
           color: #000 !important;
         }
