@@ -79,7 +79,7 @@ export function ValidatorInfo({ validatorInfo, logoUrl }: Props) {
           color: #9F9FAC;
         }
 
-        .vi-validator-card {
+        [data-widget="deepstake"] .vi-validator-card {
           display: flex;
           align-items: flex-start;
           gap: 24px;
@@ -88,7 +88,7 @@ export function ValidatorInfo({ validatorInfo, logoUrl }: Props) {
           margin-bottom: 30px;
         }
 
-        .vi-avatar {
+        [data-widget="deepstake"] .vi-avatar {
           width: 50px;
           height: 50px;
           border-radius: 50%;
@@ -96,29 +96,29 @@ export function ValidatorInfo({ validatorInfo, logoUrl }: Props) {
           flex-shrink: 0;
         }
 
-        .vi-image {
+        [data-widget="deepstake"] .vi-image {
           height: 50px;
         }
 
-        .vi-content {
+        [data-widget="deepstake"] .vi-content {
           display: flex;
           flex-direction: column;
           gap: 6px;
         }
 
-        .vi-title {
+        [data-widget="deepstake"] .vi-title {
           font-size: 20px;
           font-weight: 600;
         }
 
-        .vi-subtitle {
+        [data-widget="deepstake"] .vi-subtitle {
           display: flex;
           align-items: center;
           gap: 6px;
           font-size: 15px;
         }
 
-        .vi-copy-btn {
+        [data-widget="deepstake"] .vi-copy-btn {
           cursor: pointer;
           padding: 0;
           width: 14px;
@@ -132,7 +132,7 @@ export function ValidatorInfo({ validatorInfo, logoUrl }: Props) {
           background-image: ${cssImageUrl("/images/icon-copy_dk.png")};
         }
 
-        .vi-description {
+        [data-widget="deepstake"] .vi-description {
           font-size: 14px;
           line-height: 1.4;
         }

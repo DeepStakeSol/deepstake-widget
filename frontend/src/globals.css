@@ -1,15 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Radix UI token defaults — must stay on :root so the theme's CSS vars resolve */
-:root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-}
-
 /* ─── Widget root isolation ──────────────────────────────────────────────── */
 
 /* Cut all inherited styles from the host page */
@@ -21,6 +11,8 @@
   line-height: 1.5;
   box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
 /* Apply box-sizing inside the widget */

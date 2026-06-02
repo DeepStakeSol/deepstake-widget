@@ -154,7 +154,7 @@ export function WithdrawButton({
       )}
 
       <style>{`
-        .action-button {
+        [data-widget="deepstake"] .action-button {
           border-radius: 10px;
           border: none;
           background: #5A5A62;
@@ -164,7 +164,7 @@ export function WithdrawButton({
           height: 40px;
         }
 
-        .action-button:disabled {
+        [data-widget="deepstake"] .action-button:disabled {
           background: #e5e7eb;
           color: #9ca3af;
           cursor: not-allowed;

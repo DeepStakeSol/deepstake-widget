@@ -25,7 +25,7 @@ export function NoAccountsTable() {
 
       <style>{`
         /* Page wrapper */
-        .stake-screen {
+        [data-widget="deepstake"] .stake-screen {
           min-height: 244px;
           padding: 48px 32px;
           box-sizing: border-box;
@@ -34,7 +34,7 @@ export function NoAccountsTable() {
         }
 
         /* Content container */
-        .stake-container {
+        [data-widget="deepstake"] .stake-container {
           width: 100%;
           max-width: 720px;
           display: flex;
@@ -42,14 +42,14 @@ export function NoAccountsTable() {
         }
 
         /* Header (icon + title) */
-        .stake-header {
+        [data-widget="deepstake"] .stake-header {
           display: flex;
           align-items: center;
           gap: 12px;
           margin-bottom: 24px;
         }
 
-        .stake-icon .img {
+        [data-widget="deepstake"] .stake-icon .img {
           width: 24px;
           height: 24px;
           opacity: 0.7;
@@ -57,7 +57,7 @@ export function NoAccountsTable() {
           background-image: ${cssImageUrl("/images/coins.png")};
         }
 
-        .stake-title {
+        [data-widget="deepstake"] .stake-title {
           font-size: 15px;
           font-weight: 400;
           margin: 0;
@@ -65,14 +65,14 @@ export function NoAccountsTable() {
         }
 
         /* Empty state text */
-        .stake-empty {
+        [data-widget="deepstake"] .stake-empty {
           color: #9F9FAC;
           font-size: 14px;
           font-weight: 500;
           line-height: 1.6;
         }
 
-        .stake-empty p {
+        [data-widget="deepstake"] .stake-empty p {
           margin: 0 0 6px 0;
         }
 

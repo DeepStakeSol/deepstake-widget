@@ -57,7 +57,7 @@ export function NetworkBalanceAlert() {
   return (
     <>
       <style>{`
-        .alert-overlay {
+        [data-widget="deepstake"] .alert-overlay {
           position: absolute;
           inset: 0;
           z-index: 100;
@@ -65,7 +65,7 @@ export function NetworkBalanceAlert() {
           backdrop-filter: blur(4px);
           border-radius: 20px;
         }
-        .alert-modal {
+        [data-widget="deepstake"] .alert-modal {
           position: absolute;
           z-index: 101;
           left: 50%;
@@ -79,7 +79,7 @@ export function NetworkBalanceAlert() {
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
           color: #000;
         }
-        .alert-close-btn {
+        [data-widget="deepstake"] .alert-close-btn {
           position: absolute;
           top: 15px;
           right: 15px;

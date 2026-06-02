@@ -128,7 +128,7 @@ export function ErrorDialog({ error, onClose, title }: Props) {
       </div>
 
       <style>{`
-        .error-dialog-overlay {
+        [data-widget="deepstake"] .error-dialog-overlay {
           position: absolute;
           inset: 0;
           z-index: 100;
@@ -137,7 +137,7 @@ export function ErrorDialog({ error, onClose, title }: Props) {
           border-radius: 20px;
         }
 
-        .error-dialog-content {
+        [data-widget="deepstake"] .error-dialog-content {
           position: absolute;
           z-index: 101;
           left: 50%;

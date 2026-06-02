@@ -148,7 +148,7 @@ export function UnstakeButton({
       )}
 
       <style>{`
-        .action-button {
+        [data-widget="deepstake"] .action-button {
           cursor: pointer;
           border-radius: 10px;
           border: none;
@@ -159,7 +159,7 @@ export function UnstakeButton({
           height: 40px;
         }
 
-        .action-button:disabled {
+        [data-widget="deepstake"] .action-button:disabled {
           background: #e5e7eb;
           color: #9ca3af;
           cursor: not-allowed;

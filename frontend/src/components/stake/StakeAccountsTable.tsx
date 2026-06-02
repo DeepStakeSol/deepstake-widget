@@ -341,7 +341,7 @@ export function StakeAccountsTable({
       </Flex>
 
       <style>{`
-        .action-buttons-row {
+        [data-widget="deepstake"] .action-buttons-row {
           display: flex;
           justify-content: center;
           gap: 8px;
@@ -349,30 +349,30 @@ export function StakeAccountsTable({
           margin-top: 20px;
         }
 
-        .action-buttons-row button {
+        [data-widget="deepstake"] .action-buttons-row button {
           width: 50%;
         }
 
-        .stake-table {
+        [data-widget="deepstake"] .stake-table {
           backgroud-color: #fff;
         }
 
-        .table-header {
+        [data-widget="deepstake"] .table-header {
           font-weight: 800;
         }
 
-        .epoch-status {
+        [data-widget="deepstake"] .epoch-status {
           background-color: #E5E4E4;
         }
 
-        .stake-header {
+        [data-widget="deepstake"] .stake-header {
           display: flex;
           align-items: center;
           gap: 12px;
           margin-bottom: 24px;
         }
 
-        .stake-icon .img {
+        [data-widget="deepstake"] .stake-icon .img {
           width: 24px;
           height: 24px;
           opacity: 0.7;
@@ -380,14 +380,14 @@ export function StakeAccountsTable({
           background-image: ${cssImageUrl("/images/coins.png")};
         }
 
-        .stake-title {
+        [data-widget="deepstake"] .stake-title {
           font-size: 15px;
           font-weight: 400;
           margin: 0;
           color: #000;
         }
 
-        .vi-copy-btn {
+        [data-widget="deepstake"] .vi-copy-btn {
           display: inline-block;
           margin-left: 5px;
           cursor: pointer;
@@ -398,7 +398,7 @@ export function StakeAccountsTable({
           background-image: ${cssImageUrl("/images/icon-copy.png")};
         }
 
-        .pg-button {
+        [data-widget="deepstake"] .pg-button {
           background: #fff;
         }
 
@@ -438,14 +438,14 @@ export function StakeAccountsTable({
           color: #D9D9D9;
         }
 
-        .pg-button {
+        [data-widget="deepstake"] .pg-button {
           display: inline-flex;
           align-items: center;
           gap: 4px;
           vertical-align: middle;
         }
 
-        .pg-button svg {
+        [data-widget="deepstake"] .pg-button svg {
           vertical-align: middle;
           display: inline-block;
         }

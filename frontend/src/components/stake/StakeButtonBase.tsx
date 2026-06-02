@@ -77,7 +77,7 @@ export function StakeButtonBase({
       )}
 
       <style>{`
-        .stake-button {
+        [data-widget="deepstake"] .stake-button {
           background: #5A5A62;
           color: #fff;
         }

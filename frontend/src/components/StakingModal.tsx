@@ -258,9 +258,9 @@ export function StakingModal() {
       )}
 
       <style>{`
-        .staking-overlay,
-        .success-overlay,
-        .transaction-overlay {
+        [data-widget="deepstake"] .staking-overlay,
+        [data-widget="deepstake"] .success-overlay,
+        [data-widget="deepstake"] .transaction-overlay {
           position: absolute;
           inset: 0;
           z-index: 100;
@@ -269,9 +269,9 @@ export function StakingModal() {
           border-radius: 20px;
         }
 
-        .staking-modal,
-        .success-modal,
-        .transaction-modal {
+        [data-widget="deepstake"] .staking-modal,
+        [data-widget="deepstake"] .success-modal,
+        [data-widget="deepstake"] .transaction-modal {
           position: absolute;
           z-index: 101;
           left: 50%;
@@ -285,15 +285,15 @@ export function StakingModal() {
           color: #000;
         }
 
-        .staking-modal {
+        [data-widget="deepstake"] .staking-modal {
           height: 360px;
         }
 
-        .success-modal {
+        [data-widget="deepstake"] .success-modal {
           height: 410px;
         }
 
-        .transaction-modal {
+        [data-widget="deepstake"] .transaction-modal {
           height: 320px;
         }
 

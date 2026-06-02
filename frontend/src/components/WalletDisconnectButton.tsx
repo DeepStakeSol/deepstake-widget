@@ -30,7 +30,7 @@ function WalletDisconnectButton() {
       <div className="disconnect-logo" onClick={handleDisconnect} ></div>
 
       <style>{`
-        .disconnect-logo {
+        [data-widget="deepstake"] .disconnect-logo {
           cursor: pointer;
           width: 20px;
           height: 20px;

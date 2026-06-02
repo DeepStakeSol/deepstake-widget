@@ -119,21 +119,21 @@ export function StakeInputSection({
       </Flex>
 
       <style>{`
-        .sw-input-container,
-        .sw-input-container > input {
+        [data-widget="deepstake"] .sw-input-container,
+        [data-widget="deepstake"] .sw-input-container > input {
           background: #F5F5F5;
         }
 
-        .sw-input-container {
+        [data-widget="deepstake"] .sw-input-container {
           border: 1px solid rgb(204, 204, 204);
         }
 
-        .sw-input-container > input:focus {
+        [data-widget="deepstake"] .sw-input-container > input:focus {
           outline: none;
           border: none;
         }
 
-        .sw-input-container > .sol-label {
+        [data-widget="deepstake"] .sw-input-container > .sol-label {
           color: #000;
         }
 
