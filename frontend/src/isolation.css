@@ -1,0 +1,53 @@
+[data-widget="deepstake"] {
+  all: initial;
+  display: block;
+  font-family: 'Outfit', Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+[data-widget="deepstake"] *,
+[data-widget="deepstake"] *::before,
+[data-widget="deepstake"] *::after {
+  box-sizing: border-box;
+}
+
+[data-widget="deepstake"] section,
+[data-widget="deepstake"] button,
+[data-widget="deepstake"] h1,
+[data-widget="deepstake"] h2,
+[data-widget="deepstake"] h3,
+[data-widget="deepstake"] h4,
+[data-widget="deepstake"] p,
+[data-widget="deepstake"] figure,
+[data-widget="deepstake"] blockquote,
+[data-widget="deepstake"] dl,
+[data-widget="deepstake"] dd,
+[data-widget="deepstake"] ul,
+[data-widget="deepstake"] ol,
+[data-widget="deepstake"] li,
+[data-widget="deepstake"] input,
+[data-widget="deepstake"] textarea,
+[data-widget="deepstake"] select,
+[data-widget="deepstake"] form,
+[data-widget="deepstake"] a,
+[data-widget="deepstake"] img,
+[data-widget="deepstake"] table,
+[data-widget="deepstake"] thead,
+[data-widget="deepstake"] tbody,
+[data-widget="deepstake"] tr,
+[data-widget="deepstake"] th,
+[data-widget="deepstake"] td {
+  all: unset;
+  display: revert;
+  box-sizing: border-box;
+}
+
+[data-widget="deepstake"] input,
+[data-widget="deepstake"] button,
+[data-widget="deepstake"] textarea,
+[data-widget="deepstake"] select {
+  font: inherit;
+}

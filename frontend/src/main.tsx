@@ -4,6 +4,16 @@ import { NetworkProvider } from "./context/NetworkContext";
 import './globals.css'
 import App from './App.tsx'
 import { OptionsContext, Options } from "./options.tsx";
+import isolationCSS from './isolation.css?inline';
+
+// Inject isolation rules immediately so host-page element selectors
+// (section {}, button {}, h1 {}, etc.) cannot override widget internals.
+;(function () {
+  const style = document.createElement('style');
+  style.setAttribute('data-widget-isolation', 'deepstake');
+  style.textContent = isolationCSS;
+  document.head.appendChild(style);
+})();
 
 document.addEventListener("DOMContentLoaded", () => {
   const elements = new Set<HTMLElement>();
