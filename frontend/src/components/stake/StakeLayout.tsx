@@ -52,17 +52,17 @@ export function StakeLayout({ stakeChildren, manageChildren, onManageOpen }: Sta
         </Tabs.Root>
       </Flex>
       <style jsx>{`
-        .stake-form {
-          background-color: #fff;  
+        [data-widget="deepstake"] .stake-form {
+          background-color: #fff;
         }
 
-        .stake-tab-content {
+        [data-widget="deepstake"] .stake-tab-content {
           height: 315px;
           overflow-x: hidden;
           overflow-y: auto;
         }
 
-        .tabs-level2 {
+        [data-widget="deepstake"] .tabs-level2 {
           font-size: 15px;
           padding: 8px 0;
           cursor: pointer;
@@ -76,7 +76,7 @@ export function StakeLayout({ stakeChildren, manageChildren, onManageOpen }: Sta
           text-align: left;
         }
 
-        .tabs-level2[data-state="active"] {
+        [data-widget="deepstake"] .tabs-level2[data-state="active"] {
           color: #000;
           font-size: 15px;
           font-weight: 600;
@@ -119,14 +119,14 @@ export function StakeLayout({ stakeChildren, manageChildren, onManageOpen }: Sta
           background-color: #31384600;
         }
 
-        .action-buttons-row {
+        [data-widget="deepstake"] .action-buttons-row {
           display: flex;
           justify-content: center;
           gap: 8px;
           width: 100%;
         }
 
-        .action-buttons-row button {
+        [data-widget="deepstake"] .action-buttons-row button {
           width: 50%;
         }
       `}</style>

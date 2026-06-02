@@ -143,20 +143,20 @@ export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, on
         </button>
       </div>
       <style jsx>{`
-        .wallet-icon {
+        [data-widget="deepstake"] .wallet-icon {
           background-size: contain;
           width: 20px;
           height: 20px;
         }
-        
-        .wallet-pubkey {
+
+        [data-widget="deepstake"] .wallet-pubkey {
           color: #555;
         }
 
-        .wallet-icon.w-open {
+        [data-widget="deepstake"] .wallet-icon.w-open {
           background-image: ${cssImageUrl("/images/wallet_open.png")};
         }
-        .wallet-icon.w-closed {
+        [data-widget="deepstake"] .wallet-icon.w-closed {
           background-image: ${cssImageUrl("/images/wallet_closed.png")};
         }
 
@@ -171,7 +171,7 @@ export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, on
           color: #9F9FAC;
         }
 
-        .max-btn {
+        [data-widget="deepstake"] .max-btn {
           padding: 2px 10px;
           border-radius: 8px;
           border: 1px solid #D9D9D9;
@@ -182,7 +182,7 @@ export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, on
           cursor: pointer;
         }
 
-        .max-btn:hover {
+        [data-widget="deepstake"] .max-btn:hover {
           background: #D9D8D8;
         }
 

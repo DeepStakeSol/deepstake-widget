@@ -27,7 +27,7 @@ export function NoWalletTable() {
 
       <style jsx>{`
         /* Full screen wrapper */
-        .wallet-screen {
+        [data-widget="deepstake"] .wallet-screen {
           display: flex;
           align-items: center;        /* vertical center */
           justify-content: center;    /* horizontal center */
@@ -37,7 +37,7 @@ export function NoWalletTable() {
         }
 
         /* Centered content block */
-        .wallet-content {
+        [data-widget="deepstake"] .wallet-content {
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -46,12 +46,12 @@ export function NoWalletTable() {
         }
 
         /* Icon */
-        .wallet-icon {
+        [data-widget="deepstake"] .wallet-icon {
           margin-bottom: 32px;
           opacity: 0.4;
         }
 
-        .wallet-icon .img {
+        [data-widget="deepstake"] .wallet-icon .img {
           width: 96px;
           height: 96px;
           background-size: contain;
@@ -59,7 +59,7 @@ export function NoWalletTable() {
         }
 
         /* Title */
-        .wallet-title {
+        [data-widget="deepstake"] .wallet-title {
           font-family: 'Outfit', sans-serif;
           font-size: 14px;
           font-weight: 500;
@@ -68,7 +68,7 @@ export function NoWalletTable() {
         }
 
         /* Description */
-        .wallet-description {
+        [data-widget="deepstake"] .wallet-description {
           font-family: 'Outfit', sans-serif;
           font-size: 14px;
           font-weight: 500;

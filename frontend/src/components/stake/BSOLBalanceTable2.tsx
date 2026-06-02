@@ -172,7 +172,7 @@ export function BSOLBalanceTable2({
 
       <style jsx>{`
         /* Page wrapper */
-        .stake-screen {
+        [data-widget="deepstake"] .stake-screen {
           min-height: 244px;
           padding: 0;
           box-sizing: border-box;
@@ -181,7 +181,7 @@ export function BSOLBalanceTable2({
         }
 
         /* Content container */
-        .stake-container {
+        [data-widget="deepstake"] .stake-container {
           width: 100%;
           max-width: 720px;
           display: flex;
@@ -189,14 +189,14 @@ export function BSOLBalanceTable2({
         }
 
         /* Header (icon + title) */
-        .stake-header {
+        [data-widget="deepstake"] .stake-header {
           display: flex;
           align-items: center;
           gap: 12px;
           margin-bottom: 16px;
         }
 
-        .stake-icon .img {
+        [data-widget="deepstake"] .stake-icon .img {
           width: 24px;
           height: 24px;
           opacity: 0.7;
@@ -204,14 +204,14 @@ export function BSOLBalanceTable2({
           background-image: ${cssImageUrl("/images/coins.png")};
         }
 
-        .stake-title {
+        [data-widget="deepstake"] .stake-title {
           font-size: 15px;
           font-weight: 400;
           margin: 0;
           color: #000;
         }
 
-        .stake-epoch-note {
+        [data-widget="deepstake"] .stake-epoch-note {
           font-size: 11px;
           color: #888;
           margin: -8px 0 12px 0;
@@ -224,33 +224,33 @@ export function BSOLBalanceTable2({
         }
 
         /* Empty state text */
-        .stake-empty {
+        [data-widget="deepstake"] .stake-empty {
           font-size: 14px;
           font-weight: 500;
           line-height: 1.6;
         }
 
-        .stake-empty p {
+        [data-widget="deepstake"] .stake-empty p {
           margin: 0 0 27px 0;
         }
 
-        .delegated-text {
+        [data-widget="deepstake"] .delegated-text {
           color: #000;
           padding: 0 30px;
         }
 
-        .unstake-info {
+        [data-widget="deepstake"] .unstake-info {
           background: #fff;
           border-radius: 10px;
           padding: 20px 30px 40px 30px;
         }
 
-        .unstake-info p {
+        [data-widget="deepstake"] .unstake-info p {
           margin: 0 0 10px 0;
           color: #555;
         }
 
-        .jupiter-btn {
+        [data-widget="deepstake"] .jupiter-btn {
           display: inline-block;
           background: #e5e4e4;
           color: #000;
@@ -264,7 +264,7 @@ export function BSOLBalanceTable2({
           text-align: center;
         }
 
-        .jupiter-btn:hover {
+        [data-widget="deepstake"] .jupiter-btn:hover {
           opacity: 0.8;
         }
 
@@ -286,21 +286,21 @@ export function BSOLBalanceTable2({
         }
 
         /* Balance container */
-        .balance-container {
+        [data-widget="deepstake"] .balance-container {
           position: relative;
           background: transparent;
           padding: 0 30px;
           margin-bottom: 5px;
         }
 
-        .balance-content {
+        [data-widget="deepstake"] .balance-content {
           display: flex;
           align-items: baseline;
           gap: 12px;
           padding: 4px 0;
         }
 
-        .balance-value {
+        [data-widget="deepstake"] .balance-value {
           font-size: 40px;
           font-weight: 400;
           color: #222;
@@ -309,7 +309,7 @@ export function BSOLBalanceTable2({
           gap: 8px;
         }
 
-        .balance-label {
+        [data-widget="deepstake"] .balance-label {
           font-size: 24px;
           color: #222;
         }
@@ -323,7 +323,7 @@ export function BSOLBalanceTable2({
         }
 
         /* spinner */
-        .spinner {
+        [data-widget="deepstake"] .spinner {
           float: right;
           width: 9px;
           height: 9px;
@@ -349,19 +349,19 @@ export function BSOLBalanceTable2({
         }
 
         /* Stakes table styles */
-        .stakes-table-container {
+        [data-widget="deepstake"] .stakes-table-container {
           padding: 0 30px;
           margin-bottom: 5px;
         }
 
-        .stakes-table {
+        [data-widget="deepstake"] .stakes-table {
           width: 100%;
           border-collapse: collapse;
           font-size: 12px;
           margin-bottom: 24px;
         }
 
-        .stakes-table-header {
+        [data-widget="deepstake"] .stakes-table-header {
           text-align: left;
           padding: 10px 12px;
           font-weight: 700;
@@ -370,7 +370,7 @@ export function BSOLBalanceTable2({
           font-size: 13px;
         }
 
-        .stakes-table-header-right {
+        [data-widget="deepstake"] .stakes-table-header-right {
           text-align: right;
         }
 
@@ -382,18 +382,18 @@ export function BSOLBalanceTable2({
           background: #fff;
         } */
 
-        .stakes-table-row-even:hover,
-        .stakes-table-row-odd:hover {
+        [data-widget="deepstake"] .stakes-table-row-even:hover,
+        [data-widget="deepstake"] .stakes-table-row-odd:hover {
           background: #f0f0f0;
         }
 
-        .stakes-table-cell {
+        [data-widget="deepstake"] .stakes-table-cell {
           padding: 12px 12px 0;
           color: #222;
           /*border-bottom: 1px solid #e8e8e8;*/
         }
 
-        .stakes-table-cell-right {
+        [data-widget="deepstake"] .stakes-table-cell-right {
           text-align: right;
           font-family: monospace;
           font-size: 12px;
@@ -404,18 +404,18 @@ export function BSOLBalanceTable2({
           font-weight: 600;
         } */
 
-        .stakes-table-total:hover {
+        [data-widget="deepstake"] .stakes-table-total:hover {
           background: #e8e8e8 !important;
         }
 
-        .stakes-table-total-label {
+        [data-widget="deepstake"] .stakes-table-total-label {
           padding: 12px;
           color: #222;
           font-weight: 600;
           font-size: 14px;
         }
 
-        .stakes-table-total-value {
+        [data-widget="deepstake"] .stakes-table-total-value {
           padding: 12px;
           color: #222;
           font-weight: 600;
@@ -458,7 +458,7 @@ export function BSOLBalanceTable2({
           color: #fff;
         }
 
-        .stakes-table-cell.other-pendings,
+        [data-widget="deepstake"] .stakes-table-cell.other-pendings,
         [data-widget="deepstake"][data-theme='dark'] .stakes-table-cell.other-pendings {
           font-style: italic;
         }

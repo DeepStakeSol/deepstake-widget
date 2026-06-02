@@ -222,7 +222,7 @@ function App() {
           border: 0;
         }
         
-        .tabs-trigger {
+        [data-widget="deepstake"] .tabs-trigger {
           font-weight: 600;
           font-size: 14px;
           padding: 8px 16px;
@@ -237,7 +237,7 @@ function App() {
           height: 64px;
         }
 
-        .tabs-trigger[data-state="active"] {
+        [data-widget="deepstake"] .tabs-trigger[data-state="active"] {
           color: #FFFFFF;
           font-weight: 700;
           font-size: 14px;
@@ -248,24 +248,24 @@ function App() {
           height: 64px;
         }
 
-        .tabs-trigger.tab-native {
+        [data-widget="deepstake"] .tabs-trigger.tab-native {
           background-image: ${cssImageUrl("/images/native_stake.png")};
         }
-        .tabs-trigger.tab-native[data-state="active"] {
+        [data-widget="deepstake"] .tabs-trigger.tab-native[data-state="active"] {
           background-image: ${cssImageUrl("/images/native_stake_selected.png")};
         }
 
-        .tabs-trigger.tab-blaze {
+        [data-widget="deepstake"] .tabs-trigger.tab-blaze {
           background-image: ${cssImageUrl("/images/blaze_stake.png")};
         }
-        .tabs-trigger.tab-blaze[data-state="active"] {
+        [data-widget="deepstake"] .tabs-trigger.tab-blaze[data-state="active"] {
           background-image: ${cssImageUrl("/images/blaze_stake_selected.png")};
         }
 
-        .tabs-trigger.tab-vault {
+        [data-widget="deepstake"] .tabs-trigger.tab-vault {
           background-image: ${cssImageUrl("/images/vault_stake.png")};
         }
-        .tabs-trigger.tab-vault[data-state="active"] {
+        [data-widget="deepstake"] .tabs-trigger.tab-vault[data-state="active"] {
           background-image: ${cssImageUrl("/images/vault_stake_selected.png")};
         }
         
@@ -300,7 +300,7 @@ function App() {
           background-image: ${cssImageUrl("/images/vault_stake_selected_dk.png")};
         }
 
-        .rt-BaseDialogContent {
+        [data-widget="deepstake"] .rt-BaseDialogContent {
             margin: auto;
             width: 100%;
             z-index: 1;
@@ -317,30 +317,30 @@ function App() {
             outline: none;
         }
 
-        .rt-Separator:where(.rt-r-size-4) {
+        [data-widget="deepstake"] .rt-Separator:where(.rt-r-size-4) {
             --separator-size: 100%;
         }
 
-        .rt-Separator:where(.rt-r-orientation-horizontal) {
+        [data-widget="deepstake"] .rt-Separator:where(.rt-r-orientation-horizontal) {
             width: 100%;
             height: 1px;
         }
 
-        .rt-Separator {
+        [data-widget="deepstake"] .rt-Separator {
             display: block;
             background-color: #d9d7d1;
         }
 
-        .rt-Card:where(.rt-variant-surface) {
+        [data-widget="deepstake"] .rt-Card:where(.rt-variant-surface) {
             --card-border-width: 1px;
             --card-background-color: #d9d7d1;
         }
-        .rt-Card:where(.rt-r-size-1) {
+        [data-widget="deepstake"] .rt-Card:where(.rt-r-size-1) {
             --card-padding: calc(12px * 1);
             --card-border-radius: calc(8px * 1 * 1);
         }
 
-        .rt-Card {
+        [data-widget="deepstake"] .rt-Card {
             --base-card-padding-top: calc(8px * 1 * 1);
             --base-card-padding-right: calc(12px * 1);
             --base-card-padding-bottom: calc(12px * 1);
@@ -348,7 +348,7 @@ function App() {
             --base-card-border-radius: calc(8px * 1 * 1);
             --base-card-border-width: 1px;
         }
-        .rt-BaseCard {
+        [data-widget="deepstake"] .rt-BaseCard {
             display: block;
             position: relative;
             overflow: hidden;

@@ -147,11 +147,11 @@ export function StakeFormVault2({
           The Vault only works in the mainnet cluster
         </div>
         <style jsx>{`
-          .vault-devnet-card {
+          [data-widget="deepstake"] .vault-devnet-card {
             background-color: #fff;
           }
 
-          .vault-devnet-empty {
+          [data-widget="deepstake"] .vault-devnet-empty {
             min-height: 376px;
             display: flex;
             align-items: center;
@@ -225,12 +225,12 @@ export function StakeFormVault2({
               <a href="https://jup.ag" target="_blank" rel="noopener noreferrer" className="jupiter-btn">Jupiter</a>
             </div>
             <style jsx>{`
-              .manage-wrap {
+              [data-widget="deepstake"] .manage-wrap {
                 position: relative;
                 min-height: 200px;
               }
 
-              .manage-overlay {
+              [data-widget="deepstake"] .manage-overlay {
                 position: absolute;
                 inset: 0;
                 background: rgba(255, 255, 255, 0.92);
@@ -245,15 +245,15 @@ export function StakeFormVault2({
                 background: rgba(18, 18, 24, 0.92);
               }
 
-              .manage-loader-light,
-              .manage-loader-dark {
+              [data-widget="deepstake"] .manage-loader-light,
+              [data-widget="deepstake"] .manage-loader-dark {
                 width: 48px;
                 height: 48px;
                 object-fit: contain;
                 animation: overlay-spin 1s linear infinite;
               }
 
-              .manage-loader-dark {
+              [data-widget="deepstake"] .manage-loader-dark {
                 display: none;
               }
 
@@ -269,18 +269,18 @@ export function StakeFormVault2({
                 to { transform: rotate(360deg); }
               }
 
-              .unstake-info {
+              [data-widget="deepstake"] .unstake-info {
                 background: #fff;
                 border-radius: 10px;
                 padding: 20px 30px 40px 30px;
               }
 
-              .unstake-info p {
+              [data-widget="deepstake"] .unstake-info p {
                 margin: 0 0 10px 0;
                 color: #555;
               }
 
-              .jupiter-btn {
+              [data-widget="deepstake"] .jupiter-btn {
                 display: inline-block;
                 background: #E5E4E4;
                 color: #000;
@@ -295,7 +295,7 @@ export function StakeFormVault2({
                 font-size: 16px;
               }
 
-              .jupiter-btn:hover {
+              [data-widget="deepstake"] .jupiter-btn:hover {
                 opacity: 0.8;
               }
 

@@ -63,7 +63,7 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
       </div>
 
       <style jsx global>{`
-        .q-mark-icon {
+        [data-widget="deepstake"] .q-mark-icon {
           display: inline-block;
           width: 13px;
           height: 13px;
@@ -74,7 +74,7 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
           cursor: help;
         }
 
-        .q-mark-icon:hover::after {
+        [data-widget="deepstake"] .q-mark-icon:hover::after {
           content: attr(data-tooltip);
           position: absolute;
           left: 100%;
@@ -98,7 +98,7 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
           line-height: 1.1;
         }
 
-        .binfo-tooltip-icon:hover::after {
+        [data-widget="deepstake"] .binfo-tooltip-icon:hover::after {
           left: auto;
           right: 100%;
           top: auto;
@@ -121,20 +121,20 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
           color: #9F9FAC;
         }
 
-        .binfo-container {
+        [data-widget="deepstake"] .binfo-container {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           gap: 24px;
         }
 
-        .binfo-left {
+        [data-widget="deepstake"] .binfo-left {
           font-size: 15px;
           font-weight: 400;
           padding-left: 30px;
         }
 
-        .binfo-left > span {
+        [data-widget="deepstake"] .binfo-left > span {
           color: #9F9FAC;
           font-weight: 500;
         }
@@ -143,7 +143,7 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
           color: #fff;
         }
 
-        .binfo-right {
+        [data-widget="deepstake"] .binfo-right {
           display: flex;
           flex-direction: column;
           min-width: 220px;
@@ -152,17 +152,17 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
           line-height: 18px;
         }
 
-        .binfo-row {
+        [data-widget="deepstake"] .binfo-row {
           display: flex;
           justify-content: space-between;
           gap: 12px;
         }
 
-        .binfo-key {
+        [data-widget="deepstake"] .binfo-key {
           text-align: left;
         }
 
-        .binfo-value {
+        [data-widget="deepstake"] .binfo-value {
           text-align: right;
           font-weight: 500;
         }

@@ -72,7 +72,7 @@ export function VSOLBalanceTable({
 
 
       <style jsx>{`
-        .stake-screen {
+        [data-widget="deepstake"] .stake-screen {
           min-height: 244px;
           padding: 0;
           box-sizing: border-box;
@@ -80,21 +80,21 @@ export function VSOLBalanceTable({
           justify-content: center;
         }
 
-        .stake-container {
+        [data-widget="deepstake"] .stake-container {
           width: 100%;
           max-width: 720px;
           display: flex;
           flex-direction: column;
         }
 
-        .stake-header {
+        [data-widget="deepstake"] .stake-header {
           display: flex;
           align-items: center;
           gap: 12px;
           margin-bottom: 16px;
         }
 
-        .stake-icon .img {
+        [data-widget="deepstake"] .stake-icon .img {
           width: 24px;
           height: 24px;
           opacity: 0.7;
@@ -102,40 +102,40 @@ export function VSOLBalanceTable({
           background-image: ${cssImageUrl("/images/coins.png")};
         }
 
-        .stake-title {
+        [data-widget="deepstake"] .stake-title {
           font-size: 15px;
           font-weight: 400;
           margin: 0;
           color: #000;
         }
 
-        .stake-empty {
+        [data-widget="deepstake"] .stake-empty {
           font-size: 14px;
           font-weight: 500;
           line-height: 1.6;
         }
 
-        .stake-empty p {
+        [data-widget="deepstake"] .stake-empty p {
           margin: 0 0 27px 0;
         }
 
-        .delegated-text {
+        [data-widget="deepstake"] .delegated-text {
           color: #000;
           padding: 0 30px;
         }
 
-        .unstake-info {
+        [data-widget="deepstake"] .unstake-info {
           background: #fff;
           border-radius: 10px;
           padding: 20px 30px 40px 30px;
         }
 
-        .unstake-info p {
+        [data-widget="deepstake"] .unstake-info p {
           margin: 0 0 10px 0;
           color: #555;
         }
 
-        .jupiter-btn {
+        [data-widget="deepstake"] .jupiter-btn {
           display: inline-block;
           background: #E5E4E4;
           color: #000;
@@ -149,7 +149,7 @@ export function VSOLBalanceTable({
           text-align: center;
         }
 
-        .jupiter-btn:hover {
+        [data-widget="deepstake"] .jupiter-btn:hover {
           opacity: 0.8;
         }
 
@@ -171,21 +171,21 @@ export function VSOLBalanceTable({
         }
 
         /* Balance container */
-        .balance-container {
+        [data-widget="deepstake"] .balance-container {
           position: relative;
           background: transparent;
           padding: 0 30px;
           margin-bottom: 5px;
         }
 
-        .balance-content {
+        [data-widget="deepstake"] .balance-content {
           display: flex;
           align-items: baseline;
           gap: 12px;
           padding: 4px 0;
         }
 
-        .balance-value {
+        [data-widget="deepstake"] .balance-value {
           font-size: 40px;
           font-weight: 400;
           color: #222;
@@ -194,7 +194,7 @@ export function VSOLBalanceTable({
           gap: 8px;
         }
 
-        .balance-label {
+        [data-widget="deepstake"] .balance-label {
           font-size: 24px;
           color: #222;
         }
@@ -207,7 +207,7 @@ export function VSOLBalanceTable({
           color: #fff;
         }
 
-        .spinner {
+        [data-widget="deepstake"] .spinner {
           float: right;
           width: 9px;
           height: 9px;

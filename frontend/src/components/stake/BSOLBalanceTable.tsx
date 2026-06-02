@@ -94,22 +94,22 @@ export function BSOLBalanceTable({
 
 
       <style jsx global>{`
-        .table-wrapper {
+        [data-widget="deepstake"] .table-wrapper {
           position: relative;
         }
 
-        .table-wrapper table {
+        [data-widget="deepstake"] .table-wrapper table {
           width: 100%;
           transition: filter 0.2s ease;
         }
 
-        .table-wrapper table.loading {
+        [data-widget="deepstake"] .table-wrapper table.loading {
           filter: grayscale(1) brightness(0.8);
           pointer-events: none;
         }
 
         /* spinner */
-        .spinner {
+        [data-widget="deepstake"] .spinner {
           float: right;
           width: 9px;
           height: 9px;
