@@ -1,6 +1,4 @@
 import React from "react";
-import "../globals.css";
-
 import { SelectedWalletContextProvider } from "../context/SelectedWalletContextProvider";
 import { BalanceCheckProvider } from "../context/BalanceCheckProvider";
 import { StakingModalProvider } from "../context/StakingModalContext";

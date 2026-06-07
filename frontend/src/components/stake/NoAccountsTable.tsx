@@ -1,4 +1,3 @@
-import './table.css'
 import { cssImageUrl } from '../../utils/imageUrl'
 
 

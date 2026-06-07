@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import './table.css'
 import { cssImageUrl } from '../../utils/imageUrl'
 
 interface VSOLBalanceTableProps {

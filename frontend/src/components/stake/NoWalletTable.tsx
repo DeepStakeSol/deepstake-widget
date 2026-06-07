@@ -1,4 +1,3 @@
-import './table.css'
 import "@fontsource/outfit/500.css";
 import { cssImageUrl } from '../../utils/imageUrl'
 

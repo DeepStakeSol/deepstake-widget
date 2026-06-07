@@ -1,6 +1,5 @@
 import { Table, Flex } from "@radix-ui/themes";
 import { useEffect } from "react";
-import './table.css'
 
 interface BSOLBalanceTableProps {
   bSOLBalance: number;
