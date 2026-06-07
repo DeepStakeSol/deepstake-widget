@@ -14,8 +14,15 @@
   box-sizing: border-box;
 }
 
+/*
+ * Note: button, a, img, and table-family elements are intentionally
+ * excluded here. Radix Themes styles them via low-specificity (0,1,0)
+ * selectors (e.g. .rt-BaseButton, .rt-Link:where(...)) by design, and
+ * <img> relies on the browser's presentational width/height/aspect-ratio
+ * hints (which sit below any selector-based rule in the cascade). A
+ * (0,1,1) `all: unset` here would outrank and strip both.
+ */
 [data-widget="deepstake"] section,
-[data-widget="deepstake"] button,
 [data-widget="deepstake"] h1,
 [data-widget="deepstake"] h2,
 [data-widget="deepstake"] h3,
@@ -31,22 +38,13 @@
 [data-widget="deepstake"] input,
 [data-widget="deepstake"] textarea,
 [data-widget="deepstake"] select,
-[data-widget="deepstake"] form,
-[data-widget="deepstake"] a,
-[data-widget="deepstake"] img,
-[data-widget="deepstake"] table,
-[data-widget="deepstake"] thead,
-[data-widget="deepstake"] tbody,
-[data-widget="deepstake"] tr,
-[data-widget="deepstake"] th,
-[data-widget="deepstake"] td {
+[data-widget="deepstake"] form {
   all: unset;
   display: revert;
   box-sizing: border-box;
 }
 
 [data-widget="deepstake"] input,
-[data-widget="deepstake"] button,
 [data-widget="deepstake"] textarea,
 [data-widget="deepstake"] select {
   font: inherit;
