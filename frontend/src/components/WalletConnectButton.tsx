@@ -16,7 +16,6 @@ function WalletConnectButton() {
   return (
     <Button
       size="3"
-      className="hover:bg-blue-600 transition-colors"
       aria-label="Connect Wallet"
       onClick={showWalletModal}
       style={{
