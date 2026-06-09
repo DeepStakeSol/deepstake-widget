@@ -166,6 +166,7 @@ describe("useStakeTransaction", () => {
   });
 
   it("stores errors and still refreshes stake accounts", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const onDataLoaded = vi.fn();
     const error = new Error("sign failed");
     generateStakeTransactionMock.mockRejectedValue(error);
@@ -177,6 +178,7 @@ describe("useStakeTransaction", () => {
     expect(result.current.lastStakeAccount).toBeUndefined();
     expect(invalidateStakeAccountsCacheMock).toHaveBeenCalledWith("wallet-address", "devnet");
     await waitFor(() => expect(onDataLoaded).toHaveBeenCalledWith(refreshedAccounts));
+    expect(consoleErrorSpy).toHaveBeenCalledWith("Staking error:", error);
   });
 
   it("closes the success modal state", async () => {
