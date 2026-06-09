@@ -12,3 +12,7 @@ Backend:
   npm run test:coverage
 
 Backend TypeScript validation is currently tracked separately because existing production files still fail `npx tsc --noEmit`.
+
+Frontend E2E smoke tests:
+  cd frontend
+  npm run test:e2e
