@@ -30,9 +30,10 @@ const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <style jsx global>{`
             .sw-container {
               position: relative;
-              width: 640px;
-              height: 734px;
+              width: min(640px, 100%);
+              min-height: 734px;
               overflow: hidden;
+              box-sizing: border-box;
               border-radius: 15px;
               background-color: #F2F1F1;
               border: 2px solid #CECED380;

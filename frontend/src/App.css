@@ -1,9 +1,10 @@
 [data-widget="deepstake"] {
-  width: 640px;
-  height: 734px;
+  width: min(640px, 100%);
+  min-height: 734px;
   margin: 0 auto;
   padding: 0;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .logo {
