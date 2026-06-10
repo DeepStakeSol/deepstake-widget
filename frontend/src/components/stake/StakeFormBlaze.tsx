@@ -11,6 +11,7 @@ import { BSOLBalanceTable2 } from "./BSOLBalanceTable2";
 import { useStakeForm } from "../../hooks/useStakeForm";
 import { ValidatorInfoResponse } from "../../utils/solana/validator";
 import { fetchLSTBalance } from "../../utils/api";
+import { getImageUrl } from "../../utils/imageUrl";
 
 install();
 
@@ -50,6 +51,7 @@ export function StakeFormBlaze({
   const [appliedStakesIsLoading, setAppliedStakesIsLoading] = useState(false);
   const isDevnet = network === "devnet";
   const manageValidatorName = isDevnet ? undefined : validatorInfo?.name;
+  const blazeManageIsLoading = bSOLIsLoading || appliedStakesIsLoading;
 
   const fetchAppliedStakes = async (walletAddress: string) => {
     if (isDevnet) {
@@ -150,14 +152,67 @@ export function StakeFormBlaze({
       }
       manageChildren={
         isConnected && selectedWalletAccount ? (
-          <BSOLBalanceTable2
-            bSOLBalance={bSOLBalance}
-            isLoading={bSOLIsLoading}
-            validatorName={manageValidatorName}
-            appliedStakes={appliedStakes}
-            isAppliedStakesLoading={appliedStakesIsLoading}
-            showValidatorPlaceholder={isDevnet}
-          />
+          <div className="manage-wrap">
+            {blazeManageIsLoading && (
+              <div className="manage-overlay">
+                <img className="manage-loader-light" src={getImageUrl("/images/mid_loader.png")} alt="" />
+                <img className="manage-loader-dark" src={getImageUrl("/images/big_loader.png")} alt="" />
+              </div>
+            )}
+            <BSOLBalanceTable2
+              bSOLBalance={bSOLBalance}
+              isLoading={false}
+              validatorName={manageValidatorName}
+              appliedStakes={appliedStakes}
+              isAppliedStakesLoading={false}
+              showValidatorPlaceholder={isDevnet}
+            />
+            <style>{`
+              [data-widget="deepstake"] .manage-wrap {
+                position: relative;
+                min-height: 200px;
+              }
+
+              [data-widget="deepstake"] .manage-overlay {
+                position: absolute;
+                inset: 0;
+                background: rgba(255, 255, 255, 0.92);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10;
+                border-radius: 4px;
+              }
+
+              [data-widget="deepstake"][data-theme="dark"] .manage-overlay {
+                background: rgba(18, 18, 24, 0.92);
+              }
+
+              [data-widget="deepstake"] .manage-loader-light,
+              [data-widget="deepstake"] .manage-loader-dark {
+                width: 48px;
+                height: 48px;
+                object-fit: contain;
+                animation: overlay-spin 1s linear infinite;
+              }
+
+              [data-widget="deepstake"] .manage-loader-dark {
+                display: none;
+              }
+
+              [data-widget="deepstake"][data-theme="dark"] .manage-loader-light {
+                display: none;
+              }
+
+              [data-widget="deepstake"][data-theme="dark"] .manage-loader-dark {
+                display: block;
+              }
+
+              @keyframes overlay-spin {
+                to { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
         ) : (
           <>
             <NoWalletTable />

@@ -5,6 +5,7 @@ const { fetchLSTBalanceMock, useStakeFormMock } = vi.hoisted(() => ({ fetchLSTBa
 vi.mock("@solana/webcrypto-ed25519-polyfill", () => ({ install: vi.fn() }));
 vi.mock("../../hooks/useStakeForm", () => ({ useStakeForm: useStakeFormMock }));
 vi.mock("../../utils/api", () => ({ fetchLSTBalance: fetchLSTBalanceMock }));
+vi.mock("../../utils/imageUrl", () => ({ getImageUrl: vi.fn((src: string) => src) }));
 vi.mock("../WalletConnectButton", () => ({ WalletConnectButton: () => <button type="button">Connect Wallet</button> }));
 vi.mock("./StakeLayout", () => ({ StakeLayout: ({ stakeChildren, manageChildren }: { stakeChildren: React.ReactNode; manageChildren: React.ReactNode }) => <div><section>{stakeChildren}</section><section>{manageChildren}</section></div> }));
 vi.mock("./StakeInputSection", () => ({ StakeInputSection: ({ stakeMode }: { stakeMode?: string }) => <div>Stake input {stakeMode}</div> }));
@@ -39,6 +40,25 @@ describe("StakeFormBlaze", () => {
     await waitFor(() => expect(fetchLSTBalanceMock).toHaveBeenCalledWith("wallet", "devnet", expect.any(String)));
     await waitFor(() => expect(screen.getByTestId("bsol-table")).toHaveTextContent("3.5:false:0:true"));
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+
+  it("renders the Vault-style overlay while Blaze manage data loads", async () => {
+    let resolveBalance!: (value: number) => void;
+    fetchLSTBalanceMock.mockReturnValueOnce(new Promise<number>((resolve) => {
+      resolveBalance = resolve;
+    }));
+    mockStakeForm({ selectedWalletAccount: { address: "wallet" }, isConnected: true });
+
+    const { container } = render(<StakeFormBlaze validatorInfo={{ name: "Validator" } as never} secondsRemainToEpochEnd={100} />);
+
+    await waitFor(() => expect(container.querySelector(".manage-overlay")).toBeInTheDocument());
+    expect(container.querySelector("img.manage-loader-light")).toHaveAttribute("src", "/images/mid_loader.png");
+    expect(container.querySelector("img.manage-loader-dark")).toHaveAttribute("src", "/images/big_loader.png");
+    expect(screen.getByTestId("bsol-table")).toHaveTextContent("0:false:0:true");
+
+    resolveBalance(3.5);
+    await waitFor(() => expect(container.querySelector(".manage-overlay")).not.toBeInTheDocument());
   });
 
   it("loads applied stakes on mainnet", async () => {
