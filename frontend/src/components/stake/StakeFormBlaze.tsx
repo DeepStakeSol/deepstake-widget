@@ -10,17 +10,12 @@ import { NoWalletTable } from "./NoWalletTable";
 import { BSOLBalanceTable2 } from "./BSOLBalanceTable2";
 import { useStakeForm } from "../../hooks/useStakeForm";
 import { ValidatorInfoResponse } from "../../utils/solana/validator";
-import { fetchLSTBalance } from "../../utils/api";
+import { BlazeAppliedStake, fetchBlazeAppliedStakes, fetchLSTBalance } from "../../utils/api";
 import { getImageUrl } from "../../utils/imageUrl";
 
 install();
 
 const BSOL_MINT = "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1";
-
-interface AppliedStake {
-  voteAcc: string;
-  amount: number;
-}
 
 interface Props {
   validatorInfo: ValidatorInfoResponse | null;
@@ -47,7 +42,7 @@ export function StakeFormBlaze({
 
   const [bSOLBalance, setbSOLBalance] = useState<number>(0);
   const [bSOLIsLoading, setBSOLIsLoading] = useState(false);
-  const [appliedStakes, setAppliedStakes] = useState<AppliedStake[]>([]);
+  const [appliedStakes, setAppliedStakes] = useState<BlazeAppliedStake[]>([]);
   const [appliedStakesIsLoading, setAppliedStakesIsLoading] = useState(false);
   const isDevnet = network === "devnet";
   const manageValidatorName = isDevnet ? undefined : validatorInfo?.name;
@@ -62,21 +57,8 @@ export function StakeFormBlaze({
 
     setAppliedStakesIsLoading(true);
     try {
-      const response = await fetch(
-        `https://stake.solblaze.org/api/v1/cls_applied_user_stake?address=${walletAddress}`
-      );
-      const data = await response.json();
-      if (data.success && data.applied_stakes) {
-        const stakesArray: AppliedStake[] = Object.entries(data.applied_stakes).map(
-          ([voteAcc, amount]) => ({
-            voteAcc,
-            amount: amount as number,
-          })
-        );
-        setAppliedStakes(stakesArray);
-      } else {
-        setAppliedStakes([]);
-      }
+      const stakes = await fetchBlazeAppliedStakes(walletAddress, network);
+      setAppliedStakes(stakes);
     } catch (err) {
       console.error("Failed to fetch applied stakes:", err);
       setAppliedStakes([]);

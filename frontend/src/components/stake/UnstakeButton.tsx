@@ -7,7 +7,7 @@ import {
   getBase64Encoder,
   getTransactionDecoder,
 } from "@solana/kit";
-import { generateUnstakeTransaction, confirmTransaction } from "../../utils/api";
+import { confirmTransaction, generateUnstakeTransaction, invalidateSolBalanceCache } from "../../utils/api";
 import { invalidateStakeAccountsCache } from "../../utils/stakeAccountsCache";
 import { getCurrentChain } from "../../utils/config";
 import { ErrorDialog } from "../ErrorDialog";
@@ -83,6 +83,8 @@ export function UnstakeButton({
           interval: 1000,
         });
 
+        invalidateSolBalanceCache(account.address, network);
+        invalidateStakeAccountsCache(account.address, network);
         setTxSignature(signature);
 
       } catch (error) {
@@ -92,8 +94,6 @@ export function UnstakeButton({
       } finally {
         setIsSendingTX(false);
         hideTransactionModal();
-        // Invalidate cache so the next fetch gets fresh data
-        invalidateStakeAccountsCache(account.address, network);
       }
     },
     [account, network, transactionSendingSigner, NO_ERROR, showTransactionModal, hideTransactionModal]

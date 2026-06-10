@@ -26,13 +26,19 @@ interface StakeButtonProps {
   voteIdentity?: string;
 }
 
-import { confirmTransaction } from "../../utils/api";
+import {
+  confirmTransaction,
+  invalidateLSTBalanceCache,
+  invalidateSolBalanceCache,
+  invalidateVaultManageCache,
+} from "../../utils/api";
 
 
 // ===================
 //  web3.js related
 // ===================
 const { LAMPORTS_PER_SOL } = solanaWeb3;
+const VSOL_MINT = "vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7";
 
 export function StakeButtonVault2({
   network,
@@ -129,6 +135,10 @@ export function StakeButtonVault2({
             timeout: 30000,
             interval: 1000,
           });
+
+          invalidateSolBalanceCache(account.address, network);
+          invalidateLSTBalanceCache(account.address, network, VSOL_MINT);
+          invalidateVaultManageCache(account.address, network);
           setVaultSignature(signature);    
 
       } catch (error) {

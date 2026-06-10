@@ -10,7 +10,14 @@ import {
 } from "@solana/kit";
 import { getCurrentChain } from "../../utils/config";
 import { createRpcConnection } from "../../utils/solana/rpc";
-import { confirmTransaction, generateBlazeStakeTransaction, fetchLSTBalance } from "../../utils/api";
+import {
+  confirmTransaction,
+  fetchLSTBalance,
+  generateBlazeStakeTransaction,
+  invalidateBlazeAppliedStakesCache,
+  invalidateLSTBalanceCache,
+  invalidateSolBalanceCache,
+} from "../../utils/api";
 
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 
@@ -98,6 +105,10 @@ export function StakeButtonBlaze({
           timeout: 30000,
           interval: 1000,
         });
+
+        invalidateSolBalanceCache(account.address, network);
+        invalidateLSTBalanceCache(account.address, network, BSOL_MINT);
+        invalidateBlazeAppliedStakesCache(account.address, network);
 
         if (voteIdentity) {
           try {

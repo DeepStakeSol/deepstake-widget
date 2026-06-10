@@ -6,6 +6,10 @@ import {
   setCachedStakeAccounts,
 } from "./stakeAccountsCache";
 import { getBackendUrl } from "./backendUrl";
+import { cachedRequest, invalidateRequestCacheByPrefix } from "./requestCache";
+
+const SHORT_WALLET_CACHE_TTL_MS = 30_000;
+const MANAGE_CACHE_TTL_MS = 60_000;
 
 async function getJson<T>(path: string): Promise<T> {
   const url = getBackendUrl(path);
@@ -159,8 +163,12 @@ export async function fetchVaultManage(
   wallet: string,
   network: string
 ): Promise<VaultManageResponse> {
-  return getJson<VaultManageResponse>(
-    `/blaze/manage/vault?wallet=${wallet}&network=${network}`
+  return cachedRequest(
+    `vaultManage:${network}:${wallet}`,
+    MANAGE_CACHE_TTL_MS,
+    () => getJson<VaultManageResponse>(
+      `/blaze/manage/vault?wallet=${wallet}&network=${network}`
+    )
   );
 }
 
@@ -169,10 +177,16 @@ export async function fetchSolBalance(
   walletAddress: string,
   network: string
 ): Promise<number> {
-  const data = await getJson<{ solBalance: number }>(
-    `/balance?address=${walletAddress}&network=${network}`
+  return cachedRequest(
+    `solBalance:${network}:${walletAddress}`,
+    SHORT_WALLET_CACHE_TTL_MS,
+    async () => {
+      const data = await getJson<{ solBalance: number }>(
+        `/balance?address=${walletAddress}&network=${network}`
+      );
+      return data.solBalance;
+    }
   );
-  return data.solBalance;
 }
 
 // LST token balance (bSOL, vSOL, etc.)
@@ -181,10 +195,74 @@ export async function fetchLSTBalance(
   network: string,
   mint: string
 ): Promise<number> {
-  const data = await getJson<{ lst: string }>(
-    `/vbalance?address=${walletAddress}&network=${network}&mint=${mint}`
+  return cachedRequest(
+    `lstBalance:${network}:${walletAddress}:${mint}`,
+    SHORT_WALLET_CACHE_TTL_MS,
+    async () => {
+      const data = await getJson<{ lst: string }>(
+        `/vbalance?address=${walletAddress}&network=${network}&mint=${mint}`
+      );
+      return Number(data.lst) / 1e9;
+    }
   );
-  return Number(data.lst) / 1e9;
+}
+
+
+export interface BlazeAppliedStake {
+  voteAcc: string;
+  amount: number;
+}
+
+export async function fetchBlazeAppliedStakes(
+  walletAddress: string,
+  network: string
+): Promise<BlazeAppliedStake[]> {
+  return cachedRequest(
+    `blazeAppliedStakes:${network}:${walletAddress}`,
+    MANAGE_CACHE_TTL_MS,
+    async () => {
+      const response = await fetch(
+        `https://stake.solblaze.org/api/v1/cls_applied_user_stake?address=${walletAddress}`
+      );
+      const data = await response.json();
+
+      if (!data.success || !data.applied_stakes) {
+        return [];
+      }
+
+      return Object.entries(data.applied_stakes).map(([voteAcc, amount]) => ({
+        voteAcc,
+        amount: amount as number,
+      }));
+    }
+  );
+}
+
+export function invalidateWalletReadCaches(walletAddress: string, network: string): void {
+  invalidateRequestCacheByPrefix(`solBalance:${network}:${walletAddress}`);
+  invalidateRequestCacheByPrefix(`lstBalance:${network}:${walletAddress}:`);
+  invalidateRequestCacheByPrefix(`vaultManage:${network}:${walletAddress}`);
+  invalidateRequestCacheByPrefix(`blazeAppliedStakes:${network}:${walletAddress}`);
+}
+
+export function invalidateSolBalanceCache(walletAddress: string, network: string): void {
+  invalidateRequestCacheByPrefix(`solBalance:${network}:${walletAddress}`);
+}
+
+export function invalidateLSTBalanceCache(
+  walletAddress: string,
+  network: string,
+  mint: string
+): void {
+  invalidateRequestCacheByPrefix(`lstBalance:${network}:${walletAddress}:${mint}`);
+}
+
+export function invalidateVaultManageCache(walletAddress: string, network: string): void {
+  invalidateRequestCacheByPrefix(`vaultManage:${network}:${walletAddress}`);
+}
+
+export function invalidateBlazeAppliedStakesCache(walletAddress: string, network: string): void {
+  invalidateRequestCacheByPrefix(`blazeAppliedStakes:${network}:${walletAddress}`);
 }
 
 // Blaze stake transaction builder

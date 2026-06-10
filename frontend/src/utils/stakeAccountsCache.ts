@@ -1,7 +1,7 @@
 import { GetStakeAccountResponse } from "../utils/solana/stake/get-stake-accounts";
 
 /** Time-to-live for the stake accounts cache, in milliseconds. */
-export const STAKE_ACCOUNTS_CACHE_TTL_MS = 300_000; // 30 seconds
+export const STAKE_ACCOUNTS_CACHE_TTL_MS = 300_000; // 5 minutes
 
 interface CacheEntry {
   data: GetStakeAccountResponse[];

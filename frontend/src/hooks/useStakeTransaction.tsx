@@ -20,6 +20,7 @@ import {
   generateStakeTransaction,
   fetchStakeAccounts,
   confirmTransaction,
+  invalidateSolBalanceCache,
 } from "../utils/api";
 import { invalidateStakeAccountsCache } from "../utils/stakeAccountsCache";
 
@@ -108,6 +109,8 @@ export function useStakeTransaction({
           interval: 1000,
         });
 
+        invalidateSolBalanceCache(account.address, network);
+        invalidateStakeAccountsCache(account.address, network);
         setLastSignature(signature);
       } catch (err) {
         console.error("Staking error:", err);
@@ -115,9 +118,6 @@ export function useStakeTransaction({
         setLastStakeAccount(undefined);
       } finally {
         setIsSendingTransaction(false);
-
-        // Invalidate cache so the next fetch gets fresh data
-        invalidateStakeAccountsCache(account.address, network);
 
         // Fetch stake accounts
         fetchStakeAccounts(account.address, network)

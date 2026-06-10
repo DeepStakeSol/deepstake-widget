@@ -1,10 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { fetchLSTBalanceMock, useStakeFormMock } = vi.hoisted(() => ({ fetchLSTBalanceMock: vi.fn(), useStakeFormMock: vi.fn() }));
+const { fetchBlazeAppliedStakesMock, fetchLSTBalanceMock, useStakeFormMock } = vi.hoisted(() => ({ fetchBlazeAppliedStakesMock: vi.fn(), fetchLSTBalanceMock: vi.fn(), useStakeFormMock: vi.fn() }));
 vi.mock("@solana/webcrypto-ed25519-polyfill", () => ({ install: vi.fn() }));
 vi.mock("../../hooks/useStakeForm", () => ({ useStakeForm: useStakeFormMock }));
-vi.mock("../../utils/api", () => ({ fetchLSTBalance: fetchLSTBalanceMock }));
+vi.mock("../../utils/api", () => ({ fetchBlazeAppliedStakes: fetchBlazeAppliedStakesMock, fetchLSTBalance: fetchLSTBalanceMock }));
 vi.mock("../../utils/imageUrl", () => ({ getImageUrl: vi.fn((src: string) => src) }));
 vi.mock("../WalletConnectButton", () => ({ WalletConnectButton: () => <button type="button">Connect Wallet</button> }));
 vi.mock("./StakeLayout", () => ({ StakeLayout: ({ stakeChildren, manageChildren }: { stakeChildren: React.ReactNode; manageChildren: React.ReactNode }) => <div><section>{stakeChildren}</section><section>{manageChildren}</section></div> }));
@@ -22,7 +22,7 @@ function mockStakeForm(overrides = {}) {
 describe("StakeFormBlaze", () => {
   beforeEach(() => {
     fetchLSTBalanceMock.mockReset().mockResolvedValue(3.5);
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ success: true, applied_stakes: { vote: 12 } }) })));
+    fetchBlazeAppliedStakesMock.mockReset().mockResolvedValue([{ voteAcc: "vote", amount: 12 }]);
   });
 
   it("renders disconnected state", () => {
@@ -39,7 +39,7 @@ describe("StakeFormBlaze", () => {
     expect(screen.getByText("Blaze Stake Button")).toBeInTheDocument();
     await waitFor(() => expect(fetchLSTBalanceMock).toHaveBeenCalledWith("wallet", "devnet", expect.any(String)));
     await waitFor(() => expect(screen.getByTestId("bsol-table")).toHaveTextContent("3.5:false:0:true"));
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetchBlazeAppliedStakesMock).not.toHaveBeenCalled();
   });
 
 
@@ -64,7 +64,7 @@ describe("StakeFormBlaze", () => {
   it("loads applied stakes on mainnet", async () => {
     mockStakeForm({ selectedWalletAccount: { address: "wallet" }, isConnected: true, network: "mainnet" });
     render(<StakeFormBlaze validatorInfo={{ name: "Validator" } as never} secondsRemainToEpochEnd={100} />);
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith("https://stake.solblaze.org/api/v1/cls_applied_user_stake?address=wallet"));
+    await waitFor(() => expect(fetchBlazeAppliedStakesMock).toHaveBeenCalledWith("wallet", "mainnet"));
     await waitFor(() => expect(screen.getByTestId("bsol-table")).toHaveTextContent("3.5:false:1:false"));
   });
 });

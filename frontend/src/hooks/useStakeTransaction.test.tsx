@@ -9,6 +9,7 @@ const {
   generateKeyPairSignerMock,
   generateStakeTransactionMock,
   getBase64EncodedWireTransactionMock,
+  invalidateSolBalanceCacheMock,
   invalidateStakeAccountsCacheMock,
   modifyAndSignTransactionsMock,
   partiallySignTransactionMock,
@@ -27,6 +28,7 @@ const {
     generateKeyPairSignerMock: vi.fn(),
     generateStakeTransactionMock: vi.fn(),
     getBase64EncodedWireTransactionMock: vi.fn(),
+    invalidateSolBalanceCacheMock: vi.fn(),
     invalidateStakeAccountsCacheMock: vi.fn(),
     modifyAndSignTransactionsMock,
     partiallySignTransactionMock: vi.fn(),
@@ -68,6 +70,7 @@ vi.mock("../utils/api", () => ({
   confirmTransaction: confirmTransactionMock,
   fetchStakeAccounts: fetchStakeAccountsMock,
   generateStakeTransaction: generateStakeTransactionMock,
+  invalidateSolBalanceCache: invalidateSolBalanceCacheMock,
 }));
 
 vi.mock("../utils/stakeAccountsCache", () => ({
@@ -161,6 +164,7 @@ describe("useStakeTransaction", () => {
     });
     expect(result.current.lastSignature).toBe("signature");
     expect(result.current.lastStakeAccount).toBe("new-stake-account");
+    expect(invalidateSolBalanceCacheMock).toHaveBeenCalledWith("wallet-address", "devnet");
     expect(invalidateStakeAccountsCacheMock).toHaveBeenCalledWith("wallet-address", "devnet");
     await waitFor(() => expect(onDataLoaded).toHaveBeenCalledWith(refreshedAccounts));
   });
@@ -176,7 +180,8 @@ describe("useStakeTransaction", () => {
 
     expect(result.current.error).toBe(error);
     expect(result.current.lastStakeAccount).toBeUndefined();
-    expect(invalidateStakeAccountsCacheMock).toHaveBeenCalledWith("wallet-address", "devnet");
+    expect(invalidateSolBalanceCacheMock).not.toHaveBeenCalled();
+    expect(invalidateStakeAccountsCacheMock).not.toHaveBeenCalled();
     await waitFor(() => expect(onDataLoaded).toHaveBeenCalledWith(refreshedAccounts));
     expect(consoleErrorSpy).toHaveBeenCalledWith("Staking error:", error);
   });
