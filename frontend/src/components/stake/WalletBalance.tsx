@@ -62,7 +62,7 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
         </div>
       </div>
 
-      <style jsx global>{`
+      <style>{`
         [data-widget="deepstake"] .q-mark-icon {
           display: inline-block;
           width: 13px;

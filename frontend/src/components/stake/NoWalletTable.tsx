@@ -24,7 +24,7 @@ export function NoWalletTable() {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         /* Full screen wrapper */
         [data-widget="deepstake"] .wallet-screen {
           display: flex;

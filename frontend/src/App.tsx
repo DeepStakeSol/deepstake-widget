@@ -210,7 +210,7 @@ function App() {
       </Flex>
     </RootLayout>
 
-    <style jsx global>{`
+    <style>{`
         [data-widget="deepstake"] .sw-main-tabs {
           color: #000000;
           background: #fff;

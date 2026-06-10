@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { cssImageUrl } from '../../utils/imageUrl'
 
 interface AppliedStake {
@@ -32,20 +31,6 @@ export function BSOLBalanceTable2({
   isAppliedStakesLoading = false,
   showValidatorPlaceholder = false,
 }: BSOLBalanceTableProps) {
-  useEffect(() => {
-    const style = document.createElement('style')
-    style.innerHTML = `
-      #stake-table-container table {
-        width: 100%;
-      }
-    `
-    document.head.appendChild(style)
-
-    return () => {
-      document.head.removeChild(style)
-    }
-  }, [])
-
   const isLoadingData = isLoading || isAppliedStakesLoading
 
   const appliedStakesSum = appliedStakes.reduce((sum, stake) => sum + stake.amount, 0)
@@ -169,7 +154,7 @@ export function BSOLBalanceTable2({
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         /* Page wrapper */
         [data-widget="deepstake"] .stake-screen {
           min-height: 244px;

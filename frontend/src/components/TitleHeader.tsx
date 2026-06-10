@@ -118,7 +118,7 @@ export const TitleHeader = ({
           </div>
         </div>
       </div>
-      <style jsx >{`
+      <style>{`
         [data-widget="deepstake"] .sw-network-select {
           color: #000000;
           background-color: #FDFDFD;

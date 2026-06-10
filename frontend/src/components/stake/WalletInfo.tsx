@@ -142,7 +142,7 @@ export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, on
               MAX
         </button>
       </div>
-      <style jsx>{`
+      <style>{`
         [data-widget="deepstake"] .wallet-icon {
           background-size: contain;
           width: 20px;

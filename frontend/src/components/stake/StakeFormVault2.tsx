@@ -146,7 +146,7 @@ export function StakeFormVault2({
         <div className="vault-devnet-empty">
           The Vault only works in the mainnet cluster
         </div>
-        <style jsx>{`
+        <style>{`
           [data-widget="deepstake"] .vault-devnet-card {
             background-color: #fff;
           }
@@ -224,7 +224,7 @@ export function StakeFormVault2({
               <p>To unstake it, sell them through your wallet or DEX.</p>
               <a href="https://jup.ag" target="_blank" rel="noopener noreferrer" className="jupiter-btn">Jupiter</a>
             </div>
-            <style jsx>{`
+            <style>{`
               [data-widget="deepstake"] .manage-wrap {
                 position: relative;
                 min-height: 200px;

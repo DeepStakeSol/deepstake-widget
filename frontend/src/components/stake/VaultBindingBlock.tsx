@@ -111,7 +111,7 @@ export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
 
 function VbStyles() {
   return (
-    <style jsx>{`
+    <style>{`
       .vb-wrap {
         width: 100%;
         box-sizing: border-box;

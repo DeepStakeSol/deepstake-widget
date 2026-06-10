@@ -3,7 +3,6 @@ import { shortenAddress } from '../../utils/solana/address'
 import { ChevronUpIcon, ChevronDownIcon } from '@radix-ui/react-icons'
 import { useState } from 'react'
 import { GetStakeAccountResponse } from '../../utils/solana/stake/get-stake-accounts'
-import { useEffect } from 'react'
 import { UnstakeButton } from './UnstakeButton'
 import { WithdrawButton } from './WithdrawButton'
 import { UiWalletAccount } from '@wallet-standard/react'
@@ -52,20 +51,6 @@ export function StakeAccountsTable({
       </Text>
     )
   }
-
-  useEffect(() => {
-    const style = document.createElement('style')
-    style.innerHTML = `
-      #stake-table-container table {
-        width: 100%;
-      }
-    `
-    document.head.appendChild(style)
-
-    return () => {
-      document.head.removeChild(style)
-    }
-  }, [])
 
   const startIndex = (pageIndex - 1) * ROWS_PER_PAGE
   const endIndex = startIndex + ROWS_PER_PAGE

@@ -14,6 +14,7 @@ import { ExternalLinkIcon } from "@radix-ui/react-icons";
 import Image from "next/image";
 import { useBalanceCheck } from "../context/BalanceCheckContext";
 import { useStakingModal } from "../context/StakingModalContext";
+import { createStyleInjector } from "../utils/styleInjector";
 
 /** Utility function to compare wallet accounts */
 function uiWalletAccountsAreSame(
@@ -364,24 +365,4 @@ const styles = `
 `;
 
 // Add style tag to document with cleanup
-let styleTag: HTMLStyleElement | null = null;
-
-export function injectWalletConnectStyles(): () => void {
-  if (typeof document === "undefined") {
-    return () => {};
-  }
-
-  if (!styleTag) {
-    styleTag = document.createElement("style");
-    styleTag.textContent = styles;
-    document.head.appendChild(styleTag);
-  }
-
-  // Return cleanup function
-  return () => {
-    if (styleTag && styleTag.parentNode) {
-      styleTag.parentNode.removeChild(styleTag);
-      styleTag = null;
-    }
-  };
-}
+const injectWalletConnectStyles = createStyleInjector(styles);

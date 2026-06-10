@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { cssImageUrl } from '../../utils/imageUrl'
 
 interface VSOLBalanceTableProps {
@@ -12,20 +11,6 @@ export function VSOLBalanceTable({
   isLoading,
   validatorName,
 }: VSOLBalanceTableProps) {
-
-  useEffect(() => {
-    const style = document.createElement("style");
-    style.innerHTML = `
-      #stake-table-container table {
-        width: 100%;
-      }
-    `;
-    document.head.appendChild(style);
-
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
 
     return (
       <>
@@ -70,7 +55,7 @@ export function VSOLBalanceTable({
       </div>
 
 
-      <style jsx>{`
+      <style>{`
         [data-widget="deepstake"] .stake-screen {
           min-height: 244px;
           padding: 0;

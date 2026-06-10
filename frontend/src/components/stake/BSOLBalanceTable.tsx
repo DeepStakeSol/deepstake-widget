@@ -1,5 +1,4 @@
 import { Table, Flex } from "@radix-ui/themes";
-import { useEffect } from "react";
 
 interface BSOLBalanceTableProps {
   bSOLBalance: number;
@@ -11,20 +10,6 @@ export function BSOLBalanceTable({
   isLoading, 
 }: BSOLBalanceTableProps) {
   
-  useEffect(() => {
-    const style = document.createElement("style");
-    style.innerHTML = `
-      #stake-table-container table {
-        width: 100%;
-      }
-    `;
-    document.head.appendChild(style);
-
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
-
     return (
       <>
       <div className="table-wrapper">
@@ -92,7 +77,7 @@ export function BSOLBalanceTable({
       </Flex>
 
 
-      <style jsx global>{`
+      <style>{`
         [data-widget="deepstake"] .table-wrapper {
           position: relative;
         }

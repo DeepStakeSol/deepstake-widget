@@ -192,3 +192,9 @@
     --dialog-content-padding: calc(24px * 1);
     border-radius: calc(12px * 1 * 1);
 }
+
+/* Stake/balance tables stretch to fill their container.
+   Previously injected at runtime by the table components; consolidated here. */
+#stake-table-container table {
+    width: 100%;
+}

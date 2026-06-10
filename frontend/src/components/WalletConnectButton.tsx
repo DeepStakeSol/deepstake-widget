@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { Button } from "@radix-ui/themes";
 import { useStakingModal } from "../context/StakingModalContext";
+import { createStyleInjector } from "../utils/styleInjector";
 
 /** Main Wallet Connection Component */
 function WalletConnectButton() {
@@ -62,24 +63,4 @@ const styles = `
 `;
 
 // Add style tag to document with cleanup
-let styleTag: HTMLStyleElement | null = null;
-
-export function injectWalletConnectStyles(): () => void {
-  if (typeof document === "undefined") {
-    return () => {};
-  }
-
-  if (!styleTag) {
-    styleTag = document.createElement("style");
-    styleTag.textContent = styles;
-    document.head.appendChild(styleTag);
-  }
-
-  // Return cleanup function
-  return () => {
-    if (styleTag && styleTag.parentNode) {
-      styleTag.parentNode.removeChild(styleTag);
-      styleTag = null;
-    }
-  };
-}
+const injectWalletConnectStyles = createStyleInjector(styles);

@@ -27,7 +27,7 @@ const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </StakingModalProvider>
             </BalanceCheckProvider>
           </SelectedWalletContextProvider>
-          <style jsx global>{`
+          <style>{`
             .sw-container {
               position: relative;
               width: min(640px, 100%);

@@ -51,7 +51,7 @@ export function StakeLayout({ stakeChildren, manageChildren, onManageOpen }: Sta
           </Tabs.Content>
         </Tabs.Root>
       </Flex>
-      <style jsx>{`
+      <style>{`
         [data-widget="deepstake"] .stake-form {
           background-color: #fff;
         }
