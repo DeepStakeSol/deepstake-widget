@@ -8,14 +8,14 @@ import { StakeInputSection } from "./StakeInputSection";
 import { StakeLayout } from "./StakeLayout";
 import { NoWalletTable } from "./NoWalletTable";
 import { NoAccountsTable } from "./NoAccountsTable";
-import { ValidatorInfoResponse } from "../../utils/solana/validator";
+import { ValidatorProfile } from "../../utils/solana/validator";
 import { useStakeForm } from "../../hooks/useStakeForm";
 
 install();
 
 interface Props {
   currentEpoch: number;
-  validatorInfo: ValidatorInfoResponse | null;
+  validatorInfo: ValidatorProfile | null;
   secondsRemainToEpochEnd: number;
 }
 

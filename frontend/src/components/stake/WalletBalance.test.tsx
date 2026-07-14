@@ -8,10 +8,13 @@ vi.mock("../../utils/imageUrl", () => ({
 import { WalletBalance } from "./WalletBalance";
 
 const validatorInfoFixture = {
-  total_apy: 7.25,
-  commission: 8,
-  is_jito: true,
-  jito_commission_bps: 250,
+  voteAccount: "vote-account",
+  name: "Validator",
+  description: null,
+  estimatedApyPercent: 7.25,
+  commissionPercent: 8,
+  mevEnabled: true,
+  mevCommissionPercent: 2.5,
 };
 
 const validatorInfo = validatorInfoFixture as never;
@@ -47,12 +50,39 @@ describe("WalletBalance", () => {
     render(
       <WalletBalance
         balance={1}
-        validatorInfo={{ ...validatorInfoFixture, is_jito: false } as never}
+        validatorInfo={{ ...validatorInfoFixture, mevEnabled: false } as never}
         secondsRemainToEpochEnd={86400}
       />
     );
 
     expect(screen.queryByText("MEV Commission :")).not.toBeInTheDocument();
+  });
+
+  it("renders unavailable economics without implying zero", () => {
+    render(
+      <WalletBalance balance={1} validatorInfo={null} secondsRemainToEpochEnd={86400} />
+    );
+
+    expect(screen.getByText("Estimated APY :")).toBeInTheDocument();
+    expect(screen.getAllByText("—")).toHaveLength(2);
+    expect(screen.queryByText("MEV Commission :")).not.toBeInTheDocument();
+  });
+
+  it("preserves zero-valued economics", () => {
+    render(
+      <WalletBalance
+        balance={1}
+        validatorInfo={{
+          ...validatorInfoFixture,
+          estimatedApyPercent: 0,
+          commissionPercent: 0,
+          mevCommissionPercent: 0,
+        } as never}
+        secondsRemainToEpochEnd={86400}
+      />
+    );
+
+    expect(screen.getAllByText("0%")).toHaveLength(3);
   });
 
   it("uses instant unlock text for liquid staking modes", () => {

@@ -1,24 +1,27 @@
-import { getValidatorAddress } from "../../utils/config";
 import { shortenAddress } from "../../utils/solana/address";
-import { ValidatorInfoResponse } from "../../utils/solana/validator";
-import { useState } from "react";
-import { useOptions } from "../../options";
-import { cssImageUrl } from "../../utils/imageUrl";
+import { ValidatorProfile } from "../../utils/solana/validator";
+import { useEffect, useState } from "react";
+import { cssImageUrl, getImageUrl } from "../../utils/imageUrl";
 
 interface Props {
-  validatorInfo: ValidatorInfoResponse | null;
+  validatorInfo: ValidatorProfile | null;
   logoUrl: string | null;
+  voteAccount: string;
 }
 
-export function ValidatorInfo({ validatorInfo, logoUrl }: Props) {
-  const options = useOptions();
+export function ValidatorInfo({ validatorInfo, logoUrl, voteAccount }: Props) {
   const [copied, setCopied] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
+
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [logoUrl]);
 
   const handleCopyIdentity = async () => {
-    if (!validatorInfo?.vote_identity) return;
+    if (!voteAccount) return;
 
     try {
-      await navigator.clipboard.writeText(validatorInfo.vote_identity);
+      await navigator.clipboard.writeText(voteAccount);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -28,19 +31,20 @@ export function ValidatorInfo({ validatorInfo, logoUrl }: Props) {
 
   return (
     <div className="vi-validator-card">
-      {logoUrl ? (
-        <img src={logoUrl} alt="logo" className="vi-image" />
-      ) : (
-        <div className="vi-avatar" />
-      )}
+      <img
+        src={logoUrl && !logoFailed ? logoUrl : getImageUrl("/images/sol_logo.png")}
+        alt={validatorInfo?.name ? validatorInfo.name + " logo" : "Validator logo"}
+        className="vi-image"
+        onError={() => setLogoFailed(true)}
+      />
 
       <div className="vi-content">
         <div className="vi-title">
-          {validatorInfo?.name}
+          {validatorInfo?.name ?? "Validator"}
         </div>
 
         <div className="vi-subtitle">
-          <span>Vote Account: {shortenAddress(getValidatorAddress(options))}</span>
+          <span>Vote Account: {voteAccount ? shortenAddress(voteAccount) : "Not configured"}</span>
           <div
             className="vi-copy-btn"
             onClick={handleCopyIdentity}
@@ -48,9 +52,9 @@ export function ValidatorInfo({ validatorInfo, logoUrl }: Props) {
           ></div>
         </div>
 
-        <div className="vi-description">
-          {validatorInfo?.description}
-        </div>
+        {validatorInfo?.description && (
+          <div className="vi-description">{validatorInfo.description}</div>
+        )}
       </div>
       <style>{`
         [data-widget="deepstake"] .vi-validator-card {
@@ -88,16 +92,13 @@ export function ValidatorInfo({ validatorInfo, logoUrl }: Props) {
           margin-bottom: 30px;
         }
 
-        [data-widget="deepstake"] .vi-avatar {
+        [data-widget="deepstake"] .vi-image {
           width: 50px;
           height: 50px;
           border-radius: 50%;
+          object-fit: cover;
           background: #ffffff;
           flex-shrink: 0;
-        }
-
-        [data-widget="deepstake"] .vi-image {
-          height: 50px;
         }
 
         [data-widget="deepstake"] .vi-content {

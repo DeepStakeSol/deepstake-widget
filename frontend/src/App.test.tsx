@@ -32,7 +32,7 @@ describe("App", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     useNetworkMock.mockReturnValue({ network: "devnet" });
     useOptionsMock.mockReturnValue({ vote_account: "vote-address" });
-    fetchValidatorInfoMock.mockResolvedValue({ name: "Validator", vote_identity: "vote-address" });
+    fetchValidatorInfoMock.mockResolvedValue({ name: "Validator", voteAccount: "vote-address" });
     fetchValidatorLogoMock.mockResolvedValue("https://logo.example/logo.png");
     fetchEpochInfoMock.mockResolvedValue({ epochInfo: { epoch: 42, slotIndex: 25, slotsInEpoch: 100 } });
     fetchPerfSamplesMock.mockResolvedValue({ sample: { numSlots: 10, samplePeriodSecs: 5 } });
@@ -65,6 +65,23 @@ describe("App", () => {
     expect(fetchValidatorInfoMock).not.toHaveBeenCalled();
     expect(fetchValidatorLogoMock).not.toHaveBeenCalled();
     expect(fetchEpochInfoMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores validator data returned after the vote account changes", async () => {
+    let resolveOldRequest!: (value: { name: string; voteAccount: string }) => void;
+    fetchValidatorInfoMock
+      .mockReturnValueOnce(new Promise((resolve) => { resolveOldRequest = resolve; }))
+      .mockResolvedValueOnce({ name: "New validator", voteAccount: "new-vote" });
+
+    const { rerender } = render(<App />);
+    useOptionsMock.mockReturnValue({ vote_account: "new-vote" });
+    rerender(<App />);
+
+    await waitFor(() => expect(screen.getByTestId("validator-info")).toHaveTextContent("New validator"));
+    resolveOldRequest({ name: "Old validator", voteAccount: "vote-address" });
+    await Promise.resolve();
+
+    expect(screen.getByTestId("validator-info")).not.toHaveTextContent("Old validator");
   });
 
   it("keeps rendering when metadata and epoch requests fail", async () => {

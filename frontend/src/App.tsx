@@ -9,7 +9,7 @@ import './App.css';
 import { StakeFormVault2 } from "./components/stake/StakeFormVault2";
 import { TitleHeader } from "./components/TitleHeader";
 import { ValidatorInfo } from "./components/stake/ValidatorInfo";
-import { fetchValidatorInfo, ValidatorInfoResponse, fetchValidatorLogo } from "./utils/solana/validator";
+import { fetchValidatorInfo, ValidatorProfile, fetchValidatorLogo } from "./utils/solana/validator";
 import { fetchEpochInfo, fetchPerfSamples } from "./utils/api";
 import { useNetwork } from "./context/NetworkContext";
 import { cssImageUrl } from "./utils/imageUrl";
@@ -77,7 +77,7 @@ function App() {
   const [currentEpoch, setCurrentEpoch] = useState<number>(0);
   const [currentProgress, setCurrentProgress] = useState<number>(0);
   const [secondsRemainToEpochEnd, setSecondsRemainToEpochEnd] = useState<number>(0);
-  const [validatorInfo, setValidatorInfo] = useState<ValidatorInfoResponse | null>(null);
+  const [validatorInfo, setValidatorInfo] = useState<ValidatorProfile | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const { network } = useNetwork();
   const options = useOptions();
@@ -85,12 +85,16 @@ function App() {
   const voteAccount = options?.vote_account ?? "";
 
   useEffect(() => {
+      setValidatorInfo(null);
+      setLogoUrl(null);
       if (!voteAccount) return;
+
+      let cancelled = false;
 
       const fetchValidatorData = async () => {
         try {
           const data = await fetchValidatorInfo(voteAccount);
-          setValidatorInfo(data);
+          if (!cancelled) setValidatorInfo(data);
         } catch (error) {
           console.error("Failed to fetch validator_info:", error);
         }
@@ -100,7 +104,7 @@ function App() {
       const fetchLogo = async () => {
         try {
           const logo = await fetchValidatorLogo(voteAccount);
-          setLogoUrl(logo);
+          if (!cancelled) setLogoUrl(logo);
         } catch (error) {
           console.error("Failed to fetch validator_logo:", error);
         }
@@ -133,6 +137,10 @@ function App() {
         .catch((error) =>
           console.error("Failed to fetch epoch/perf data:", error)
         );
+
+      return () => {
+        cancelled = true;
+      };
       }, [network, voteAccount]);
   
   return (
@@ -156,6 +164,7 @@ function App() {
         { <ValidatorInfo
           validatorInfo={validatorInfo}
           logoUrl={logoUrl}
+          voteAccount={voteAccount}
         /> }
 
         

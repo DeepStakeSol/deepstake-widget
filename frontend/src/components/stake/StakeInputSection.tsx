@@ -6,7 +6,7 @@ import {
 } from "@radix-ui/react-form";
 import { WalletInfo } from "./WalletInfo";
 import { WalletBalance } from "./WalletBalance";
-import { ValidatorInfoResponse } from "../../utils/solana/validator";
+import { ValidatorProfile } from "../../utils/solana/validator";
 import { getImageUrl } from "../../utils/imageUrl";
 
 interface StakeInputSectionProps {
@@ -17,7 +17,7 @@ interface StakeInputSectionProps {
   onInputChange: (value: string) => void;
   onSetStakeAmount: (value: string) => void;
   onSetFormattedStakeAmount: (value: string) => void;
-  validatorInfo: ValidatorInfoResponse | null;
+  validatorInfo: ValidatorProfile | null;
   secondsRemainToEpochEnd: number;
   stakeMode?: "default" | "vault" | "blaze";
 }

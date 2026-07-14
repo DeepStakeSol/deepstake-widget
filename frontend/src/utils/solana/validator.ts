@@ -2,6 +2,16 @@ import { getBackendUrl } from "../backendUrl";
 
 const VALIDATOR_INFO_URL = "https://api.stakewiz.com/validator";
 
+export interface ValidatorProfile {
+  voteAccount: string;
+  name: string | null;
+  description: string | null;
+  estimatedApyPercent: number | null;
+  commissionPercent: number | null;
+  mevCommissionPercent: number | null;
+  mevEnabled: boolean | null;
+}
+
 export interface ValidatorIdentity {
   rank: number;
   identity: string;
@@ -111,7 +121,7 @@ export interface ValidatorSoftwareInfo {
   admin_comment: string | null;
 }
 
-export interface ValidatorInfoResponse
+interface StakewizValidatorResponse
   extends ValidatorIdentity,
     ValidatorNetworkInfo,
     ValidatorStakeInfo,
@@ -121,27 +131,39 @@ export interface ValidatorInfoResponse
     ValidatorSoftwareInfo {}
 
 interface TrilliumRewardItem {
-  identity_pubkey: string;
-  icon_url: string;
+  icon_url?: unknown;
+  vote_account_pubkey?: unknown;
   [key: string]: unknown;
 }
 
-export const fetchValidatorInfo = async (voteAccount: string): Promise<ValidatorInfoResponse> => {
-  try {
-    const url = new URL(`${VALIDATOR_INFO_URL}/${voteAccount}`);
+function nullableString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
 
-    const response = await fetch(url);
+function nullableNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+export const fetchValidatorInfo = async (voteAccount: string): Promise<ValidatorProfile> => {
+  const url = new URL(`${VALIDATOR_INFO_URL}/${voteAccount}`);
+  const response = await fetch(url);
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Error fetching validator info:", error);
-    throw error;
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
   }
+
+  const data = (await response.json()) as StakewizValidatorResponse;
+  const mevCommissionBps = nullableNumber(data.jito_commission_bps);
+
+  return {
+    voteAccount: nullableString(data.vote_identity) ?? voteAccount,
+    name: nullableString(data.name),
+    description: nullableString(data.description),
+    estimatedApyPercent: nullableNumber(data.total_apy),
+    commissionPercent: nullableNumber(data.commission),
+    mevCommissionPercent: mevCommissionBps === null ? null : mevCommissionBps / 100,
+    mevEnabled: typeof data.is_jito === "boolean" ? data.is_jito : null,
+  };
 };
 
 export const fetchValidatorLogo = async (voteAccount: string): Promise<string | null> => {
@@ -166,7 +188,7 @@ export const fetchValidatorLogo = async (voteAccount: string): Promise<string | 
       (item) => item.vote_account_pubkey === voteAccount
     );
 
-    return matchingItem?.icon_url || null;
+    return nullableString(matchingItem?.icon_url);
   } catch (error) {
     console.error("Error fetching validator logo:", error);
     return null;

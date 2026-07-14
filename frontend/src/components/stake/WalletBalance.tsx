@@ -1,20 +1,20 @@
-import { ValidatorInfoResponse } from "../../utils/solana/validator";
+import { ValidatorProfile } from "../../utils/solana/validator";
 import { cssImageUrl } from "../../utils/imageUrl";
 
 interface WalletBalanceProps {
   balance: number;
-  validatorInfo: ValidatorInfoResponse | null;
+  validatorInfo: ValidatorProfile | null;
   secondsRemainToEpochEnd: number;
   stakeMode?: "default" | "vault" | "blaze";
 }
 
 export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd, stakeMode }: WalletBalanceProps) {
 
-  const isJito = validatorInfo?.is_jito;
-  let commissionMEV = 0;
-  if (isJito && validatorInfo?.jito_commission_bps > 0) {
-    commissionMEV = validatorInfo?.jito_commission_bps / 100;
-  }
+  const estimatedApy = validatorInfo?.estimatedApyPercent ?? null;
+  const commission = validatorInfo?.commissionPercent ?? null;
+  const mevCommission = validatorInfo?.mevCommissionPercent ?? null;
+  const showMevCommission = validatorInfo?.mevEnabled === true && mevCommission !== null;
+  const formatPercent = (value: number | null) => value === null ? "—" : `${value}%`;
 
   const timeLeftString = Math.round(secondsRemainToEpochEnd / 86400);
 
@@ -31,23 +31,25 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
 
         <div className="binfo-right">
           <div className="binfo-row">
-            <span className="binfo-key">APY :</span>
-            <span className="binfo-value">{validatorInfo?.total_apy}%</span>
+            <span className="binfo-key">Estimated APY :</span>
+            <span className="binfo-value">{formatPercent(estimatedApy)}</span>
           </div>
           <div className="binfo-row">
             <span className="binfo-key">
               Fee / Commission :
-              <div className="q-mark-icon binfo-tooltip-icon" data-tooltip={`You will receive ${100 - (validatorInfo?.commission || 0)}% of the inflation commissions`}></div>
+              {commission !== null && (
+                <div className="q-mark-icon binfo-tooltip-icon" data-tooltip={`You will receive ${100 - commission}% of the inflation commissions`}></div>
+              )}
             </span>
-            <span className="binfo-value">{validatorInfo?.commission}%</span>
+            <span className="binfo-value">{formatPercent(commission)}</span>
           </div>
-          { isJito && (
+          { showMevCommission && (
             <div className="binfo-row">
               <span className="binfo-key">
                 MEV Commission :
-                <div className="q-mark-icon binfo-tooltip-icon" data-tooltip={`You will receive ${100 - commissionMEV}% of the MEV commissions`}></div>
+                <div className="q-mark-icon binfo-tooltip-icon" data-tooltip={`You will receive ${100 - mevCommission}% of the MEV commissions`}></div>
               </span>
-              <span className="binfo-value">{commissionMEV}%</span>
+              <span className="binfo-value">{formatPercent(mevCommission)}</span>
             </div>
           )}
           

@@ -11,7 +11,7 @@ import { NoWalletTable } from "./NoWalletTable";
 import { VaultBindingBlock } from "./VaultBindingBlock";
 import { useStakeForm } from "../../hooks/useStakeForm";
 import { getImageUrl } from "../../utils/imageUrl";
-import { ValidatorInfoResponse } from "../../utils/solana/validator";
+import { ValidatorProfile } from "../../utils/solana/validator";
 import { fetchVaultManage, fetchLSTBalance, VaultManageResponse } from "../../utils/api";
 
 install();
@@ -19,7 +19,7 @@ install();
 const VSOL_MINT = "vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7";
 
 interface Props {
-  validatorInfo: ValidatorInfoResponse | null;
+  validatorInfo: ValidatorProfile | null;
   secondsRemainToEpochEnd: number;
 }
 
@@ -203,7 +203,7 @@ export function StakeFormVault2({
               onDataLoaded={setvSOLBalance}
               onVSOLIsLoading={setVSOLIsLoading}
               balance={balance}
-              voteIdentity={validatorInfo?.vote_identity}
+              voteIdentity={validatorInfo?.voteAccount}
             />
           ) : (
             <WalletConnectButton />

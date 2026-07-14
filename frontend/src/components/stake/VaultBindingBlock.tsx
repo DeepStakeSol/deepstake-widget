@@ -1,11 +1,11 @@
 import { VaultManageResponse } from '../../utils/api'
-import { ValidatorInfoResponse } from '../../utils/solana/validator'
+import { ValidatorProfile } from '../../utils/solana/validator'
 import { cssImageUrl } from '../../utils/imageUrl'
 
 interface Props {
   data: VaultManageResponse | null
   isLoading: boolean
-  validatorInfo?: ValidatorInfoResponse | null
+  validatorInfo?: ValidatorProfile | null
 }
 
 function truncateAddress(address: string, chars = 6): string {
@@ -49,7 +49,7 @@ export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
 
   let validatorDisplay: string | null = null
   if (binding.hasBinding && binding.validatorVoteKey) {
-    if (validatorInfo?.vote_identity === binding.validatorVoteKey && validatorInfo?.name) {
+    if (validatorInfo?.voteAccount === binding.validatorVoteKey && validatorInfo?.name) {
       validatorDisplay = validatorInfo.name
     } else {
       validatorDisplay = truncateAddress(binding.validatorVoteKey)

@@ -9,7 +9,7 @@ import { StakeLayout } from "./StakeLayout";
 import { NoWalletTable } from "./NoWalletTable";
 import { BSOLBalanceTable2 } from "./BSOLBalanceTable2";
 import { useStakeForm } from "../../hooks/useStakeForm";
-import { ValidatorInfoResponse } from "../../utils/solana/validator";
+import { ValidatorProfile } from "../../utils/solana/validator";
 import { BlazeAppliedStake, fetchBlazeAppliedStakes, fetchLSTBalance } from "../../utils/api";
 import { getImageUrl } from "../../utils/imageUrl";
 
@@ -18,7 +18,7 @@ install();
 const BSOL_MINT = "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1";
 
 interface Props {
-  validatorInfo: ValidatorInfoResponse | null;
+  validatorInfo: ValidatorProfile | null;
   secondsRemainToEpochEnd: number;
 }
 
@@ -45,7 +45,7 @@ export function StakeFormBlaze({
   const [appliedStakes, setAppliedStakes] = useState<BlazeAppliedStake[]>([]);
   const [appliedStakesIsLoading, setAppliedStakesIsLoading] = useState(false);
   const isDevnet = network === "devnet";
-  const manageValidatorName = isDevnet ? undefined : validatorInfo?.name;
+  const manageValidatorName = isDevnet ? undefined : validatorInfo?.name ?? undefined;
   const blazeManageIsLoading = bSOLIsLoading || appliedStakesIsLoading;
 
   const fetchAppliedStakes = async (walletAddress: string) => {
@@ -125,7 +125,7 @@ export function StakeFormBlaze({
               inSufficientBalance={inSufficientBalance}
               onDataLoaded={setbSOLBalance}
               onBSOLIsLoading={setBSOLIsLoading}
-              voteIdentity={validatorInfo?.vote_identity}
+              voteIdentity={validatorInfo?.voteAccount}
             />
           ) : (
             <WalletConnectButton />
