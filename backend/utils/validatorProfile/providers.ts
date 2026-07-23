@@ -1,5 +1,6 @@
 import { getRpcEndpoint } from "@/utils/solana/rpc";
 
+import type { ValidatorProfileCacheGroup } from "./cache";
 import type {
   ProviderResult,
   ValidatorProfileProvider,
@@ -219,3 +220,21 @@ export const validatorProfileProviders: ValidatorProfileProvider[] = [
   fetchSolanaProfile,
   fetchValidatorsAppProfile,
 ];
+
+export const validatorProfileProvidersByGroup: Record<
+  ValidatorProfileCacheGroup,
+  ValidatorProfileProvider[]
+> = {
+  identity: [
+    fetchStakewizProfile,
+    fetchTrilliumProfile,
+    fetchValidatorsAppProfile,
+  ],
+  commission: [
+    fetchSolanaProfile,
+    fetchStakewizProfile,
+    fetchValidatorsAppProfile,
+  ],
+  apy: [fetchStakewizProfile],
+  mev: [fetchJitoProfile, fetchStakewizProfile],
+};

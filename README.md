@@ -163,6 +163,17 @@ GET /api/validator/profile?network=<mainnet|devnet>&voteAccount=<vote-account>
 
 The response combines identity, estimated APY, validator commission, and MEV data with field-level source and freshness metadata. A partial or unavailable profile does not disable staking. Widget identity overrides are applied after the backend response.
 
+When `REDIS_URL` is configured, the backend caches independent identity, commission, APY, and MEV field groups. Fresh cache hits avoid provider requests. Stale values are returned immediately with `fields.<field>.stale=true` while one process refreshes them in the background. Valid cached fields are never replaced by null or malformed refresh values. Redis failures fall back to direct provider aggregation.
+
+Default cache windows:
+
+| Field group | Fresh for | Stale fallback for |
+| --- | --- | --- |
+| Identity | 24 hours | 30 days |
+| Commission | 60 seconds | 15 minutes |
+| Estimated APY | 15 minutes | 24 hours |
+| MEV | 5 minutes | 48 hours (approximately one epoch) |
+
 Set `VITE_USE_LEGACY_VALIDATOR_PROFILE=true` only as a temporary rollback during migration. The legacy path makes browser requests to Stakewiz and the backend Trillium proxy and will be removed after the observation period.
 
 ## Shared Folder and Widget Bundle
@@ -282,6 +293,7 @@ Used by the Next.js backend.
 | `NEXT_PUBLIC_NETWORK_ENV` | No | Default network for backend helper URLs. |
 | `NEXT_PUBLIC_VALIDATOR_ADDRESS` | Yes for backend validator helpers | Validator vote account used by backend-side helpers. |
 | `VALIDATORS_APP_TOKEN` | No | Optional Validators.app API token. |
+| `REDIS_URL` | Recommended | Redis connection URL for the shared validator profile cache. Without it, requests use direct provider aggregation with local in-flight coalescing. |
 | `APP_URL` | Recommended in production | Allowed CORS origin for `/api/*`; defaults to `http://localhost:8080`. |
 | `SHARED_FILES_DIR` | No | Filesystem path served by `/api/w/`; Docker sets this to `/shared`. |
 | `IMAGES_DIR` | No | Filesystem path served by `/api/images/`; Docker sets this to `/images`. |

@@ -4,6 +4,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getValidatorProfile } from "@/utils/validatorProfile/service";
 import type { ValidatorNetwork } from "@/utils/validatorProfile/types";
 
+export const runtime = "nodejs";
+
 const VALID_NETWORKS = new Set<ValidatorNetwork>(["mainnet", "devnet"]);
 
 export async function GET(request: NextRequest) {
