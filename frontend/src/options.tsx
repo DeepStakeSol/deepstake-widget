@@ -7,6 +7,9 @@ export interface Options {
   network?: "mainnet" | "devnet";
   theme?: "light" | "dark";
   tabs?: WidgetTab[];
+  validator_name?: string;
+  validator_description?: string;
+  validator_logo_url?: string;
 }
 
 export const OptionsContext = createContext<Options | null>(null);

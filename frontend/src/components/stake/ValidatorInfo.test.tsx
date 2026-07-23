@@ -10,7 +10,7 @@ import { ValidatorInfo } from './ValidatorInfo'
 
 describe('ValidatorInfo', () => {
   it('shows the configured vote account when metadata is unavailable', () => {
-    render(<ValidatorInfo validatorInfo={null} logoUrl={null} voteAccount="1234567890abcdefghij" />)
+    render(<ValidatorInfo validatorInfo={null} voteAccount="1234567890abcdefghij" />)
 
     expect(screen.getByText('Validator')).toBeInTheDocument()
     expect(screen.getByText('Vote Account: 1234...ghij')).toBeInTheDocument()
@@ -23,8 +23,10 @@ describe('ValidatorInfo', () => {
   it('falls back when the remote logo cannot load', () => {
     render(
       <ValidatorInfo
-        validatorInfo={{ name: 'Example' } as never}
-        logoUrl="https://logo.example/broken.png"
+        validatorInfo={{
+          name: 'Example',
+          logoUrl: 'https://logo.example/broken.png',
+        } as never}
         voteAccount="vote-account"
       />
     )

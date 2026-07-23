@@ -1,14 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const localHostPattern = new RegExp("^https?://(127\\.0\\.0\\.1|localhost):3100/");
-const validatorPattern = new RegExp("^https://api\\.stakewiz\\.com/validator/");
 const allowedImagePattern = new RegExp("^https://.*\\.(png|jpg|jpeg|svg|webp)(\\?.*)?$", "i");
 const e2eWalletAddress = "So11111111111111111111111111111111111111112";
 
 type MockScenario = {
   epochStatus?: number;
   perfStatus?: number;
-  rewardsStatus?: number;
   validatorStatus?: number;
 };
 
@@ -68,41 +66,48 @@ async function installNetworkMocks(page: Page, scenario: MockScenario = {}) {
         return;
       }
 
-      if (parsed.pathname === "/api/trillium/rewards") {
+      if (parsed.pathname === "/api/validator/profile") {
+        const status = scenario.validatorStatus ?? 200;
         await fulfillJson(
           route,
-          scenario.rewardsStatus ?? 200,
-          scenario.rewardsStatus
-            ? { error: "rewards unavailable" }
-            : [
-                {
-                  vote_account_pubkey: "Vote111111111111111111111111111111111111111",
-                  identity_pubkey: "Identity111111111111111111111111111111111111",
-                  icon_url: "/images/sol_logo.png",
-                },
-              ]
+          status,
+          status >= 400
+            ? { error: "validator profile unavailable" }
+            : {
+                network: parsed.searchParams.get("network"),
+                voteAccount: parsed.searchParams.get("voteAccount"),
+                name: "E2E Validator",
+                description: "E2E validator description",
+                logoUrl: "/images/sol_logo.png",
+                estimatedApyPercent: 7.2,
+                commissionPercent: 5,
+                mevCommissionPercent: null,
+                mevEnabled: false,
+                status: "fresh",
+                fields: Object.fromEntries(
+                  [
+                    "name",
+                    "description",
+                    "logoUrl",
+                    "estimatedApyPercent",
+                    "commissionPercent",
+                    "mevCommissionPercent",
+                    "mevEnabled",
+                  ].map((field) => [
+                    field,
+                    {
+                      source: "e2e",
+                      observedAt: "2026-07-14T10:00:00.000Z",
+                      stale: false,
+                    },
+                  ])
+                ),
+              }
         );
         return;
       }
 
       await route.continue();
-      return;
-    }
-
-    if (validatorPattern.test(url)) {
-      await fulfillJson(
-        route,
-        scenario.validatorStatus ?? 200,
-        scenario.validatorStatus
-          ? { error: "validator unavailable" }
-          : {
-              name: "E2E Validator",
-              total_apy: 7.2,
-              commission: 5,
-              is_jito: false,
-              vote_identity: "Vote111111111111111111111111111111111111111",
-            }
-      );
       return;
     }
 
@@ -253,6 +258,15 @@ test("widget options filter tabs", async ({ page }) => {
   expect(consoleErrors).toEqual([]);
 });
 
+test("validator identity options override backend profile data", async ({ page }) => {
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-overrides.html");
+
+  await expect(page.getByText("Host Validator")).toBeVisible();
+  await expect(page.getByText("Identity supplied by the host page.")).toBeVisible();
+  await expect(page.getByText("E2E Validator")).toHaveCount(0);
+  expect(consoleErrors).toEqual([]);
+});
+
 test("dark theme host option applies", async ({ page }) => {
   const consoleErrors = await gotoHost(page, "/api/w/e2e-host-dark.html");
 
@@ -278,8 +292,8 @@ test("embedded widget fits a mobile host viewport", async ({ page }) => {
 test("validator API failure still leaves disconnected staking form usable", async ({ page }) => {
   const consoleErrors = await gotoHost(page, "/api/w/e2e-host-all.html", {
     mock: { validatorStatus: 500 },
-    allowedConsoleErrors: [/Failed to fetch validator_info:/, /HTTP error! status: 500/, /Failed to load resource: the server responded with a status of 500/],
-    allowedFailedResponses: [new RegExp("500 https://api\\.stakewiz\\.com/validator/")],
+    allowedConsoleErrors: [/Failed to fetch validator profile:/, /HTTP error 500/, /Failed to load resource: the server responded with a status of 500/],
+    allowedFailedResponses: [new RegExp("500 http://127\\.0\\.0\\.1:3100/api/validator/profile")],
   });
 
   await expect(page.getByRole("tab", { name: /Native/ })).toHaveAttribute("data-state", "active");

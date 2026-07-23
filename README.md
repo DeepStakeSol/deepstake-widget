@@ -66,6 +66,7 @@ Add the frontend deployment settings to `.env`:
 VITE_BACKEND_URL=http://localhost:3000
 DISABLE_BACKEND_PREFIX=false
 IMAGE_URL_PREFIX=
+VITE_USE_LEGACY_VALIDATOR_PROFILE=false
 ```
 
 Create the backend environment file:
@@ -131,6 +132,9 @@ For production, replace the script URL with your public backend URL:
 | `theme` | No | `light`, `dark` | Widget theme. Defaults to `light`. |
 | `network` | No | `mainnet`, `devnet` | Solana cluster used by API calls, wallet chain checks, and explorer links. Overrides `VITE_NEXT_PUBLIC_NETWORK_ENV`. |
 | `tabs` | No | `native`, `blaze`, `vault` | Top-level staking tabs to show. Defaults to all tabs. |
+| `validator_name` | No | String | Overrides the validator name returned by the backend profile. |
+| `validator_description` | No | String | Overrides the validator description returned by the backend profile. |
+| `validator_logo_url` | No | HTTPS or local image URL | Overrides the validator logo returned by the backend profile. |
 
 Example:
 
@@ -141,10 +145,25 @@ Example:
     "vote_account": "DeEpSdaw8uBLQ5T2HQhDf8fBSVbm13jGqJwoSF3HTpL5",
     "theme": "dark",
     "network": "devnet",
-    "tabs": ["native", "blaze"]
+    "tabs": ["native", "blaze"],
+    "validator_name": "Your Validator",
+    "validator_description": "Validator description managed by the host page.",
+    "validator_logo_url": "https://your-domain.example/validator-logo.png"
   }'
 ></div>
 ```
+
+## Validator Profile Request
+
+By default, the widget makes one validator-data request through the backend:
+
+```text
+GET /api/validator/profile?network=<mainnet|devnet>&voteAccount=<vote-account>
+```
+
+The response combines identity, estimated APY, validator commission, and MEV data with field-level source and freshness metadata. A partial or unavailable profile does not disable staking. Widget identity overrides are applied after the backend response.
+
+Set `VITE_USE_LEGACY_VALIDATOR_PROFILE=true` only as a temporary rollback during migration. The legacy path makes browser requests to Stakewiz and the backend Trillium proxy and will be removed after the observation period.
 
 ## Shared Folder and Widget Bundle
 
@@ -212,6 +231,7 @@ Used by Docker Compose for the frontend container.
 | `VITE_BACKEND_URL` | `http://localhost:3000` | Base URL used by the frontend when calling backend routes. |
 | `DISABLE_BACKEND_PREFIX` | `false` | If `false`, frontend adds `/api` before backend routes. If `true`, frontend does not add `/api`. |
 | `IMAGE_URL_PREFIX` | `https://your-domain.example/api/images` | Optional prefix for local `/images/...` widget assets loaded from the backend image file server. Leave empty for same-origin assets. |
+| `VITE_USE_LEGACY_VALIDATOR_PROFILE` | `false` | Emergency rollback flag. When true, the widget uses the legacy browser Stakewiz and Trillium requests instead of `/api/validator/profile`. |
 
 Default local setup:
 
@@ -227,12 +247,14 @@ Production setup when nginx maps public `/api/` to backend port `3000`:
 VITE_BACKEND_URL=https://your-domain.example/api
 DISABLE_BACKEND_PREFIX=true
 IMAGE_URL_PREFIX=https://your-domain.example/api/images
+VITE_USE_LEGACY_VALIDATOR_PROFILE=false
 ```
 
 With that production setup, frontend calls become:
 
 ```text
 https://your-domain.example/api/stake/fetch
+https://your-domain.example/api/validator/profile?network=mainnet&voteAccount=YOUR_VALIDATOR_VOTE_ACCOUNT
 https://your-domain.example/api/w/widget.iife.js
 ```
 

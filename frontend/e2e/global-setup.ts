@@ -35,6 +35,7 @@ export default async function globalSetup() {
       DISABLE_BACKEND_PREFIX: "false",
       IMAGE_URL_PREFIX: "",
       VITE_NEXT_PUBLIC_NETWORK_ENV: "devnet",
+      VITE_USE_LEGACY_VALIDATOR_PROFILE: "false",
     },
   });
 
@@ -49,5 +50,17 @@ export default async function globalSetup() {
   fs.writeFileSync(
     path.join(distDir, "e2e-host-dark.html"),
     html({ vote_account: voteAccount, theme: "dark", network: "devnet", tabs: ["native", "blaze", "vault"] })
+  );
+  fs.writeFileSync(
+    path.join(distDir, "e2e-host-overrides.html"),
+    html({
+      vote_account: voteAccount,
+      theme: "light",
+      network: "devnet",
+      tabs: ["native"],
+      validator_name: "Host Validator",
+      validator_description: "Identity supplied by the host page.",
+      validator_logo_url: "/images/sol_logo.png",
+    })
   );
 }

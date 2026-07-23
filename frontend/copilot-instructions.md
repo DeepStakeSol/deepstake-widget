@@ -54,7 +54,7 @@ Three tabs in `App.tsx`:
 
 ## Solana utils (`src/utils/solana/`)
 
-- `validator.ts` — `fetchValidatorInfo()` / `fetchValidatorLogo()` / `ValidatorInfoResponse`
+- `validator.ts` — `fetchValidatorProfile()` / `applyValidatorOverrides()` / `ValidatorProfile`
 - `blaze.ts` — BlazeStake pool helpers
 - `price.ts` — SOL price fetching
 - `rpc.ts`, `balance.ts`, `address.ts`, `status.ts` — low-level RPC helpers

@@ -1,196 +1,309 @@
+import type { Options } from "../../options";
 import { getBackendUrl } from "../backendUrl";
+import type { NetworkType } from "../config";
 
 const VALIDATOR_INFO_URL = "https://api.stakewiz.com/validator";
+const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
+
+export type ValidatorProfileStatus =
+  | "fresh"
+  | "partial"
+  | "stale"
+  | "unavailable";
+
+export type ValidatorProfileField =
+  | "name"
+  | "description"
+  | "logoUrl"
+  | "estimatedApyPercent"
+  | "commissionPercent"
+  | "mevCommissionPercent"
+  | "mevEnabled";
+
+export interface ValidatorFieldMetadata {
+  source: string | null;
+  observedAt: string | null;
+  stale: boolean;
+}
 
 export interface ValidatorProfile {
+  network: NetworkType;
   voteAccount: string;
   name: string | null;
   description: string | null;
+  logoUrl: string | null;
   estimatedApyPercent: number | null;
   commissionPercent: number | null;
   mevCommissionPercent: number | null;
   mevEnabled: boolean | null;
+  status: ValidatorProfileStatus;
+  fields: Record<ValidatorProfileField, ValidatorFieldMetadata>;
 }
 
-export interface ValidatorIdentity {
-  rank: number;
-  identity: string;
-  vote_identity: string;
-
-  name: string;
-  keybase: string;
-  description: string;
-  website: string;
-  image: string;
-
-  updated_at: string;
+interface LegacyStakewizResponse {
+  vote_identity?: unknown;
+  name?: unknown;
+  description?: unknown;
+  total_apy?: unknown;
+  commission?: unknown;
+  jito_commission_bps?: unknown;
+  is_jito?: unknown;
 }
-
-export interface ValidatorNetworkInfo {
-  ip_latitude: string;
-  ip_longitude: string;
-  ip_city: string;
-  ip_country: string;
-  ip_asn: string;
-  ip_org: string;
-
-  asn: string;
-
-  tpu_ip: string;
-}
-
-export interface ValidatorStakeInfo {
-  activated_stake: number;
-  stake_weight: number;
-  stake_ratio: number;
-
-  first_epoch_with_stake: number;
-  first_epoch_distance: number;
-
-  epoch: number;
-  epoch_slot_height: number;
-}
-
-export interface ValidatorVotingInfo {
-  last_vote: number;
-  root_slot: number;
-
-  credits: number;
-  epoch_credits: number;
-  credit_ratio: number;
-
-  vote_success: number;
-  skip_rate: number;
-  wiz_skip_rate: number;
-
-  delinquent: boolean;
-  no_voting_override: boolean;
-  skip_rate_ignored: boolean;
-}
-
-export interface ValidatorRewardsInfo {
-  commission: number;
-  jito_commission_bps: number;
-
-  apy_estimate: number;
-  staking_apy: number;
-  jito_apy: number;
-  total_apy: number;
-
-  is_jito: boolean;
-}
-
-export interface ValidatorScoreInfo {
-  wiz_score: number;
-  score_version: number;
-
-  vote_success_score: number;
-  skip_rate_score: number;
-  info_score: number;
-  commission_score: number;
-  epoch_distance_score: number;
-  stake_weight_score: number;
-  withdraw_authority_score: number;
-  uptime_score: number;
-
-  asn_concentration: number;
-  asn_concentration_score: number;
-
-  city_concentration: number;
-  city_concentration_score: number;
-
-  asncity_concentration: number;
-  asncity_concentration_score: number;
-
-  tpu_ip_concentration: number;
-  tpu_ip_concentration_score: number;
-
-  invalid_version_score: number;
-  superminority_penalty: number;
-}
-
-export interface ValidatorSoftwareInfo {
-  version: string;
-  version_valid: boolean;
-
-  mod: boolean;
-  above_halt_line: boolean;
-
-  uptime: number;
-
-  admin_comment: string | null;
-}
-
-interface StakewizValidatorResponse
-  extends ValidatorIdentity,
-    ValidatorNetworkInfo,
-    ValidatorStakeInfo,
-    ValidatorVotingInfo,
-    ValidatorRewardsInfo,
-    ValidatorScoreInfo,
-    ValidatorSoftwareInfo {}
 
 interface TrilliumRewardItem {
   icon_url?: unknown;
   vote_account_pubkey?: unknown;
-  [key: string]: unknown;
 }
 
-function nullableString(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value : null;
+const PROFILE_FIELDS: ValidatorProfileField[] = [
+  "name",
+  "description",
+  "logoUrl",
+  "estimatedApyPercent",
+  "commissionPercent",
+  "mevCommissionPercent",
+  "mevEnabled",
+];
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
-function nullableNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+function nullableString(value: unknown, field = "value"): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") throw new Error(`Invalid ${field}`);
+  return value.trim() ? value : null;
 }
 
-export const fetchValidatorInfo = async (voteAccount: string): Promise<ValidatorProfile> => {
-  const url = new URL(`${VALIDATOR_INFO_URL}/${voteAccount}`);
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+function nullableNumber(value: unknown, field = "value"): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`Invalid ${field}`);
   }
+  return value;
+}
 
-  const data = (await response.json()) as StakewizValidatorResponse;
-  const mevCommissionBps = nullableNumber(data.jito_commission_bps);
+function nullableBoolean(value: unknown, field = "value"): boolean | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "boolean") throw new Error(`Invalid ${field}`);
+  return value;
+}
+
+function emptyFields(): ValidatorProfile["fields"] {
+  return Object.fromEntries(
+    PROFILE_FIELDS.map((field) => [
+      field,
+      { source: null, observedAt: null, stale: false },
+    ])
+  ) as ValidatorProfile["fields"];
+}
+
+export function createUnavailableValidatorProfile(
+  voteAccount: string,
+  network: NetworkType
+): ValidatorProfile {
+  return {
+    network,
+    voteAccount,
+    name: null,
+    description: null,
+    logoUrl: null,
+    estimatedApyPercent: null,
+    commissionPercent: null,
+    mevCommissionPercent: null,
+    mevEnabled: null,
+    status: "unavailable",
+    fields: emptyFields(),
+  };
+}
+
+function parseFieldMetadata(
+  value: unknown,
+  field: ValidatorProfileField
+): ValidatorFieldMetadata {
+  const data = asRecord(value);
+  if (!data || typeof data.stale !== "boolean") {
+    throw new Error(`Invalid fields.${field}`);
+  }
+  return {
+    source: nullableString(data.source, `fields.${field}.source`),
+    observedAt: nullableString(data.observedAt, `fields.${field}.observedAt`),
+    stale: data.stale,
+  };
+}
+
+function parseBackendProfile(
+  value: unknown,
+  voteAccount: string,
+  network: NetworkType
+): ValidatorProfile {
+  const data = asRecord(value);
+  if (!data || data.voteAccount !== voteAccount || data.network !== network) {
+    throw new Error("Validator profile response does not match the request");
+  }
+  if (
+    data.status !== "fresh" &&
+    data.status !== "partial" &&
+    data.status !== "stale" &&
+    data.status !== "unavailable"
+  ) {
+    throw new Error("Invalid validator profile status");
+  }
+  const rawFields = asRecord(data.fields);
+  if (!rawFields) throw new Error("Invalid validator profile fields");
 
   return {
-    voteAccount: nullableString(data.vote_identity) ?? voteAccount,
-    name: nullableString(data.name),
-    description: nullableString(data.description),
-    estimatedApyPercent: nullableNumber(data.total_apy),
-    commissionPercent: nullableNumber(data.commission),
-    mevCommissionPercent: mevCommissionBps === null ? null : mevCommissionBps / 100,
-    mevEnabled: typeof data.is_jito === "boolean" ? data.is_jito : null,
+    network,
+    voteAccount,
+    name: nullableString(data.name, "name"),
+    description: nullableString(data.description, "description"),
+    logoUrl: nullableString(data.logoUrl, "logoUrl"),
+    estimatedApyPercent: nullableNumber(
+      data.estimatedApyPercent,
+      "estimatedApyPercent"
+    ),
+    commissionPercent: nullableNumber(data.commissionPercent, "commissionPercent"),
+    mevCommissionPercent: nullableNumber(
+      data.mevCommissionPercent,
+      "mevCommissionPercent"
+    ),
+    mevEnabled: nullableBoolean(data.mevEnabled, "mevEnabled"),
+    status: data.status,
+    fields: Object.fromEntries(
+      PROFILE_FIELDS.map((field) => [
+        field,
+        parseFieldMetadata(rawFields[field], field),
+      ])
+    ) as ValidatorProfile["fields"],
   };
-};
+}
 
-export const fetchValidatorLogo = async (voteAccount: string): Promise<string | null> => {
-  try {
-    const url = new URL(getBackendUrl("/trillium/rewards"), window.location.origin);
-    url.searchParams.append("validatorIdentity", voteAccount);
+function legacyMetadata(source: string): ValidatorFieldMetadata {
+  return { source, observedAt: new Date().toISOString(), stale: false };
+}
 
-    const response = await fetch(url);
+async function fetchLegacyValidatorInfo(
+  voteAccount: string,
+  network: NetworkType
+): Promise<ValidatorProfile> {
+  const response = await fetch(`${VALIDATOR_INFO_URL}/${voteAccount}`);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-    if (!response.ok) {
-      console.warn(`Failed to fetch validator logo: HTTP ${response.status}`);
-      return null;
-    }
+  const data = (await response.json()) as LegacyStakewizResponse;
+  const mevCommissionBps = nullableNumber(
+    data.jito_commission_bps,
+    "jito_commission_bps"
+  );
+  const profile = createUnavailableValidatorProfile(voteAccount, network);
+  profile.name = nullableString(data.name, "name");
+  profile.description = nullableString(data.description, "description");
+  profile.estimatedApyPercent = nullableNumber(data.total_apy, "total_apy");
+  profile.commissionPercent = nullableNumber(data.commission, "commission");
+  profile.mevCommissionPercent =
+    mevCommissionBps === null ? null : mevCommissionBps / 100;
+  profile.mevEnabled = nullableBoolean(data.is_jito, "is_jito");
+  profile.status = "partial";
 
-    const data: TrilliumRewardItem[] = await response.json();
-
-    if (!Array.isArray(data)) {
-      return null;
-    }
-
-    const matchingItem = data.find(
-      (item) => item.vote_account_pubkey === voteAccount
-    );
-
-    return nullableString(matchingItem?.icon_url);
-  } catch (error) {
-    console.error("Error fetching validator logo:", error);
-    return null;
+  for (const field of PROFILE_FIELDS) {
+    if (profile[field] !== null) profile.fields[field] = legacyMetadata("stakewiz");
   }
-};
+  return profile;
+}
+
+async function fetchLegacyValidatorLogo(voteAccount: string): Promise<string | null> {
+  const url = new URL(
+    getBackendUrl("/trillium/rewards"),
+    window.location.origin
+  );
+  url.searchParams.append("validatorIdentity", voteAccount);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+  const data = (await response.json()) as TrilliumRewardItem[];
+  if (!Array.isArray(data)) return null;
+  const match = data.find((item) => item.vote_account_pubkey === voteAccount);
+  return nullableString(match?.icon_url, "icon_url");
+}
+
+async function fetchLegacyValidatorProfile(
+  voteAccount: string,
+  network: NetworkType
+): Promise<ValidatorProfile> {
+  const [info, logo] = await Promise.allSettled([
+    fetchLegacyValidatorInfo(voteAccount, network),
+    fetchLegacyValidatorLogo(voteAccount),
+  ]);
+  if (info.status === "rejected" && logo.status === "rejected") throw info.reason;
+
+  const profile =
+    info.status === "fulfilled"
+      ? info.value
+      : createUnavailableValidatorProfile(voteAccount, network);
+  if (logo.status === "fulfilled" && logo.value) {
+    profile.logoUrl = logo.value;
+    profile.fields.logoUrl = legacyMetadata("trillium");
+    if (profile.status === "unavailable") profile.status = "partial";
+  }
+  return profile;
+}
+
+export function isLegacyValidatorProfileEnabled(): boolean {
+  return TRUE_VALUES.has(
+    (import.meta.env.VITE_USE_LEGACY_VALIDATOR_PROFILE || "").toLowerCase()
+  );
+}
+
+export async function fetchValidatorProfile(
+  voteAccount: string,
+  network: NetworkType
+): Promise<ValidatorProfile> {
+  if (isLegacyValidatorProfileEnabled()) {
+    return fetchLegacyValidatorProfile(voteAccount, network);
+  }
+
+  const query = new URLSearchParams({ network, voteAccount });
+  const url = `${getBackendUrl("/validator/profile")}?${query.toString()}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`HTTP error ${response.status} when fetching ${url}`);
+  }
+  return parseBackendProfile(await response.json(), voteAccount, network);
+}
+
+export function applyValidatorOverrides(
+  profile: ValidatorProfile,
+  options: Pick<
+    Options,
+    "validator_name" | "validator_description" | "validator_logo_url"
+  > | null
+): ValidatorProfile {
+  if (!options) return profile;
+
+  const overrides: Partial<Record<ValidatorProfileField, string | null>> = {
+    name: nullableString(options.validator_name, "validator_name"),
+    description: nullableString(
+      options.validator_description,
+      "validator_description"
+    ),
+    logoUrl: nullableString(options.validator_logo_url, "validator_logo_url"),
+  };
+  let applied = false;
+  const next = { ...profile, fields: { ...profile.fields } };
+
+  for (const field of ["name", "description", "logoUrl"] as const) {
+    const value = overrides[field];
+    if (value) {
+      next[field] = value;
+      next.fields[field] = {
+        source: "widget-option",
+        observedAt: null,
+        stale: false,
+      };
+      applied = true;
+    }
+  }
+  if (applied && next.status === "unavailable") next.status = "partial";
+  return next;
+}

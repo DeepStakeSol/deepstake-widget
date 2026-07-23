@@ -9,7 +9,12 @@ import './App.css';
 import { StakeFormVault2 } from "./components/stake/StakeFormVault2";
 import { TitleHeader } from "./components/TitleHeader";
 import { ValidatorInfo } from "./components/stake/ValidatorInfo";
-import { fetchValidatorInfo, ValidatorProfile, fetchValidatorLogo } from "./utils/solana/validator";
+import {
+  applyValidatorOverrides,
+  createUnavailableValidatorProfile,
+  fetchValidatorProfile,
+  ValidatorProfile,
+} from "./utils/solana/validator";
 import { fetchEpochInfo, fetchPerfSamples } from "./utils/api";
 import { useNetwork } from "./context/NetworkContext";
 import { cssImageUrl } from "./utils/imageUrl";
@@ -77,71 +82,92 @@ function App() {
   const [currentEpoch, setCurrentEpoch] = useState<number>(0);
   const [currentProgress, setCurrentProgress] = useState<number>(0);
   const [secondsRemainToEpochEnd, setSecondsRemainToEpochEnd] = useState<number>(0);
-  const [validatorInfo, setValidatorInfo] = useState<ValidatorProfile | null>(null);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [validatorState, setValidatorState] = useState<{
+    key: string;
+    profile: ValidatorProfile;
+  } | null>(null);
   const { network } = useNetwork();
   const options = useOptions();
   const enabledTabs = getEnabledTabs(options?.tabs);
   const voteAccount = options?.vote_account ?? "";
+  const validatorKey = `${network}:${voteAccount}`;
+  const validatorInfo =
+    validatorState?.key === validatorKey ? validatorState.profile : null;
 
   useEffect(() => {
-      setValidatorInfo(null);
-      setLogoUrl(null);
-      if (!voteAccount) return;
+    if (!voteAccount) return;
+    let cancelled = false;
+    const overrideOptions = {
+      validator_name: options?.validator_name,
+      validator_description: options?.validator_description,
+      validator_logo_url: options?.validator_logo_url,
+    };
 
-      let cancelled = false;
+    fetchValidatorProfile(voteAccount, network)
+      .then((profile) => {
+        if (cancelled) return;
+        setValidatorState({
+          key: validatorKey,
+          profile: applyValidatorOverrides(profile, overrideOptions),
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to fetch validator profile:", error);
+        if (cancelled) return;
+        setValidatorState({
+          key: validatorKey,
+          profile: applyValidatorOverrides(
+            createUnavailableValidatorProfile(voteAccount, network),
+            overrideOptions
+          ),
+        });
+      });
 
-      const fetchValidatorData = async () => {
-        try {
-          const data = await fetchValidatorInfo(voteAccount);
-          if (!cancelled) setValidatorInfo(data);
-        } catch (error) {
-          console.error("Failed to fetch validator_info:", error);
-        }
-      };
-      fetchValidatorData();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    network,
+    voteAccount,
+    validatorKey,
+    options?.validator_name,
+    options?.validator_description,
+    options?.validator_logo_url,
+  ]);
 
-      const fetchLogo = async () => {
-        try {
-          const logo = await fetchValidatorLogo(voteAccount);
-          if (!cancelled) setLogoUrl(logo);
-        } catch (error) {
-          console.error("Failed to fetch validator_logo:", error);
-        }
-      };
-      fetchLogo();
+  useEffect(() => {
+    if (!voteAccount) return;
+    let cancelled = false;
 
-      // Fetch epoch info from backend
-      fetchEpochInfo(network)
-        .then((data) => {
-          setCurrentEpoch(Number(data.epochInfo?.epoch) || 0);
+    fetchEpochInfo(network)
+      .then((data) => {
+        if (cancelled) return;
+        setCurrentEpoch(Number(data.epochInfo?.epoch) || 0);
 
-          const slotIndex = data.epochInfo?.slotIndex || 0;
-          const slotsInEpoch = data.epochInfo?.slotsInEpoch || 1;
+        const slotIndex = data.epochInfo?.slotIndex || 0;
+        const slotsInEpoch = data.epochInfo?.slotsInEpoch || 1;
+        const progress = (slotIndex / slotsInEpoch) * 100;
+        const slotsLeft = slotsInEpoch - slotIndex;
+        setCurrentProgress(Math.round(progress));
 
-          const progress = (slotIndex / slotsInEpoch) * 100;
-          const slotsLeft = slotsInEpoch - slotIndex;
+        return fetchPerfSamples(network).then((perf) => {
+          if (cancelled) return;
+          const sample = perf.sample;
+          const avgSlotTime =
+            sample.numSlots > 0
+              ? sample.samplePeriodSecs / sample.numSlots
+              : 0;
+          setSecondsRemainToEpochEnd(avgSlotTime * slotsLeft);
+        });
+      })
+      .catch((error) =>
+        console.error("Failed to fetch epoch/perf data:", error)
+      );
 
-          setCurrentProgress(Math.round(progress));
-
-          // Fetch perf samples
-          return fetchPerfSamples(network).then((perf) => {
-            const sample = perf.sample;
-            const avgSlotTime =
-              sample.numSlots > 0
-                ? sample.samplePeriodSecs / sample.numSlots
-                : 0;
-            setSecondsRemainToEpochEnd(avgSlotTime * slotsLeft);
-          });
-        })
-        .catch((error) =>
-          console.error("Failed to fetch epoch/perf data:", error)
-        );
-
-      return () => {
-        cancelled = true;
-      };
-      }, [network, voteAccount]);
+    return () => {
+      cancelled = true;
+    };
+  }, [network, voteAccount]);
   
   return (
     <>
@@ -163,7 +189,6 @@ function App() {
         {/* Validator Info */}
         { <ValidatorInfo
           validatorInfo={validatorInfo}
-          logoUrl={logoUrl}
           voteAccount={voteAccount}
         /> }
 

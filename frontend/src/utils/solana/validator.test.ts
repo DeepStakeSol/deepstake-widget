@@ -1,79 +1,160 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchValidatorInfo, fetchValidatorLogo } from './validator'
+import {
+  applyValidatorOverrides,
+  createUnavailableValidatorProfile,
+  fetchValidatorProfile,
+  type ValidatorProfile,
+  type ValidatorProfileField,
+} from "./validator";
 
 function response(body: unknown, status = 200): Response {
   return {
     ok: status >= 200 && status < 300,
     status,
     json: vi.fn().mockResolvedValue(body),
-  } as unknown as Response
+  } as unknown as Response;
 }
 
-describe('validator data', () => {
+const fieldNames: ValidatorProfileField[] = [
+  "name",
+  "description",
+  "logoUrl",
+  "estimatedApyPercent",
+  "commissionPercent",
+  "mevCommissionPercent",
+  "mevEnabled",
+];
+
+function backendProfile(overrides: Record<string, unknown> = {}) {
+  return {
+    network: "mainnet",
+    voteAccount: "vote",
+    name: "Validator",
+    description: "Description",
+    logoUrl: "https://logo.example/logo.png",
+    estimatedApyPercent: 7.5,
+    commissionPercent: 0,
+    mevCommissionPercent: 2.5,
+    mevEnabled: true,
+    status: "fresh",
+    fields: Object.fromEntries(
+      fieldNames.map((field) => [
+        field,
+        {
+          source: "provider",
+          observedAt: "2026-07-14T10:00:00.000Z",
+          stale: false,
+        },
+      ])
+    ),
+    ...overrides,
+  };
+}
+
+describe("validator profile client", () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn())
-  })
+    vi.stubGlobal("fetch", vi.fn());
+    vi.stubEnv("VITE_BACKEND_URL", "https://backend.example");
+    vi.stubEnv("VITE_USE_LEGACY_VALIDATOR_PROFILE", "false");
+  });
 
-  it('normalizes the Stakewiz response to the widget profile', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      response({
-        vote_identity: 'returned-vote',
-        name: 'Validator',
-        description: 'Description',
-        total_apy: 7.5,
-        commission: 0,
-        is_jito: true,
-        jito_commission_bps: 250,
-      })
-    )
+  it("fetches and validates one backend profile", async () => {
+    vi.mocked(fetch).mockResolvedValue(response(backendProfile()));
 
-    await expect(fetchValidatorInfo('configured-vote')).resolves.toEqual({
-      voteAccount: 'returned-vote',
-      name: 'Validator',
-      description: 'Description',
-      estimatedApyPercent: 7.5,
+    await expect(fetchValidatorProfile("vote", "mainnet")).resolves.toMatchObject({
+      voteAccount: "vote",
+      network: "mainnet",
+      name: "Validator",
       commissionPercent: 0,
-      mevEnabled: true,
-      mevCommissionPercent: 2.5,
-    })
-  })
+      status: "fresh",
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /\/api\/validator\/profile\?network=mainnet&voteAccount=vote$/
+      )
+    );
+  });
 
-  it('uses null for missing or malformed optional values', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      response({
-        name: '',
-        total_apy: '7.5',
-        commission: null,
-        is_jito: 'true',
-      })
-    )
+  it("rejects failed, mismatched, and malformed backend profiles", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response({}, 503))
+      .mockResolvedValueOnce(response(backendProfile({ voteAccount: "other" })))
+      .mockResolvedValueOnce(response(backendProfile({ commissionPercent: "0" })));
 
-    await expect(fetchValidatorInfo('configured-vote')).resolves.toEqual({
-      voteAccount: 'configured-vote',
-      name: null,
-      description: null,
-      estimatedApyPercent: null,
-      commissionPercent: null,
-      mevEnabled: null,
-      mevCommissionPercent: null,
-    })
-  })
+    await expect(fetchValidatorProfile("vote", "mainnet")).rejects.toThrow(
+      "HTTP error 503"
+    );
+    await expect(fetchValidatorProfile("vote", "mainnet")).rejects.toThrow(
+      "does not match"
+    );
+    await expect(fetchValidatorProfile("vote", "mainnet")).rejects.toThrow(
+      "Invalid commissionPercent"
+    );
+  });
 
-  it('throws for a failed Stakewiz response', async () => {
-    vi.mocked(fetch).mockResolvedValue(response({}, 503))
+  it("applies non-empty embedder overrides with field provenance", () => {
+    const profile = backendProfile() as unknown as ValidatorProfile;
+    const result = applyValidatorOverrides(profile, {
+      validator_name: "Host name",
+      validator_description: "Host description",
+      validator_logo_url: "https://host.example/logo.png",
+    });
 
-    await expect(fetchValidatorInfo('vote')).rejects.toThrow('HTTP error! status: 503')
-  })
+    expect(result).toMatchObject({
+      name: "Host name",
+      description: "Host description",
+      logoUrl: "https://host.example/logo.png",
+    });
+    expect(result.fields.name).toEqual({
+      source: "widget-option",
+      observedAt: null,
+      stale: false,
+    });
+    expect(profile.name).toBe("Validator");
+  });
 
-  it('selects a matching Trillium logo and ignores malformed URLs', async () => {
+  it("builds an unavailable profile and upgrades it to partial with overrides", () => {
+    const unavailable = createUnavailableValidatorProfile("vote", "devnet");
+    const result = applyValidatorOverrides(unavailable, {
+      validator_name: "Host fallback",
+    });
+
+    expect(result.status).toBe("partial");
+    expect(result.name).toBe("Host fallback");
+    expect(result.commissionPercent).toBeNull();
+  });
+
+  it("uses the legacy requests only when the rollback flag is enabled", async () => {
+    vi.stubEnv("VITE_USE_LEGACY_VALIDATOR_PROFILE", "true");
     vi.mocked(fetch)
       .mockResolvedValueOnce(
-        response([{ vote_account_pubkey: 'vote', icon_url: 'https://logo.example/logo.png' }])
+        response({
+          vote_identity: "vote",
+          name: "Legacy validator",
+          total_apy: 7,
+          commission: 0,
+          is_jito: false,
+        })
       )
-      .mockResolvedValueOnce(response([{ vote_account_pubkey: 'vote', icon_url: 42 }]))
+      .mockResolvedValueOnce(
+        response([
+          {
+            vote_account_pubkey: "vote",
+            icon_url: "https://legacy.example/logo.png",
+          },
+        ])
+      );
 
-    await expect(fetchValidatorLogo('vote')).resolves.toBe('https://logo.example/logo.png')
-    await expect(fetchValidatorLogo('vote')).resolves.toBeNull()
-  })
-})
+    await expect(fetchValidatorProfile("vote", "mainnet")).resolves.toMatchObject({
+      name: "Legacy validator",
+      logoUrl: "https://legacy.example/logo.png",
+      commissionPercent: 0,
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe(
+      "https://api.stakewiz.com/validator/vote"
+    );
+  });
+});

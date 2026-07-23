@@ -5,11 +5,11 @@ import { cssImageUrl, getImageUrl } from "../../utils/imageUrl";
 
 interface Props {
   validatorInfo: ValidatorProfile | null;
-  logoUrl: string | null;
   voteAccount: string;
 }
 
-export function ValidatorInfo({ validatorInfo, logoUrl, voteAccount }: Props) {
+export function ValidatorInfo({ validatorInfo, voteAccount }: Props) {
+  const logoUrl = validatorInfo?.logoUrl ?? null;
   const [copied, setCopied] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
 
