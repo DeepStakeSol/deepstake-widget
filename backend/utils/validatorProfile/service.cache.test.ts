@@ -131,6 +131,39 @@ describe("validator profile cache resilience", () => {
     expect(provider).not.toHaveBeenCalled();
   });
 
+  it("refreshes a nominally fresh group when its anchor field is missing", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(NOW);
+    const groups = allGroupsFresh();
+    groups.identity = group(NOW, {
+      logoUrl: "https://example.com/logo.png"
+    });
+    const cache = new MemoryCache(groups);
+    const provider = vi.fn<ValidatorProfileProvider>().mockResolvedValue({
+      source: "stakewiz",
+      observedAt: OBSERVED_AT,
+      values: { name: "Recovered name" }
+    });
+
+    const first = await getValidatorProfile(
+      "mainnet",
+      "missing-anchor-vote",
+      [provider],
+      100,
+      cache
+    );
+    expect(first.name).toBeNull();
+    await cache.waitForWrite();
+
+    const second = await getValidatorProfile(
+      "mainnet",
+      "missing-anchor-vote",
+      [provider],
+      100,
+      cache
+    );
+    expect(second.name).toBe("Recovered name");
+  });
+
   it("returns stale data immediately and preserves last-known-good fields", async () => {
     vi.spyOn(Date, "now").mockReturnValue(NOW);
     const staleAt = NOW - CACHE_POLICIES.identity.freshMs - 1;

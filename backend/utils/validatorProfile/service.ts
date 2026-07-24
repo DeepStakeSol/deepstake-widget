@@ -9,8 +9,8 @@ import {
   type ValidatorProfileCacheGroup
 } from "./cache";
 import {
-  validatorProfileProviders,
-  validatorProfileProvidersByGroup
+  validatorProfileProviderConfigs,
+  validatorProfileProviderConfigsByGroup
 } from "./providers";
 import {
   VALIDATOR_PROFILE_FIELDS,
@@ -20,12 +20,23 @@ import {
   type ValidatorProfile,
   type ValidatorProfileField,
   type ValidatorProfileProvider,
+  type ValidatorProfileProviderConfig,
   type ValidatorProfileValues
 } from "./types";
 
-const AGGREGATION_TIMEOUT_MS = 3_000;
-const DISTRIBUTED_LOCK_TTL_MS = 5_000;
+const CUSTOM_PROVIDER_TIMEOUT_MS = 3_000;
+const DISTRIBUTED_LOCK_TTL_MS = 12_000;
 const PEER_REFRESH_POLL_MS = 75;
+
+const CACHE_GROUP_ANCHOR_FIELDS: Record<
+  ValidatorProfileCacheGroup,
+  ValidatorProfileField
+> = {
+  identity: "name",
+  commission: "commissionPercent",
+  apy: "estimatedApyPercent",
+  mev: "mevEnabled"
+};
 
 const FIELD_PRECEDENCE: Record<ValidatorProfileField, string[]> = {
   name: ["stakewiz", "validators-app"],
@@ -38,6 +49,15 @@ const FIELD_PRECEDENCE: Record<ValidatorProfileField, string[]> = {
 };
 
 const inFlightRefreshes = new Map<string, Promise<ValidatorProfile>>();
+
+interface CachedAggregation {
+  profile: ValidatorProfile;
+  groups: CachedProfileGroups;
+}
+
+interface StagedAggregation extends CachedAggregation {
+  completion: Promise<void> | null;
+}
 
 function emptyValues(): ValidatorProfileValues {
   return {
@@ -85,6 +105,13 @@ function mergeResults(results: ProviderResult[]): {
   }
 
   return { values, fields };
+}
+
+function hasProviderValue(result: ProviderResult): boolean {
+  return VALIDATOR_PROFILE_FIELDS.some(
+    (field) =>
+      result.values[field] !== null && result.values[field] !== undefined
+  );
 }
 
 function profileStatus(
@@ -160,9 +187,12 @@ function groupsNeedingRefresh(
   now: number
 ): ValidatorProfileCacheGroup[] {
   return VALIDATOR_PROFILE_CACHE_GROUPS.filter((group) => {
-    const refreshedAt = groups[group]?.refreshedAt;
+    const cached = groups[group];
+    const refreshedAt = cached?.refreshedAt;
+    const anchor = cached?.records[CACHE_GROUP_ANCHOR_FIELDS[group]];
     return (
       refreshedAt === undefined ||
+      anchor === undefined ||
       now - refreshedAt > CACHE_POLICIES[group].freshMs
     );
   });
@@ -182,69 +212,149 @@ function hasUsableCachedValue(
   );
 }
 
-function providersForGroups(
+function customProviderConfigs(
+  providers: ValidatorProfileProvider[],
+  timeoutMs: number
+): ValidatorProfileProviderConfig[] {
+  return providers.map((provider, index) => ({
+    id: provider.name || `custom-provider-${index + 1}`,
+    timeoutMs,
+    provider
+  }));
+}
+
+function providerConfigsForGroups(
   groups: ValidatorProfileCacheGroup[],
-  providers?: ValidatorProfileProvider[]
-): ValidatorProfileProvider[] {
-  if (providers) return providers;
+  providers: ValidatorProfileProvider[] | undefined,
+  timeoutMs: number
+): ValidatorProfileProviderConfig[] {
+  if (providers) return customProviderConfigs(providers, timeoutMs);
+
+  const configurations = groups.flatMap(
+    (group) => validatorProfileProviderConfigsByGroup[group]
+  );
   return [
-    ...new Set(
-      groups.flatMap((group) => validatorProfileProvidersByGroup[group])
-    )
+    ...new Map(
+      configurations.map((configuration) => [configuration.id, configuration])
+    ).values()
   ];
+}
+
+function providerFailureKind(error: unknown, timedOut: boolean): string {
+  if (timedOut) return "timeout";
+  const message = error instanceof Error ? error.message : String(error);
+  if (/HTTP \d+/.test(message)) return "http";
+  if (/Unexpected .* response format/.test(message)) return "parse";
+  if (error instanceof Error && error.name === "AbortError") return "cancelled";
+  return "network";
+}
+
+async function requestProvider(
+  network: ValidatorNetwork,
+  voteAccount: string,
+  configuration: ValidatorProfileProviderConfig
+): Promise<ProviderResult | null> {
+  const controller = new AbortController();
+  const startedAt = Date.now();
+  let timedOut = false;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(() => {
+      timedOut = true;
+      const error = new Error(
+        `Provider exceeded ${configuration.timeoutMs}ms timeout`
+      );
+      controller.abort(error);
+      reject(error);
+    }, configuration.timeoutMs);
+  });
+
+  try {
+    return await Promise.race([
+      configuration.provider({
+        network,
+        voteAccount,
+        signal: controller.signal
+      }),
+      deadline
+    ]);
+  } catch (error) {
+    console.warn("Validator profile provider failed", {
+      provider: configuration.id,
+      kind: providerFailureKind(error, timedOut),
+      elapsedMs: Date.now() - startedAt,
+      timeoutMs: configuration.timeoutMs,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return null;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 async function requestProviders(
   network: ValidatorNetwork,
   voteAccount: string,
-  providers: ValidatorProfileProvider[],
-  timeoutMs: number
+  configurations: ValidatorProfileProviderConfig[]
 ): Promise<ProviderResult[]> {
-  const controller = new AbortController();
-  const results: ProviderResult[] = [];
-  let deadline: ReturnType<typeof setTimeout> | undefined;
+  const results = await Promise.all(
+    configurations.map((configuration) =>
+      requestProvider(network, voteAccount, configuration)
+    )
+  );
+  return results.filter((result): result is ProviderResult => result !== null);
+}
 
-  const requests = providers.map(async (provider) => {
-    try {
-      const providerResult = await provider({
-        network,
-        voteAccount,
-        signal: controller.signal
-      });
-      if (providerResult) results.push(providerResult);
-    } catch (error) {
-      console.warn("Validator profile provider failed", {
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
-  });
+async function directStagedProfile(
+  network: ValidatorNetwork,
+  voteAccount: string,
+  configurations: ValidatorProfileProviderConfig[],
+  fastBaseline: boolean
+): Promise<ValidatorProfile> {
+  const baseline = fastBaseline
+    ? configurations.find((configuration) => configuration.baseline)
+    : undefined;
+  if (!baseline) {
+    return directProfile(
+      network,
+      voteAccount,
+      await requestProviders(network, voteAccount, configurations)
+    );
+  }
 
-  await Promise.race([
-    Promise.allSettled(requests),
-    new Promise<void>((resolve) => {
-      deadline = setTimeout(resolve, timeoutMs);
-    })
-  ]);
-  if (deadline) clearTimeout(deadline);
-  controller.abort(new Error("Validator profile aggregation deadline reached"));
-  return results;
+  const enhancements = requestProviders(
+    network,
+    voteAccount,
+    configurations.filter((configuration) => configuration !== baseline)
+  );
+  const baselineResult = await requestProvider(network, voteAccount, baseline);
+  if (baselineResult && hasProviderValue(baselineResult)) {
+    void enhancements.catch(() => undefined);
+    return directProfile(network, voteAccount, [baselineResult]);
+  }
+
+  return directProfile(network, voteAccount, await enhancements);
 }
 
 function coalescedDirectRequest(
   network: ValidatorNetwork,
   voteAccount: string,
-  providers: ValidatorProfileProvider[],
-  timeoutMs: number
+  configurations: ValidatorProfileProviderConfig[],
+  fastBaseline: boolean
 ): Promise<ValidatorProfile> {
   const key = `${network}:${voteAccount}`;
   const existing = inFlightRefreshes.get(key);
   if (existing) return existing;
 
-  const request = requestProviders(network, voteAccount, providers, timeoutMs)
-    .then((results) => directProfile(network, voteAccount, results))
-    .finally(() => {
-      if (inFlightRefreshes.get(key) === request) inFlightRefreshes.delete(key);
-    });
+  const request = directStagedProfile(
+    network,
+    voteAccount,
+    configurations,
+    fastBaseline
+  ).finally(() => {
+    if (inFlightRefreshes.get(key) === request) inFlightRefreshes.delete(key);
+  });
   inFlightRefreshes.set(key, request);
   return request;
 }
@@ -309,21 +419,14 @@ async function readCache(
   }
 }
 
-async function aggregateAndCache(
+async function cacheProviderResults(
   network: ValidatorNetwork,
   voteAccount: string,
   targetGroups: ValidatorProfileCacheGroup[],
   currentGroups: CachedProfileGroups,
-  providers: ValidatorProfileProvider[],
-  timeoutMs: number,
+  results: ProviderResult[],
   cache: ValidatorProfileCache
-): Promise<ValidatorProfile> {
-  const results = await requestProviders(
-    network,
-    voteAccount,
-    providers,
-    timeoutMs
-  );
+): Promise<CachedAggregation> {
   const fresh = directProfile(network, voteAccount, results);
   const now = Date.now();
   const merged = mergeIntoCachedGroups(currentGroups, fresh, targetGroups, now);
@@ -341,7 +444,110 @@ async function aggregateAndCache(
     })
   );
 
-  return cachedProfile(network, voteAccount, merged.groups, now);
+  return {
+    profile: cachedProfile(network, voteAccount, merged.groups, now),
+    groups: merged.groups
+  };
+}
+
+async function aggregateAndCache(
+  network: ValidatorNetwork,
+  voteAccount: string,
+  targetGroups: ValidatorProfileCacheGroup[],
+  currentGroups: CachedProfileGroups,
+  configurations: ValidatorProfileProviderConfig[],
+  cache: ValidatorProfileCache
+): Promise<CachedAggregation> {
+  const results = await requestProviders(network, voteAccount, configurations);
+  return cacheProviderResults(
+    network,
+    voteAccount,
+    targetGroups,
+    currentGroups,
+    results,
+    cache
+  );
+}
+
+async function stagedAggregateAndCache(
+  network: ValidatorNetwork,
+  voteAccount: string,
+  targetGroups: ValidatorProfileCacheGroup[],
+  currentGroups: CachedProfileGroups,
+  configurations: ValidatorProfileProviderConfig[],
+  cache: ValidatorProfileCache,
+  fastBaseline: boolean
+): Promise<StagedAggregation> {
+  const baseline = fastBaseline
+    ? configurations.find((configuration) => configuration.baseline)
+    : undefined;
+  if (!baseline) {
+    const aggregated = await aggregateAndCache(
+      network,
+      voteAccount,
+      targetGroups,
+      currentGroups,
+      configurations,
+      cache
+    );
+    return { ...aggregated, completion: null };
+  }
+
+  const enhancementResults = requestProviders(
+    network,
+    voteAccount,
+    configurations.filter((configuration) => configuration !== baseline)
+  );
+  const baselineResult = await requestProvider(network, voteAccount, baseline);
+
+  if (!baselineResult || !hasProviderValue(baselineResult)) {
+    const aggregated = await cacheProviderResults(
+      network,
+      voteAccount,
+      targetGroups,
+      currentGroups,
+      await enhancementResults,
+      cache
+    );
+    return { ...aggregated, completion: null };
+  }
+
+  const baselineAggregation = await cacheProviderResults(
+    network,
+    voteAccount,
+    targetGroups,
+    currentGroups,
+    [baselineResult],
+    cache
+  );
+  const completion = enhancementResults.then(async (results) => {
+    if (results.length === 0) return;
+    await cacheProviderResults(
+      network,
+      voteAccount,
+      targetGroups,
+      baselineAggregation.groups,
+      [baselineResult, ...results],
+      cache
+    );
+  });
+
+  return { ...baselineAggregation, completion };
+}
+
+async function releaseCacheLock(
+  cache: ValidatorProfileCache,
+  network: ValidatorNetwork,
+  voteAccount: string,
+  token: string
+): Promise<void> {
+  try {
+    await cache.releaseLock(network, voteAccount, token);
+  } catch (error) {
+    console.warn("Validator profile cache lock release failed", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
 }
 
 async function refreshWithLock(
@@ -349,9 +555,9 @@ async function refreshWithLock(
   voteAccount: string,
   targetGroups: ValidatorProfileCacheGroup[],
   currentGroups: CachedProfileGroups,
-  providers: ValidatorProfileProvider[],
-  timeoutMs: number,
-  cache: ValidatorProfileCache
+  configurations: ValidatorProfileProviderConfig[],
+  cache: ValidatorProfileCache,
+  fastBaseline: boolean
 ): Promise<ValidatorProfile> {
   let lockToken: string | null;
   try {
@@ -364,15 +570,20 @@ async function refreshWithLock(
     console.warn("Validator profile cache lock unavailable", {
       error: error instanceof Error ? error.message : String(error)
     });
-    return directProfile(
+    return directStagedProfile(
       network,
       voteAccount,
-      await requestProviders(network, voteAccount, providers, timeoutMs)
+      configurations,
+      fastBaseline
     );
   }
 
   if (!lockToken) {
-    const deadline = Date.now() + timeoutMs;
+    const waitMs = Math.max(
+      CUSTOM_PROVIDER_TIMEOUT_MS,
+      ...configurations.map((configuration) => configuration.timeoutMs)
+    );
+    const deadline = Date.now() + waitMs;
     while (Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, PEER_REFRESH_POLL_MS));
       const peerGroups = await readCache(cache, network, voteAccount);
@@ -380,34 +591,45 @@ async function refreshWithLock(
         return cachedProfile(network, voteAccount, peerGroups, Date.now());
       }
     }
-    return aggregateAndCache(
-      network,
-      voteAccount,
-      targetGroups,
-      currentGroups,
-      providers,
-      timeoutMs,
-      cache
-    );
+    return (
+      await aggregateAndCache(
+        network,
+        voteAccount,
+        targetGroups,
+        currentGroups,
+        configurations,
+        cache
+      )
+    ).profile;
   }
 
+  let releaseInBackground = false;
   try {
-    return await aggregateAndCache(
+    const staged = await stagedAggregateAndCache(
       network,
       voteAccount,
       targetGroups,
       currentGroups,
-      providers,
-      timeoutMs,
-      cache
+      configurations,
+      cache,
+      fastBaseline
     );
+    if (staged.completion) {
+      releaseInBackground = true;
+      void staged.completion
+        .catch((error) => {
+          console.warn("Validator profile background enhancement failed", {
+            error: error instanceof Error ? error.message : String(error)
+          });
+        })
+        .finally(() =>
+          releaseCacheLock(cache, network, voteAccount, lockToken!)
+        );
+    }
+    return staged.profile;
   } finally {
-    try {
-      await cache.releaseLock(network, voteAccount, lockToken);
-    } catch (error) {
-      console.warn("Validator profile cache lock release failed", {
-        error: error instanceof Error ? error.message : String(error)
-      });
+    if (!releaseInBackground) {
+      await releaseCacheLock(cache, network, voteAccount, lockToken);
     }
   }
 }
@@ -417,9 +639,9 @@ function coalescedRefresh(
   voteAccount: string,
   targetGroups: ValidatorProfileCacheGroup[],
   currentGroups: CachedProfileGroups,
-  providers: ValidatorProfileProvider[],
-  timeoutMs: number,
-  cache: ValidatorProfileCache
+  configurations: ValidatorProfileProviderConfig[],
+  cache: ValidatorProfileCache,
+  fastBaseline: boolean
 ): Promise<ValidatorProfile> {
   const key = `${network}:${voteAccount}`;
   const existing = inFlightRefreshes.get(key);
@@ -430,9 +652,9 @@ function coalescedRefresh(
     voteAccount,
     targetGroups,
     currentGroups,
-    providers,
-    timeoutMs,
-    cache
+    configurations,
+    cache,
+    fastBaseline
   ).finally(() => {
     if (inFlightRefreshes.get(key) === refresh) inFlightRefreshes.delete(key);
   });
@@ -444,15 +666,20 @@ export async function getValidatorProfile(
   network: ValidatorNetwork,
   voteAccount: string,
   providers: ValidatorProfileProvider[] | undefined = undefined,
-  timeoutMs = AGGREGATION_TIMEOUT_MS,
+  timeoutMs = CUSTOM_PROVIDER_TIMEOUT_MS,
   cache: ValidatorProfileCache | null = getValidatorProfileCache()
 ): Promise<ValidatorProfile> {
+  const fastBaseline = providers === undefined;
+  const allConfigurations = providers
+    ? customProviderConfigs(providers, timeoutMs)
+    : validatorProfileProviderConfigs;
+
   if (!cache) {
     return coalescedDirectRequest(
       network,
       voteAccount,
-      providers ?? validatorProfileProviders,
-      timeoutMs
+      allConfigurations,
+      fastBaseline
     );
   }
 
@@ -461,8 +688,8 @@ export async function getValidatorProfile(
     return coalescedDirectRequest(
       network,
       voteAccount,
-      providers ?? validatorProfileProviders,
-      timeoutMs
+      allConfigurations,
+      fastBaseline
     );
   }
 
@@ -471,15 +698,19 @@ export async function getValidatorProfile(
   const cached = cachedProfile(network, voteAccount, currentGroups, now);
   if (targetGroups.length === 0) return cached;
 
-  const selectedProviders = providersForGroups(targetGroups, providers);
+  const selectedConfigurations = providerConfigsForGroups(
+    targetGroups,
+    providers,
+    timeoutMs
+  );
   const refresh = coalescedRefresh(
     network,
     voteAccount,
     targetGroups,
     currentGroups,
-    selectedProviders,
-    timeoutMs,
-    cache
+    selectedConfigurations,
+    cache,
+    fastBaseline
   );
 
   if (hasUsableCachedValue(currentGroups, now)) {

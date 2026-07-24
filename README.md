@@ -165,6 +165,8 @@ The response combines identity, estimated APY, validator commission, and MEV dat
 
 When `REDIS_URL` is configured, the backend caches independent identity, commission, APY, and MEV field groups. Fresh cache hits avoid provider requests. Stale values are returned immediately with `fields.<field>.stale=true` while one process refreshes them in the background. Valid cached fields are never replaced by null or malformed refresh values. Redis failures fall back to direct provider aggregation.
 
+On a cold cache miss, the backend starts all relevant providers concurrently and returns a valid Stakewiz baseline without waiting for slower enrichment sources. Solana RPC, Jito, Trillium, and Validators.app continue in the background and update Redis using the normal field precedence. Stakewiz, Solana RPC, Jito, and Trillium have 8-second request ceilings; Validators.app has a 5-second ceiling. Provider failures are logged with the provider ID, failure kind, elapsed time, and configured timeout.
+
 Default cache windows:
 
 | Field group | Fresh for | Stale fallback for |

@@ -13,6 +13,7 @@ import {
   fetchStakewizProfile,
   fetchTrilliumProfile,
   fetchValidatorsAppProfile,
+  validatorProfileProviderConfigs,
 } from "./providers";
 
 function response(body: unknown, status = 200): Response {
@@ -41,6 +42,23 @@ describe("validator profile providers", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("configures named provider-specific deadlines", () => {
+    expect(
+      Object.fromEntries(
+        validatorProfileProviderConfigs.map(({ id, timeoutMs }) => [
+          id,
+          timeoutMs,
+        ])
+      )
+    ).toEqual({
+      stakewiz: 8_000,
+      trillium: 8_000,
+      jito: 8_000,
+      "solana-rpc": 8_000,
+      "validators-app": 5_000,
+    });
   });
 
   it("normalizes and bounds Stakewiz fields", async () => {
@@ -76,8 +94,8 @@ describe("validator profile providers", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("aborts a provider request after its timeout", async () => {
-    vi.useFakeTimers();
+  it("forwards caller cancellation to the provider request", async () => {
+    const controller = new AbortController();
     vi.mocked(fetch).mockImplementation((_url, init) =>
       new Promise((_resolve, reject) => {
         init?.signal?.addEventListener("abort", () =>
@@ -86,10 +104,13 @@ describe("validator profile providers", () => {
       })
     );
 
-    const request = fetchStakewizProfile(context());
-    const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
-    await vi.advanceTimersByTimeAsync(2_500);
-    await rejection;
+    const request = fetchStakewizProfile({
+      ...context(),
+      signal: controller.signal,
+    });
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: "AbortError" });
   });
 
   it("reads authoritative commission from Solana vote accounts", async () => {

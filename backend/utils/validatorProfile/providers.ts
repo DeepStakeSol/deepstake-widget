@@ -4,13 +4,16 @@ import type { ValidatorProfileCacheGroup } from "./cache";
 import type {
   ProviderResult,
   ValidatorProfileProvider,
+  ValidatorProfileProviderConfig,
 } from "./types";
 
 const STAKEWIZ_URL = "https://api.stakewiz.com/validator";
 const TRILLIUM_URL = "https://api.trillium.so/validator_rewards";
 const JITO_URL = "https://kobe.mainnet.jito.network/api/v1/validators";
 const VALIDATORS_APP_URL = "https://www.validators.app/api/v1/validators";
-const PROVIDER_TIMEOUT_MS = 2_500;
+const STAKEWIZ_TIMEOUT_MS = 8_000;
+const ENHANCEMENT_TIMEOUT_MS = 8_000;
+const VALIDATORS_APP_TIMEOUT_MS = 5_000;
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -48,23 +51,13 @@ function observedAt(value: unknown): string {
 async function fetchJson(
   url: string,
   init: RequestInit,
-  parentSignal: AbortSignal
+  signal: AbortSignal
 ): Promise<unknown> {
-  const controller = new AbortController();
-  const abort = () => controller.abort(parentSignal.reason);
-  parentSignal.addEventListener("abort", abort, { once: true });
-  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, { ...init, signal: controller.signal });
-    if (!response.ok) {
-      throw new Error(`Provider request failed with HTTP ${response.status}`);
-    }
-    return await response.json();
-  } finally {
-    clearTimeout(timeout);
-    parentSignal.removeEventListener("abort", abort);
+  const response = await fetch(url, { ...init, signal });
+  if (!response.ok) {
+    throw new Error(`Provider request failed with HTTP ${response.status}`);
   }
+  return await response.json();
 }
 
 function result(
@@ -238,3 +231,47 @@ export const validatorProfileProvidersByGroup: Record<
   apy: [fetchStakewizProfile],
   mev: [fetchJitoProfile, fetchStakewizProfile],
 };
+
+export const validatorProfileProviderConfigs: ValidatorProfileProviderConfig[] = [
+  {
+    id: "stakewiz",
+    timeoutMs: STAKEWIZ_TIMEOUT_MS,
+    provider: fetchStakewizProfile,
+    baseline: true,
+  },
+  {
+    id: "trillium",
+    timeoutMs: ENHANCEMENT_TIMEOUT_MS,
+    provider: fetchTrilliumProfile,
+  },
+  {
+    id: "jito",
+    timeoutMs: ENHANCEMENT_TIMEOUT_MS,
+    provider: fetchJitoProfile,
+  },
+  {
+    id: "solana-rpc",
+    timeoutMs: ENHANCEMENT_TIMEOUT_MS,
+    provider: fetchSolanaProfile,
+  },
+  {
+    id: "validators-app",
+    timeoutMs: VALIDATORS_APP_TIMEOUT_MS,
+    provider: fetchValidatorsAppProfile,
+  },
+];
+
+export const validatorProfileProviderConfigsByGroup: Record<
+  ValidatorProfileCacheGroup,
+  ValidatorProfileProviderConfig[]
+> = Object.fromEntries(
+  Object.entries(validatorProfileProvidersByGroup).map(([group, groupProviders]) => [
+    group,
+    groupProviders.map(
+      (provider) =>
+        validatorProfileProviderConfigs.find(
+          (configuration) => configuration.provider === provider
+        )!
+    ),
+  ])
+) as Record<ValidatorProfileCacheGroup, ValidatorProfileProviderConfig[]>;

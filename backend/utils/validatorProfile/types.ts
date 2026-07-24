@@ -49,3 +49,10 @@ export interface ProviderContext {
 export type ValidatorProfileProvider = (
   context: ProviderContext
 ) => Promise<ProviderResult | null>;
+
+export interface ValidatorProfileProviderConfig {
+  id: string;
+  timeoutMs: number;
+  provider: ValidatorProfileProvider;
+  baseline?: boolean;
+}
