@@ -26,6 +26,14 @@ export interface ValidatorFieldMetadata {
   stale: boolean;
 }
 
+export interface ValidatorLogo {
+  network: NetworkType;
+  voteAccount: string;
+  logoUrl: string | null;
+  status: "fresh" | "stale" | "unavailable";
+  field: ValidatorFieldMetadata;
+}
+
 export interface ValidatorProfile {
   network: NetworkType;
   voteAccount: string;
@@ -131,6 +139,31 @@ function parseFieldMetadata(
     source: nullableString(data.source, `fields.${field}.source`),
     observedAt: nullableString(data.observedAt, `fields.${field}.observedAt`),
     stale: data.stale,
+  };
+}
+
+function parseBackendLogo(
+  value: unknown,
+  voteAccount: string,
+  network: NetworkType
+): ValidatorLogo {
+  const data = asRecord(value);
+  if (!data || data.voteAccount !== voteAccount || data.network !== network) {
+    throw new Error("Validator logo response does not match the request");
+  }
+  if (
+    data.status !== "fresh" &&
+    data.status !== "stale" &&
+    data.status !== "unavailable"
+  ) {
+    throw new Error("Invalid validator logo status");
+  }
+  return {
+    network,
+    voteAccount,
+    logoUrl: nullableString(data.logoUrl, "logoUrl"),
+    status: data.status,
+    field: parseFieldMetadata(data.field, "logoUrl"),
   };
 }
 
@@ -270,6 +303,41 @@ export async function fetchValidatorProfile(
     throw new Error(`HTTP error ${response.status} when fetching ${url}`);
   }
   return parseBackendProfile(await response.json(), voteAccount, network);
+}
+
+export async function fetchValidatorLogo(
+  voteAccount: string,
+  network: NetworkType
+): Promise<ValidatorLogo> {
+  const query = new URLSearchParams({ network, voteAccount });
+  const url = `${getBackendUrl("/validator/logo")}?${query.toString()}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`HTTP error ${response.status} when fetching ${url}`);
+  }
+  return parseBackendLogo(await response.json(), voteAccount, network);
+}
+
+export function applyValidatorLogo(
+  profile: ValidatorProfile,
+  logo: ValidatorLogo | null
+): ValidatorProfile {
+  if (
+    !logo ||
+    logo.network !== profile.network ||
+    logo.voteAccount !== profile.voteAccount ||
+    profile.fields.logoUrl.source === "widget-option"
+  ) {
+    return profile;
+  }
+  return {
+    ...profile,
+    logoUrl: logo.logoUrl,
+    fields: {
+      ...profile.fields,
+      logoUrl: logo.field,
+    },
+  };
 }
 
 export function applyValidatorOverrides(

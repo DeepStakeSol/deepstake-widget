@@ -8,6 +8,7 @@ import {
 
 import {
   VALIDATOR_PROFILE_FIELDS,
+  type ValidatorLogo,
   type ValidatorNetwork,
   type ValidatorProfile
 } from "../validatorProfile/types";
@@ -25,6 +26,8 @@ interface ValidatorProfileMetrics {
   registry: Registry;
   profileRequests: Counter<"network" | "status">;
   profileDuration: Histogram<"network" | "status">;
+  logoRequests: Counter<"network" | "status">;
+  logoDuration: Histogram<"network" | "status">;
   providerRequests: Counter<"provider" | "network" | "outcome">;
   providerDuration: Histogram<"provider" | "network" | "outcome">;
   providerInFlight: Gauge<"provider" | "network">;
@@ -52,6 +55,19 @@ function createMetrics(): ValidatorProfileMetrics {
     profileDuration: new Histogram({
       name: "deepstake_validator_profile_request_duration_seconds",
       help: "Validator profile request duration in seconds.",
+      labelNames: ["network", "status"],
+      buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 8, 10],
+      registers: [registry]
+    }),
+    logoRequests: new Counter({
+      name: "deepstake_validator_logo_requests_total",
+      help: "Validator logo responses by network and status.",
+      labelNames: ["network", "status"],
+      registers: [registry]
+    }),
+    logoDuration: new Histogram({
+      name: "deepstake_validator_logo_request_duration_seconds",
+      help: "Validator logo request duration in seconds.",
       labelNames: ["network", "status"],
       buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 8, 10],
       registers: [registry]
@@ -140,6 +156,7 @@ export function recordProfileResponse(
 
   if (!profile) return;
   for (const field of VALIDATOR_PROFILE_FIELDS) {
+    if (field === "logoUrl") continue;
     const state =
       profile[field] === null
         ? "missing"
@@ -148,4 +165,26 @@ export function recordProfileResponse(
           : "fresh";
     validatorProfileMetrics.fieldStates.inc({ network, field, state });
   }
+}
+
+export function recordLogoResponse(
+  network: ValidatorNetwork,
+  logo: ValidatorLogo | null,
+  elapsedMs: number
+): void {
+  const status = logo?.status ?? "error";
+  validatorProfileMetrics.logoRequests.inc({ network, status });
+  validatorProfileMetrics.logoDuration.observe(
+    { network, status },
+    elapsedMs / 1_000
+  );
+
+  if (!logo) return;
+  const state =
+    logo.logoUrl === null ? "missing" : logo.field.stale ? "stale" : "fresh";
+  validatorProfileMetrics.fieldStates.inc({
+    network,
+    field: "logoUrl",
+    state
+  });
 }

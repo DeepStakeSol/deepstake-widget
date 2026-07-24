@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  applyValidatorLogo,
   applyValidatorOverrides,
   createUnavailableValidatorProfile,
+  fetchValidatorLogo,
   fetchValidatorProfile,
   type ValidatorProfile,
   type ValidatorProfileField,
@@ -74,6 +76,56 @@ describe("validator profile client", () => {
       expect.stringMatching(
         /\/api\/validator\/profile\?network=mainnet&voteAccount=vote$/
       )
+    );
+  });
+
+  it("fetches and validates the dedicated logo response", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      response({
+        network: "mainnet",
+        voteAccount: "vote",
+        logoUrl: "https://logo.example/trillium.png",
+        status: "fresh",
+        field: {
+          source: "trillium",
+          observedAt: "2026-07-14T10:00:00.000Z",
+          stale: false,
+        },
+      })
+    );
+
+    await expect(fetchValidatorLogo("vote", "mainnet")).resolves.toMatchObject({
+      logoUrl: "https://logo.example/trillium.png",
+      status: "fresh",
+      field: { source: "trillium" },
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /\/api\/validator\/logo\?network=mainnet&voteAccount=vote$/
+      )
+    );
+  });
+
+  it("merges a matching logo without overriding widget configuration", () => {
+    const profile = backendProfile({ logoUrl: null }) as unknown as ValidatorProfile;
+    const logo = {
+      network: "mainnet" as const,
+      voteAccount: "vote",
+      logoUrl: "https://logo.example/trillium.png",
+      status: "fresh" as const,
+      field: {
+        source: "trillium",
+        observedAt: "2026-07-14T10:00:00.000Z",
+        stale: false,
+      },
+    };
+
+    expect(applyValidatorLogo(profile, logo).logoUrl).toBe(logo.logoUrl);
+    const overridden = applyValidatorOverrides(profile, {
+      validator_logo_url: "https://host.example/logo.png",
+    });
+    expect(applyValidatorLogo(overridden, logo).logoUrl).toBe(
+      "https://host.example/logo.png"
     );
   });
 

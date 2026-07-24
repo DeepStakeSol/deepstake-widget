@@ -66,6 +66,21 @@ async function installNetworkMocks(page: Page, scenario: MockScenario = {}) {
         return;
       }
 
+      if (parsed.pathname === "/api/validator/logo") {
+        await fulfillJson(route, 200, {
+          network: parsed.searchParams.get("network"),
+          voteAccount: parsed.searchParams.get("voteAccount"),
+          logoUrl: "/images/sol_logo.png",
+          status: "fresh",
+          field: {
+            source: "trillium",
+            observedAt: "2026-07-14T10:00:00.000Z",
+            stale: false,
+          },
+        });
+        return;
+      }
+
       if (parsed.pathname === "/api/validator/profile") {
         const status = scenario.validatorStatus ?? 200;
         await fulfillJson(
@@ -78,7 +93,7 @@ async function installNetworkMocks(page: Page, scenario: MockScenario = {}) {
                 voteAccount: parsed.searchParams.get("voteAccount"),
                 name: "E2E Validator",
                 description: "E2E validator description",
-                logoUrl: "/images/sol_logo.png",
+                logoUrl: null,
                 estimatedApyPercent: 7.2,
                 commissionPercent: 5,
                 mevCommissionPercent: null,

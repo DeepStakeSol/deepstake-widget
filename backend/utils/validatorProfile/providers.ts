@@ -218,9 +218,10 @@ export const validatorProfileProvidersByGroup: Record<
   ValidatorProfileCacheGroup,
   ValidatorProfileProvider[]
 > = {
-  identity: [
-    fetchStakewizProfile,
+  identity: [fetchStakewizProfile, fetchValidatorsAppProfile],
+  logo: [
     fetchTrilliumProfile,
+    fetchStakewizProfile,
     fetchValidatorsAppProfile,
   ],
   commission: [

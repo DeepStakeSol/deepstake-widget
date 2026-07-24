@@ -8,10 +8,7 @@ import {
   type ValidatorProfileCache,
   type ValidatorProfileCacheGroup
 } from "./cache";
-import {
-  validatorProfileProviderConfigs,
-  validatorProfileProviderConfigsByGroup
-} from "./providers";
+import { validatorProfileProviderConfigsByGroup } from "./providers";
 import { errorMessage, operationalLog } from "../observability/logger";
 import {
   observeProviderRequest,
@@ -24,6 +21,7 @@ import {
   VALIDATOR_PROFILE_FIELDS,
   type FieldMetadata,
   type ProviderResult,
+  type ValidatorLogo,
   type ValidatorNetwork,
   type ValidatorProfile,
   type ValidatorProfileField,
@@ -36,20 +34,29 @@ const CUSTOM_PROVIDER_TIMEOUT_MS = 3_000;
 const DISTRIBUTED_LOCK_TTL_MS = 12_000;
 const PEER_REFRESH_POLL_MS = 75;
 
+type ProfileField = Exclude<ValidatorProfileField, "logoUrl">;
+
+const PROFILE_CACHE_GROUPS = VALIDATOR_PROFILE_CACHE_GROUPS.filter(
+  (group) => group !== "logo"
+);
+const PROFILE_FIELDS = VALIDATOR_PROFILE_FIELDS.filter(
+  (field): field is ProfileField => field !== "logoUrl"
+);
+
 const CACHE_GROUP_ANCHOR_FIELDS: Record<
   ValidatorProfileCacheGroup,
   ValidatorProfileField
 > = {
   identity: "name",
+  logo: "logoUrl",
   commission: "commissionPercent",
   apy: "estimatedApyPercent",
   mev: "mevEnabled"
 };
 
-const FIELD_PRECEDENCE: Record<ValidatorProfileField, string[]> = {
+const FIELD_PRECEDENCE: Record<ProfileField, string[]> = {
   name: ["stakewiz", "validators-app"],
   description: ["stakewiz", "validators-app"],
-  logoUrl: ["stakewiz", "trillium", "validators-app"],
   estimatedApyPercent: ["stakewiz"],
   commissionPercent: ["solana-rpc", "stakewiz", "validators-app"],
   mevCommissionPercent: ["jito", "stakewiz"],
@@ -57,6 +64,7 @@ const FIELD_PRECEDENCE: Record<ValidatorProfileField, string[]> = {
 };
 
 const inFlightRefreshes = new Map<string, Promise<ValidatorProfile>>();
+const inFlightLogoRefreshes = new Map<string, Promise<ValidatorLogo>>();
 
 interface CachedAggregation {
   profile: ValidatorProfile;
@@ -95,7 +103,7 @@ function mergeResults(results: ProviderResult[]): {
   const values = emptyValues();
   const fields = emptyFields();
 
-  for (const field of VALIDATOR_PROFILE_FIELDS) {
+  for (const field of PROFILE_FIELDS) {
     for (const source of FIELD_PRECEDENCE[field]) {
       const providerResult = results.find((item) => item.source === source);
       if (!providerResult) continue;
@@ -166,7 +174,7 @@ function cachedProfile(
   const fields = emptyFields();
   let hasStaleValue = false;
 
-  for (const group of VALIDATOR_PROFILE_CACHE_GROUPS) {
+  for (const group of PROFILE_CACHE_GROUPS) {
     const cached = groups[group];
     if (!cached) continue;
     const policy = CACHE_POLICIES[group];
@@ -192,9 +200,10 @@ function cachedProfile(
 
 function groupsNeedingRefresh(
   groups: CachedProfileGroups,
-  now: number
+  now: number,
+  candidates: ValidatorProfileCacheGroup[] = PROFILE_CACHE_GROUPS
 ): ValidatorProfileCacheGroup[] {
-  return VALIDATOR_PROFILE_CACHE_GROUPS.filter((group) => {
+  return candidates.filter((group) => {
     const cached = groups[group];
     const refreshedAt = cached?.refreshedAt;
     const anchor = cached?.records[CACHE_GROUP_ANCHOR_FIELDS[group]];
@@ -208,9 +217,10 @@ function groupsNeedingRefresh(
 
 function hasUsableCachedValue(
   groups: CachedProfileGroups,
-  now: number
+  now: number,
+  candidates: ValidatorProfileCacheGroup[] = PROFILE_CACHE_GROUPS
 ): boolean {
-  return VALIDATOR_PROFILE_CACHE_GROUPS.some((group) =>
+  return candidates.some((group) =>
     CACHE_GROUP_FIELDS[group].some((field) => {
       const record = groups[group]?.records[field];
       return Boolean(
@@ -374,7 +384,7 @@ function coalescedDirectRequest(
   configurations: ValidatorProfileProviderConfig[],
   fastBaseline: boolean
 ): Promise<ValidatorProfile> {
-  const key = `${network}:${voteAccount}`;
+  const key = `profile:${network}:${voteAccount}`;
   const existing = inFlightRefreshes.get(key);
   if (existing) return existing;
 
@@ -580,10 +590,11 @@ async function releaseCacheLock(
   cache: ValidatorProfileCache,
   network: ValidatorNetwork,
   voteAccount: string,
+  scope: "profile" | "logo",
   token: string
 ): Promise<void> {
   try {
-    await cache.releaseLock(network, voteAccount, token);
+    await cache.releaseLock(network, voteAccount, scope, token);
     recordCacheOperation("lock_release", "success");
   } catch (error) {
     recordCacheOperation("lock_release", "error");
@@ -608,6 +619,7 @@ async function refreshWithLock(
     lockToken = await cache.acquireLock(
       network,
       voteAccount,
+      "profile",
       DISTRIBUTED_LOCK_TTL_MS
     );
     recordCacheOperation("lock_acquire", lockToken ? "acquired" : "contended");
@@ -677,13 +689,13 @@ async function refreshWithLock(
           );
         })
         .finally(() =>
-          releaseCacheLock(cache, network, voteAccount, lockToken!)
+          releaseCacheLock(cache, network, voteAccount, "profile", lockToken!)
         );
     }
     return staged.profile;
   } finally {
     if (!releaseInBackground) {
-      await releaseCacheLock(cache, network, voteAccount, lockToken);
+      await releaseCacheLock(cache, network, voteAccount, "profile", lockToken);
     }
   }
 }
@@ -697,7 +709,7 @@ function coalescedRefresh(
   cache: ValidatorProfileCache,
   fastBaseline: boolean
 ): Promise<ValidatorProfile> {
-  const key = `${network}:${voteAccount}`;
+  const key = `profile:${network}:${voteAccount}`;
   const existing = inFlightRefreshes.get(key);
   if (existing) return existing;
 
@@ -726,7 +738,7 @@ export async function getValidatorProfile(
   const fastBaseline = providers === undefined;
   const allConfigurations = providers
     ? customProviderConfigs(providers, timeoutMs)
-    : validatorProfileProviderConfigs;
+    : providerConfigsForGroups(PROFILE_CACHE_GROUPS, undefined, timeoutMs);
 
   if (!cache) {
     recordCacheOperation("lookup", "disabled");
@@ -790,5 +802,241 @@ export async function getValidatorProfile(
     "lookup",
     Object.keys(currentGroups).length === 0 ? "miss" : "expired"
   );
+  return refresh;
+}
+
+function unavailableLogo(
+  network: ValidatorNetwork,
+  voteAccount: string
+): ValidatorLogo {
+  return {
+    network,
+    voteAccount,
+    logoUrl: null,
+    status: "unavailable",
+    field: { source: null, observedAt: null, stale: false }
+  };
+}
+
+function logoFromProviderResult(
+  network: ValidatorNetwork,
+  voteAccount: string,
+  result: ProviderResult | null
+): ValidatorLogo | null {
+  if (!result) return null;
+  const logoUrl = result.values.logoUrl;
+  if (typeof logoUrl !== "string" || !logoUrl.trim()) return null;
+  return {
+    network,
+    voteAccount,
+    logoUrl,
+    status: "fresh",
+    field: {
+      source: result.source,
+      observedAt: result.observedAt,
+      stale: false
+    }
+  };
+}
+
+function cachedLogo(
+  network: ValidatorNetwork,
+  voteAccount: string,
+  groups: CachedProfileGroups,
+  now: number
+): ValidatorLogo {
+  const record = groups.logo?.records.logoUrl;
+  if (!record || now - record.cachedAt > CACHE_POLICIES.logo.staleMs) {
+    return unavailableLogo(network, voteAccount);
+  }
+  const stale = now - record.cachedAt > CACHE_POLICIES.logo.freshMs;
+  return {
+    network,
+    voteAccount,
+    logoUrl: record.value as string,
+    status: stale ? "stale" : "fresh",
+    field: fieldMetadata(record, stale)
+  };
+}
+
+async function directLogoRequest(
+  network: ValidatorNetwork,
+  voteAccount: string,
+  configurations: ValidatorProfileProviderConfig[]
+): Promise<ValidatorLogo> {
+  const requests = configurations.map((configuration) => ({
+    configuration,
+    request: requestProvider(network, voteAccount, configuration)
+  }));
+
+  for (const { request } of requests) {
+    const logo = logoFromProviderResult(network, voteAccount, await request);
+    if (logo) return logo;
+  }
+  return unavailableLogo(network, voteAccount);
+}
+
+function coalescedLogoRequest(
+  network: ValidatorNetwork,
+  voteAccount: string,
+  requestFactory: () => Promise<ValidatorLogo>
+): Promise<ValidatorLogo> {
+  const key = `logo:${network}:${voteAccount}`;
+  const existing = inFlightLogoRefreshes.get(key);
+  if (existing) return existing;
+
+  const request = requestFactory().finally(() => {
+    if (inFlightLogoRefreshes.get(key) === request) {
+      inFlightLogoRefreshes.delete(key);
+    }
+  });
+  inFlightLogoRefreshes.set(key, request);
+  return request;
+}
+
+async function cacheLogo(
+  cache: ValidatorProfileCache,
+  logo: ValidatorLogo
+): Promise<void> {
+  if (!logo.logoUrl || !logo.field.source || !logo.field.observedAt) {
+    return;
+  }
+  const now = Date.now();
+  try {
+    await cache.write(logo.network, logo.voteAccount, "logo", {
+      version: 1,
+      refreshedAt: now,
+      records: {
+        logoUrl: {
+          value: logo.logoUrl,
+          source: logo.field.source,
+          observedAt: logo.field.observedAt,
+          cachedAt: now
+        }
+      }
+    });
+    recordCacheOperation("write", "success", "logo");
+  } catch (error) {
+    recordCacheOperation("write", "error", "logo");
+    operationalLog("warn", "validator_logo_cache_write_failed", {
+      network: logo.network,
+      error: errorMessage(error)
+    });
+  }
+}
+
+async function refreshLogoWithLock(
+  network: ValidatorNetwork,
+  voteAccount: string,
+  configurations: ValidatorProfileProviderConfig[],
+  cache: ValidatorProfileCache
+): Promise<ValidatorLogo> {
+  let lockToken: string | null;
+  try {
+    lockToken = await cache.acquireLock(
+      network,
+      voteAccount,
+      "logo",
+      DISTRIBUTED_LOCK_TTL_MS
+    );
+    recordCacheOperation(
+      "lock_acquire",
+      lockToken ? "acquired" : "contended",
+      "logo"
+    );
+  } catch (error) {
+    recordCacheOperation("lock_acquire", "error", "logo");
+    operationalLog("warn", "validator_logo_cache_lock_failed", {
+      network,
+      error: errorMessage(error)
+    });
+    return directLogoRequest(network, voteAccount, configurations);
+  }
+
+  if (!lockToken) {
+    const waitMs = Math.max(
+      CUSTOM_PROVIDER_TIMEOUT_MS,
+      ...configurations.map((configuration) => configuration.timeoutMs)
+    );
+    const deadline = Date.now() + waitMs;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, PEER_REFRESH_POLL_MS));
+      const peerGroups = await readCache(cache, network, voteAccount);
+      if (peerGroups) {
+        const peerLogo = cachedLogo(
+          network,
+          voteAccount,
+          peerGroups,
+          Date.now()
+        );
+        if (peerLogo.logoUrl) return peerLogo;
+      }
+    }
+    const logo = await directLogoRequest(network, voteAccount, configurations);
+    await cacheLogo(cache, logo);
+    return logo;
+  }
+
+  try {
+    const logo = await directLogoRequest(network, voteAccount, configurations);
+    await cacheLogo(cache, logo);
+    return logo;
+  } finally {
+    await releaseCacheLock(cache, network, voteAccount, "logo", lockToken);
+  }
+}
+
+export async function getValidatorLogo(
+  network: ValidatorNetwork,
+  voteAccount: string,
+  providers: ValidatorProfileProvider[] | undefined = undefined,
+  timeoutMs = CUSTOM_PROVIDER_TIMEOUT_MS,
+  cache: ValidatorProfileCache | null = getValidatorProfileCache()
+): Promise<ValidatorLogo> {
+  const configurations = providers
+    ? customProviderConfigs(providers, timeoutMs)
+    : providerConfigsForGroups(["logo"], undefined, timeoutMs);
+
+  if (!cache) {
+    recordCacheOperation("lookup", "disabled", "logo");
+    return coalescedLogoRequest(network, voteAccount, () =>
+      directLogoRequest(network, voteAccount, configurations)
+    );
+  }
+
+  const groups = await readCache(cache, network, voteAccount);
+  if (!groups) {
+    recordCacheOperation("lookup", "error", "logo");
+    return coalescedLogoRequest(network, voteAccount, () =>
+      directLogoRequest(network, voteAccount, configurations)
+    );
+  }
+
+  const now = Date.now();
+  const logo = cachedLogo(network, voteAccount, groups, now);
+  const needsRefresh = groupsNeedingRefresh(groups, now, ["logo"]).length > 0;
+  if (!needsRefresh) {
+    recordCacheOperation("lookup", "fresh", "logo");
+    return logo;
+  }
+
+  const refresh = coalescedLogoRequest(network, voteAccount, () =>
+    refreshLogoWithLock(network, voteAccount, configurations, cache)
+  );
+  if (logo.logoUrl) {
+    recordCacheOperation("lookup", "stale", "logo");
+    void refresh
+      .then(() => recordBackgroundOperation("refresh", "success"))
+      .catch((error) => {
+        recordBackgroundOperation("refresh", "error");
+        operationalLog("warn", "validator_logo_background_refresh_failed", {
+          network,
+          error: errorMessage(error)
+        });
+      });
+    return logo;
+  }
+
+  recordCacheOperation("lookup", groups.logo ? "expired" : "miss", "logo");
   return refresh;
 }

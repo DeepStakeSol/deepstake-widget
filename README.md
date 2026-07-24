@@ -155,23 +155,25 @@ Example:
 
 ## Validator Profile Request
 
-By default, the widget makes one validator-data request through the backend:
+By default, the widget makes independent profile and logo requests through the backend:
 
 ```text
 GET /api/validator/profile?network=<mainnet|devnet>&voteAccount=<vote-account>
+GET /api/validator/logo?network=<mainnet|devnet>&voteAccount=<vote-account>
 ```
 
-The response combines identity, estimated APY, validator commission, and MEV data with field-level source and freshness metadata. A partial or unavailable profile does not disable staking. Widget identity overrides are applied after the backend response.
+The profile response combines validator name, description, estimated APY, validator commission, and MEV data with field-level source and freshness metadata. Its schema retains `logoUrl`, but that field is always null and its metadata is empty. The logo response contains `network`, `voteAccount`, `logoUrl`, `status`, and `field` metadata. A partial or unavailable response does not disable staking. Widget identity overrides are applied after the backend responses.
 
-When `REDIS_URL` is configured, the backend caches independent identity, commission, APY, and MEV field groups. Fresh cache hits avoid provider requests. Stale values are returned immediately with `fields.<field>.stale=true` while one process refreshes them in the background. Valid cached fields are never replaced by null or malformed refresh values. Redis failures fall back to direct provider aggregation.
+When `REDIS_URL` is configured, the backend caches independent identity, logo, commission, APY, and MEV field groups. Fresh cache hits avoid provider requests. Stale values are returned immediately with `fields.<field>.stale=true` while one process refreshes them in the background. Valid cached fields are never replaced by null or malformed refresh values. Redis failures fall back to direct provider aggregation.
 
-On a cold cache miss, the backend starts all relevant providers concurrently and returns a valid Stakewiz baseline without waiting for slower enrichment sources. Solana RPC, Jito, Trillium, and Validators.app continue in the background and update Redis using the normal field precedence. Stakewiz, Solana RPC, Jito, and Trillium have 8-second request ceilings; Validators.app has a 5-second ceiling. Provider failures are logged with the provider ID, failure kind, elapsed time, and configured timeout.
+On a cold cache miss, the profile path returns a valid Stakewiz baseline without waiting for Trillium; Solana RPC, Jito, and Validators.app can continue in the background. The independent logo path starts Trillium, Stakewiz, and Validators.app concurrently but selects them in strict priority order: Trillium, then Stakewiz, then Validators.app. Therefore Trillium's 8-second ceiling delays only the logo response. Stakewiz, Solana RPC, Jito, and Trillium have 8-second request ceilings; Validators.app has a 5-second ceiling. Provider failures are logged with the provider ID, failure kind, elapsed time, and configured timeout. The cache namespace is `validator-profile:v2`; existing identity records remain usable and logos populate the new logo group.
 
 Default cache windows:
 
 | Field group | Fresh for | Stale fallback for |
 | --- | --- | --- |
 | Identity | 24 hours | 30 days |
+| Logo | 24 hours | 30 days |
 | Commission | 60 seconds | 15 minutes |
 | Estimated APY | 15 minutes | 24 hours |
 | MEV | 5 minutes | 48 hours (approximately one epoch) |
@@ -270,6 +272,7 @@ With that production setup, frontend calls become:
 ```text
 https://your-domain.example/api/stake/fetch
 https://your-domain.example/api/validator/profile?network=mainnet&voteAccount=YOUR_VALIDATOR_VOTE_ACCOUNT
+https://your-domain.example/api/validator/logo?network=mainnet&voteAccount=YOUR_VALIDATOR_VOTE_ACCOUNT
 https://your-domain.example/api/w/widget.iife.js
 ```
 

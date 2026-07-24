@@ -10,9 +10,13 @@ import { StakeFormVault2 } from "./components/stake/StakeFormVault2";
 import { TitleHeader } from "./components/TitleHeader";
 import { ValidatorInfo } from "./components/stake/ValidatorInfo";
 import {
+  applyValidatorLogo,
   applyValidatorOverrides,
   createUnavailableValidatorProfile,
+  fetchValidatorLogo,
   fetchValidatorProfile,
+  isLegacyValidatorProfileEnabled,
+  ValidatorLogo,
   ValidatorProfile,
 } from "./utils/solana/validator";
 import { fetchEpochInfo, fetchPerfSamples } from "./utils/api";
@@ -88,6 +92,10 @@ function App() {
     key: string;
     profile: ValidatorProfile;
   } | null>(null);
+  const [validatorLogoState, setValidatorLogoState] = useState<{
+    key: string;
+    logo: ValidatorLogo;
+  } | null>(null);
   const { network } = useNetwork();
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
   const options = useOptions();
@@ -100,8 +108,13 @@ function App() {
   const enabledTabIds = enabledTabs.map((tab) => tab.id).join(":");
   const voteAccount = options?.vote_account ?? "";
   const validatorKey = `${network}:${voteAccount}`;
-  const validatorInfo =
+  const profile =
     validatorState?.key === validatorKey ? validatorState.profile : null;
+  const logo =
+    validatorLogoState?.key === validatorKey
+      ? validatorLogoState.logo
+      : null;
+  const validatorInfo = profile ? applyValidatorLogo(profile, logo) : null;
 
   const prefetchProvider = useCallback((provider: WidgetTab) => {
     if (!selectedWalletAccount) return;
@@ -203,6 +216,35 @@ function App() {
     validatorKey,
     options?.validator_name,
     options?.validator_description,
+    options?.validator_logo_url,
+  ]);
+
+  useEffect(() => {
+    if (
+      !voteAccount ||
+      options?.validator_logo_url ||
+      isLegacyValidatorProfileEnabled()
+    ) {
+      return;
+    }
+    let cancelled = false;
+
+    fetchValidatorLogo(voteAccount, network)
+      .then((logo) => {
+        if (cancelled) return;
+        setValidatorLogoState({ key: validatorKey, logo });
+      })
+      .catch((error) => {
+        console.error("Failed to fetch validator logo:", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    network,
+    voteAccount,
+    validatorKey,
     options?.validator_logo_url,
   ]);
 

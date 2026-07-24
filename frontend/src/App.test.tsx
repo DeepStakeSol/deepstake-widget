@@ -3,15 +3,21 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  applyValidatorLogoMock,
   applyValidatorOverridesMock,
   createUnavailableValidatorProfileMock,
   fetchEpochInfoMock,
   fetchPerfSamplesMock,
+  fetchValidatorLogoMock,
   fetchValidatorProfileMock,
   prefetchManageDataMock,
   useNetworkMock,
   useOptionsMock,
 } = vi.hoisted(() => ({
+  applyValidatorLogoMock: vi.fn((profile, logo) => ({
+    ...profile,
+    logoUrl: logo?.logoUrl ?? profile.logoUrl,
+  })),
   applyValidatorOverridesMock: vi.fn((profile, options) => ({
     ...profile,
     name: options?.validator_name ?? profile.name,
@@ -28,6 +34,7 @@ const {
   })),
   fetchEpochInfoMock: vi.fn(),
   fetchPerfSamplesMock: vi.fn(),
+  fetchValidatorLogoMock: vi.fn(),
   fetchValidatorProfileMock: vi.fn(),
   prefetchManageDataMock: vi.fn(),
   useNetworkMock: vi.fn(),
@@ -67,9 +74,12 @@ vi.mock("./components/stake/StakeFormVault2", () => ({ StakeFormVault2: () => <d
 vi.mock("./context/NetworkContext", () => ({ useNetwork: useNetworkMock }));
 vi.mock("./options", () => ({ useOptions: useOptionsMock }));
 vi.mock("./utils/solana/validator", () => ({
+  applyValidatorLogo: applyValidatorLogoMock,
   applyValidatorOverrides: applyValidatorOverridesMock,
   createUnavailableValidatorProfile: createUnavailableValidatorProfileMock,
+  fetchValidatorLogo: fetchValidatorLogoMock,
   fetchValidatorProfile: fetchValidatorProfileMock,
+  isLegacyValidatorProfileEnabled: vi.fn(() => false),
 }));
 vi.mock("./utils/api", () => ({
   fetchEpochInfo: fetchEpochInfoMock,
@@ -99,6 +109,13 @@ describe("App", () => {
     useNetworkMock.mockReturnValue({ network: "devnet" });
     useOptionsMock.mockReturnValue({ vote_account: "vote-address" });
     fetchValidatorProfileMock.mockResolvedValue(profile);
+    fetchValidatorLogoMock.mockResolvedValue({
+      network: "devnet",
+      voteAccount: "vote-address",
+      logoUrl: "https://logo.example/logo.png",
+      status: "fresh",
+      field: { source: "trillium", observedAt: null, stale: false },
+    });
     fetchEpochInfoMock.mockResolvedValue({
       epochInfo: { epoch: 42, slotIndex: 25, slotsInEpoch: 100 },
     });
@@ -118,6 +135,7 @@ describe("App", () => {
       expect(fetchValidatorProfileMock).toHaveBeenCalledWith("vote-address", "devnet")
     );
     expect(fetchValidatorProfileMock).toHaveBeenCalledTimes(1);
+    expect(fetchValidatorLogoMock).toHaveBeenCalledWith("vote-address", "devnet");
     await waitFor(() =>
       expect(screen.getByTestId("validator-info")).toHaveTextContent(
         "Validator:https://logo.example/logo.png"
@@ -126,6 +144,19 @@ describe("App", () => {
     await waitFor(() =>
       expect(screen.getByTestId("title-header")).toHaveTextContent("25:42:37.5")
     );
+  });
+
+  it("renders profile data while the logo request is still pending", async () => {
+    fetchValidatorProfileMock.mockResolvedValueOnce({ ...profile, logoUrl: null });
+    fetchValidatorLogoMock.mockReturnValueOnce(new Promise(() => undefined));
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("validator-info")).toHaveTextContent(
+        "Validator:no-logo"
+      )
+    );
+    expect(fetchValidatorLogoMock).toHaveBeenCalledTimes(1);
   });
 
   it("filters tabs and switches between enabled tabs", async () => {
@@ -213,6 +244,7 @@ describe("App", () => {
     useOptionsMock.mockReturnValue(null);
     render(<App />);
     expect(fetchValidatorProfileMock).not.toHaveBeenCalled();
+    expect(fetchValidatorLogoMock).not.toHaveBeenCalled();
     expect(fetchEpochInfoMock).not.toHaveBeenCalled();
   });
 
@@ -229,6 +261,7 @@ describe("App", () => {
         "Host validator:https://host.example/logo.png"
       )
     );
+    expect(fetchValidatorLogoMock).not.toHaveBeenCalled();
     expect(applyValidatorOverridesMock).toHaveBeenCalledWith(
       profile,
       expect.objectContaining({ validator_name: "Host validator" })

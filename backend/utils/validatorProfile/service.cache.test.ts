@@ -4,6 +4,7 @@ vi.mock("./providers", () => ({
   validatorProfileProviders: [],
   validatorProfileProvidersByGroup: {
     identity: [],
+    logo: [],
     commission: [],
     apy: [],
     mev: []
@@ -17,7 +18,7 @@ import {
   type ValidatorProfileCache,
   type ValidatorProfileCacheGroup
 } from "./cache";
-import { getValidatorProfile } from "./service";
+import { getValidatorLogo, getValidatorProfile } from "./service";
 import type {
   ValidatorNetwork,
   ValidatorProfileField,
@@ -186,7 +187,8 @@ describe("validator profile cache resilience", () => {
 
     expect(first.status).toBe("stale");
     expect(first.name).toBe("Old name");
-    expect(first.fields.logoUrl.stale).toBe(true);
+    expect(first.logoUrl).toBeNull();
+    expect(first.fields.logoUrl.stale).toBe(false);
 
     resolve({ name: "New name", logoUrl: null });
     await cache.waitForWrite();
@@ -199,8 +201,49 @@ describe("validator profile cache resilience", () => {
       cache
     );
     expect(second.name).toBe("New name");
-    expect(second.logoUrl).toBe("https://example.com/old.png");
-    expect(second.fields.logoUrl.stale).toBe(true);
+    expect(second.logoUrl).toBeNull();
+    expect(second.fields.logoUrl.stale).toBe(false);
+  });
+
+  it("returns a stale logo immediately and refreshes it independently", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(NOW);
+    const staleAt = NOW - CACHE_POLICIES.logo.freshMs - 1;
+    const cache = new MemoryCache({
+      logo: group(
+        staleAt,
+        { logoUrl: "https://example.com/old-logo.png" },
+        staleAt
+      )
+    });
+    const { provider, resolve } = deferredProvider();
+
+    const first = await getValidatorLogo(
+      "mainnet",
+      "stale-logo-vote",
+      [provider],
+      100,
+      cache
+    );
+    expect(first).toMatchObject({
+      logoUrl: "https://example.com/old-logo.png",
+      status: "stale",
+      field: { stale: true }
+    });
+
+    resolve({ logoUrl: "https://example.com/new-logo.png" });
+    await cache.waitForWrite();
+
+    const second = await getValidatorLogo(
+      "mainnet",
+      "stale-logo-vote",
+      [provider],
+      100,
+      cache
+    );
+    expect(second).toMatchObject({
+      logoUrl: "https://example.com/new-logo.png",
+      status: "fresh"
+    });
   });
 
   it("coalesces concurrent cold-cache requests", async () => {

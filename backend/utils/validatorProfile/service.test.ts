@@ -37,7 +37,7 @@ describe("validator profile aggregation", () => {
     expect(profile).toMatchObject({
       status: "fresh",
       name: "Stakewiz name",
-      logoUrl: "https://stakewiz.example/logo.png",
+      logoUrl: null,
       estimatedApyPercent: 7.2,
       commissionPercent: 3,
       mevEnabled: true,
@@ -45,7 +45,7 @@ describe("validator profile aggregation", () => {
     });
     expect(profile.fields.commissionPercent.source).toBe("solana-rpc");
     expect(profile.fields.mevCommissionPercent.source).toBe("jito");
-    expect(profile.fields.logoUrl.source).toBe("stakewiz");
+    expect(profile.fields.logoUrl.source).toBeNull();
   });
 
   it("returns a partial profile and preserves zero values", async () => {

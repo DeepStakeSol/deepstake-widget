@@ -11,6 +11,7 @@ import type {
 
 export const VALIDATOR_PROFILE_CACHE_GROUPS = [
   "identity",
+  "logo",
   "commission",
   "apy",
   "mev"
@@ -23,7 +24,8 @@ export const CACHE_GROUP_FIELDS: Record<
   ValidatorProfileCacheGroup,
   ValidatorProfileField[]
 > = {
-  identity: ["name", "description", "logoUrl"],
+  identity: ["name", "description"],
+  logo: ["logoUrl"],
   commission: ["commissionPercent"],
   apy: ["estimatedApyPercent"],
   mev: ["mevCommissionPercent", "mevEnabled"]
@@ -34,6 +36,10 @@ export const CACHE_POLICIES: Record<
   { freshMs: number; staleMs: number }
 > = {
   identity: {
+    freshMs: 24 * 60 * 60 * 1_000,
+    staleMs: 30 * 24 * 60 * 60 * 1_000
+  },
+  logo: {
     freshMs: 24 * 60 * 60 * 1_000,
     staleMs: 30 * 24 * 60 * 60 * 1_000
   },
@@ -74,16 +80,18 @@ export interface ValidatorProfileCache {
   acquireLock(
     network: ValidatorNetwork,
     voteAccount: string,
+    scope: "profile" | "logo",
     ttlMs: number
   ): Promise<string | null>;
   releaseLock(
     network: ValidatorNetwork,
     voteAccount: string,
+    scope: "profile" | "logo",
     token: string
   ): Promise<void>;
 }
 
-const CACHE_PREFIX = "validator-profile:v1";
+const CACHE_PREFIX = "validator-profile:v2";
 const REDIS_FAILURE_COOLDOWN_MS = 30_000;
 
 // Redis v6 uses empty object generic defaults for clients without extensions.
@@ -103,8 +111,12 @@ function cacheKey(
   return `${CACHE_PREFIX}:${network}:${encodeURIComponent(voteAccount)}:${group}`;
 }
 
-function lockKey(network: ValidatorNetwork, voteAccount: string): string {
-  return `${CACHE_PREFIX}:lock:${network}:${encodeURIComponent(voteAccount)}`;
+function lockKey(
+  network: ValidatorNetwork,
+  voteAccount: string,
+  scope: "profile" | "logo"
+): string {
+  return `${CACHE_PREFIX}:lock:${scope}:${network}:${encodeURIComponent(voteAccount)}`;
 }
 
 function isValidValue(field: ValidatorProfileField, value: unknown): boolean {
@@ -248,26 +260,32 @@ class RedisValidatorProfileCache implements ValidatorProfileCache {
   async acquireLock(
     network: ValidatorNetwork,
     voteAccount: string,
+    scope: "profile" | "logo",
     ttlMs: number
   ): Promise<string | null> {
     const client = await connectedClient();
     const token = randomUUID();
-    const result = await client.set(lockKey(network, voteAccount), token, {
-      NX: true,
-      PX: ttlMs
-    });
+    const result = await client.set(
+      lockKey(network, voteAccount, scope),
+      token,
+      {
+        NX: true,
+        PX: ttlMs
+      }
+    );
     return result === "OK" ? token : null;
   }
 
   async releaseLock(
     network: ValidatorNetwork,
     voteAccount: string,
+    scope: "profile" | "logo",
     token: string
   ): Promise<void> {
     const client = await connectedClient();
     await client.eval(
       "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
-      { keys: [lockKey(network, voteAccount)], arguments: [token] }
+      { keys: [lockKey(network, voteAccount, scope)], arguments: [token] }
     );
   }
 }

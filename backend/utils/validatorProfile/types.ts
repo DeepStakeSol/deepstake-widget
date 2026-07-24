@@ -32,6 +32,14 @@ export interface ValidatorProfile {
   fields: Record<ValidatorProfileField, FieldMetadata>;
 }
 
+export interface ValidatorLogo {
+  network: ValidatorNetwork;
+  voteAccount: string;
+  logoUrl: string | null;
+  status: "fresh" | "stale" | "unavailable";
+  field: FieldMetadata;
+}
+
 export type ValidatorProfileValues = Pick<ValidatorProfile, ValidatorProfileField>;
 
 export interface ProviderResult {

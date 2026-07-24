@@ -40,6 +40,9 @@ channel and `warning` alerts to the service operations channel.
 
 - `deepstake_validator_profile_requests_total` is the user-visible profile
   result. The `error` status represents an HTTP 500 aggregation failure.
+- `deepstake_validator_logo_requests_total` and
+  `deepstake_validator_logo_request_duration_seconds` track the independent
+  logo path, where Trillium timeout latency is expected to remain isolated.
 - `deepstake_validator_provider_requests_total` identifies upstream failure
   type without putting validator addresses or raw errors in metric labels.
 - `deepstake_validator_cache_operations_total` covers lookup freshness,

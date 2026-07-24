@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   observeProviderRequest,
   recordCacheOperation,
+  recordLogoResponse,
   recordProfileResponse,
   validatorProfileMetrics
 } from "./metrics";
@@ -55,6 +56,21 @@ describe("validator profile metrics", () => {
     observeProviderRequest("stakewiz", "mainnet", "timeout", 8_000);
     recordCacheOperation("lookup", "stale");
     recordProfileResponse("mainnet", profile, 125);
+    recordLogoResponse(
+      "mainnet",
+      {
+        network: "mainnet",
+        voteAccount: "private-vote-label-test",
+        logoUrl: "https://logo.example/logo.png",
+        status: "fresh",
+        field: {
+          source: "trillium",
+          observedAt: "2026-01-01T00:00:00Z",
+          stale: false
+        }
+      },
+      250
+    );
 
     const metrics = await validatorProfileMetrics.registry.metrics();
     expect(metrics).toContain(
@@ -68,6 +84,10 @@ describe("validator profile metrics", () => {
     );
     expect(metrics).toContain('field="estimatedApyPercent",state="stale"');
     expect(metrics).toContain('field="description",state="missing"');
+    expect(metrics).toContain(
+      'deepstake_validator_logo_requests_total{network="mainnet",status="fresh"} 1'
+    );
+    expect(metrics).toContain('field="logoUrl",state="fresh"');
     expect(metrics).not.toContain(profile.voteAccount);
   });
 });
