@@ -14,10 +14,9 @@ describe('ValidatorInfo', () => {
 
     expect(screen.getByText('Validator')).toBeInTheDocument()
     expect(screen.getByText('Vote Account: 1234...ghij')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Validator logo' })).toHaveAttribute(
-      'src',
-      '/images/sol_logo.png'
-    )
+    const placeholder = screen.getByRole('img', { name: 'Validator logo' })
+    expect(placeholder).toHaveClass('vi-avatar')
+    expect(placeholder.tagName).toBe('DIV')
   })
 
   it('falls back when the remote logo cannot load', () => {
@@ -34,6 +33,8 @@ describe('ValidatorInfo', () => {
     const image = screen.getByRole('img', { name: 'Example logo' })
     expect(image).toHaveAttribute('src', 'https://logo.example/broken.png')
     fireEvent.error(image)
-    expect(image).toHaveAttribute('src', '/images/sol_logo.png')
+    const placeholder = screen.getByRole('img', { name: 'Example logo' })
+    expect(placeholder).toHaveClass('vi-avatar')
+    expect(placeholder.tagName).toBe('DIV')
   })
 })

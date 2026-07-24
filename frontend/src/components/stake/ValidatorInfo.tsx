@@ -1,7 +1,7 @@
 import { shortenAddress } from "../../utils/solana/address";
 import { ValidatorProfile } from "../../utils/solana/validator";
 import { useEffect, useState } from "react";
-import { cssImageUrl, getImageUrl } from "../../utils/imageUrl";
+import { cssImageUrl } from "../../utils/imageUrl";
 
 interface Props {
   validatorInfo: ValidatorProfile | null;
@@ -31,12 +31,22 @@ export function ValidatorInfo({ validatorInfo, voteAccount }: Props) {
 
   return (
     <div className="vi-validator-card">
-      <img
-        src={logoUrl && !logoFailed ? logoUrl : getImageUrl("/images/sol_logo.png")}
-        alt={validatorInfo?.name ? validatorInfo.name + " logo" : "Validator logo"}
-        className="vi-image"
-        onError={() => setLogoFailed(true)}
-      />
+      {logoUrl && !logoFailed ? (
+        <img
+          src={logoUrl}
+          alt={validatorInfo?.name ? validatorInfo.name + " logo" : "Validator logo"}
+          className="vi-image"
+          onError={() => setLogoFailed(true)}
+        />
+      ) : (
+        <div
+          className="vi-avatar"
+          role="img"
+          aria-label={
+            validatorInfo?.name ? validatorInfo.name + " logo" : "Validator logo"
+          }
+        />
+      )}
 
       <div className="vi-content">
         <div className="vi-title">
@@ -92,13 +102,20 @@ export function ValidatorInfo({ validatorInfo, voteAccount }: Props) {
           margin-bottom: 30px;
         }
 
-        [data-widget="deepstake"] .vi-image {
+        [data-widget="deepstake"] .vi-image,
+        [data-widget="deepstake"] .vi-avatar {
           width: 50px;
           height: 50px;
           border-radius: 50%;
-          object-fit: cover;
-          background: #ffffff;
           flex-shrink: 0;
+        }
+
+        [data-widget="deepstake"] .vi-image {
+          object-fit: cover;
+        }
+
+        [data-widget="deepstake"] .vi-avatar {
+          background: #D9D9D9;
         }
 
         [data-widget="deepstake"] .vi-content {
