@@ -178,9 +178,12 @@ describe("staged validator profile aggregation", () => {
     const profile = await request;
 
     expect(profile.status).toBe("unavailable");
-    expect(warning).toHaveBeenCalledWith(
-      "Validator profile provider failed",
+    const events = warning.mock.calls.map(([message]) =>
+      JSON.parse(message as string)
+    );
+    expect(events).toContainEqual(
       expect.objectContaining({
+        event: "validator_profile_provider_failed",
         provider: "jito",
         kind: "timeout",
         timeoutMs: 8_000

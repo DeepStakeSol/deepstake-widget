@@ -3,10 +3,13 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname === "/api/metrics") {
+    return NextResponse.next();
+  }
+
   // Check if the request is for an API route
   if (request.nextUrl.pathname.startsWith('/api')) {
     if (request.method === "OPTIONS") {
-      console.log("OPTIONS request happen");
       const res = new NextResponse(null, { status: 204 });
       res.headers.set("Access-Control-Allow-Origin", "*");
       res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");

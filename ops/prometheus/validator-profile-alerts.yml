@@ -1,0 +1,78 @@
+groups:
+  - name: deepstake-validator-profile
+    rules:
+      - alert: DeepstakeBackendDown
+        expr: up{job="deepstake-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Deepstake backend metrics target is unavailable
+
+      - alert: DeepstakeValidatorProfileErrors
+        expr: |
+          sum(rate(deepstake_validator_profile_requests_total{status="error"}[10m]))
+          /
+          clamp_min(sum(rate(deepstake_validator_profile_requests_total[10m])), 0.001)
+          > 0.001
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: Validator profile error rate exceeds 0.1%
+
+      - alert: DeepstakeValidatorProfileUnavailable
+        expr: |
+          sum(rate(deepstake_validator_profile_requests_total{status="unavailable"}[15m]))
+          /
+          clamp_min(sum(rate(deepstake_validator_profile_requests_total[15m])), 0.001)
+          > 0.005
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: Unavailable validator profiles exceed 0.5%
+
+      - alert: DeepstakeValidatorProfileStale
+        expr: |
+          sum(rate(deepstake_validator_profile_requests_total{status="stale"}[30m]))
+          /
+          clamp_min(sum(rate(deepstake_validator_profile_requests_total[30m])), 0.001)
+          > 0.05
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: Stale validator profiles exceed 5%
+
+      - alert: DeepstakeValidatorProviderFailures
+        expr: |
+          sum by (provider) (rate(deepstake_validator_provider_requests_total{outcome=~"timeout|http|parse|cancelled|network"}[15m]))
+          /
+          clamp_min(sum by (provider) (rate(deepstake_validator_provider_requests_total[15m])), 0.001)
+          > 0.20
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Validator provider {{ $labels.provider }} failure rate exceeds 20%
+
+      - alert: DeepstakeValidatorCacheFailures
+        expr: increase(deepstake_validator_cache_operations_total{result="error"}[10m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Validator profile cache operations are failing
+
+      - alert: DeepstakeValidatorProfileLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(deepstake_validator_profile_request_duration_seconds_bucket[15m]))
+          ) > 5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Validator profile p95 latency exceeds five seconds

@@ -12,6 +12,14 @@ import {
   validatorProfileProviderConfigs,
   validatorProfileProviderConfigsByGroup
 } from "./providers";
+import { errorMessage, operationalLog } from "../observability/logger";
+import {
+  observeProviderRequest,
+  recordBackgroundOperation,
+  recordCacheOperation,
+  validatorProfileMetrics,
+  type ProviderOutcome
+} from "../observability/metrics";
 import {
   VALIDATOR_PROFILE_FIELDS,
   type FieldMetadata,
@@ -240,7 +248,10 @@ function providerConfigsForGroups(
   ];
 }
 
-function providerFailureKind(error: unknown, timedOut: boolean): string {
+function providerFailureKind(
+  error: unknown,
+  timedOut: boolean
+): Exclude<ProviderOutcome, "success" | "empty"> {
   if (timedOut) return "timeout";
   const message = error instanceof Error ? error.message : String(error);
   if (/HTTP \d+/.test(message)) return "http";
@@ -258,6 +269,12 @@ async function requestProvider(
   const startedAt = Date.now();
   let timedOut = false;
   let timeout: ReturnType<typeof setTimeout> | undefined;
+  let outcome: ProviderOutcome = "network";
+
+  validatorProfileMetrics.providerInFlight.inc({
+    provider: configuration.id,
+    network
+  });
 
   const deadline = new Promise<never>((_resolve, reject) => {
     timeout = setTimeout(() => {
@@ -271,7 +288,7 @@ async function requestProvider(
   });
 
   try {
-    return await Promise.race([
+    const result = await Promise.race([
       configuration.provider({
         network,
         voteAccount,
@@ -279,17 +296,31 @@ async function requestProvider(
       }),
       deadline
     ]);
+    outcome = result && hasProviderValue(result) ? "success" : "empty";
+    return result;
   } catch (error) {
-    console.warn("Validator profile provider failed", {
+    outcome = providerFailureKind(error, timedOut);
+    operationalLog("warn", "validator_profile_provider_failed", {
       provider: configuration.id,
-      kind: providerFailureKind(error, timedOut),
+      network,
+      kind: outcome,
       elapsedMs: Date.now() - startedAt,
       timeoutMs: configuration.timeoutMs,
-      error: error instanceof Error ? error.message : String(error)
+      error: errorMessage(error)
     });
     return null;
   } finally {
     if (timeout) clearTimeout(timeout);
+    observeProviderRequest(
+      configuration.id,
+      network,
+      outcome,
+      Date.now() - startedAt
+    );
+    validatorProfileMetrics.providerInFlight.dec({
+      provider: configuration.id,
+      network
+    });
   }
 }
 
@@ -410,10 +441,17 @@ async function readCache(
   voteAccount: string
 ): Promise<CachedProfileGroups | null> {
   try {
-    return await cache.read(network, voteAccount);
+    const groups = await cache.read(network, voteAccount);
+    recordCacheOperation(
+      "read",
+      Object.keys(groups).length > 0 ? "hit" : "miss"
+    );
+    return groups;
   } catch (error) {
-    console.warn("Validator profile cache unavailable", {
-      error: error instanceof Error ? error.message : String(error)
+    recordCacheOperation("read", "error");
+    operationalLog("warn", "validator_profile_cache_read_failed", {
+      network,
+      error: errorMessage(error)
     });
     return null;
   }
@@ -435,10 +473,13 @@ async function cacheProviderResults(
     merged.changed.map(async (group) => {
       try {
         await cache.write(network, voteAccount, group, merged.groups[group]!);
+        recordCacheOperation("write", "success", group);
       } catch (error) {
-        console.warn("Validator profile cache write failed", {
+        recordCacheOperation("write", "error", group);
+        operationalLog("warn", "validator_profile_cache_write_failed", {
+          network,
           group,
-          error: error instanceof Error ? error.message : String(error)
+          error: errorMessage(error)
         });
       }
     })
@@ -543,9 +584,12 @@ async function releaseCacheLock(
 ): Promise<void> {
   try {
     await cache.releaseLock(network, voteAccount, token);
+    recordCacheOperation("lock_release", "success");
   } catch (error) {
-    console.warn("Validator profile cache lock release failed", {
-      error: error instanceof Error ? error.message : String(error)
+    recordCacheOperation("lock_release", "error");
+    operationalLog("warn", "validator_profile_cache_lock_release_failed", {
+      network,
+      error: errorMessage(error)
     });
   }
 }
@@ -566,9 +610,12 @@ async function refreshWithLock(
       voteAccount,
       DISTRIBUTED_LOCK_TTL_MS
     );
+    recordCacheOperation("lock_acquire", lockToken ? "acquired" : "contended");
   } catch (error) {
-    console.warn("Validator profile cache lock unavailable", {
-      error: error instanceof Error ? error.message : String(error)
+    recordCacheOperation("lock_acquire", "error");
+    operationalLog("warn", "validator_profile_cache_lock_failed", {
+      network,
+      error: errorMessage(error)
     });
     return directStagedProfile(
       network,
@@ -617,10 +664,17 @@ async function refreshWithLock(
     if (staged.completion) {
       releaseInBackground = true;
       void staged.completion
+        .then(() => recordBackgroundOperation("enhancement", "success"))
         .catch((error) => {
-          console.warn("Validator profile background enhancement failed", {
-            error: error instanceof Error ? error.message : String(error)
-          });
+          recordBackgroundOperation("enhancement", "error");
+          operationalLog(
+            "warn",
+            "validator_profile_background_enhancement_failed",
+            {
+              network,
+              error: errorMessage(error)
+            }
+          );
         })
         .finally(() =>
           releaseCacheLock(cache, network, voteAccount, lockToken!)
@@ -675,6 +729,7 @@ export async function getValidatorProfile(
     : validatorProfileProviderConfigs;
 
   if (!cache) {
+    recordCacheOperation("lookup", "disabled");
     return coalescedDirectRequest(
       network,
       voteAccount,
@@ -685,6 +740,7 @@ export async function getValidatorProfile(
 
   const currentGroups = await readCache(cache, network, voteAccount);
   if (!currentGroups) {
+    recordCacheOperation("lookup", "error");
     return coalescedDirectRequest(
       network,
       voteAccount,
@@ -696,7 +752,10 @@ export async function getValidatorProfile(
   const now = Date.now();
   const targetGroups = groupsNeedingRefresh(currentGroups, now);
   const cached = cachedProfile(network, voteAccount, currentGroups, now);
-  if (targetGroups.length === 0) return cached;
+  if (targetGroups.length === 0) {
+    recordCacheOperation("lookup", "fresh");
+    return cached;
+  }
 
   const selectedConfigurations = providerConfigsForGroups(
     targetGroups,
@@ -714,13 +773,22 @@ export async function getValidatorProfile(
   );
 
   if (hasUsableCachedValue(currentGroups, now)) {
-    void refresh.catch((error) => {
-      console.warn("Validator profile background refresh failed", {
-        error: error instanceof Error ? error.message : String(error)
+    recordCacheOperation("lookup", "stale");
+    void refresh
+      .then(() => recordBackgroundOperation("refresh", "success"))
+      .catch((error) => {
+        recordBackgroundOperation("refresh", "error");
+        operationalLog("warn", "validator_profile_background_refresh_failed", {
+          network,
+          error: errorMessage(error)
+        });
       });
-    });
     return cached;
   }
 
+  recordCacheOperation(
+    "lookup",
+    Object.keys(currentGroups).length === 0 ? "miss" : "expired"
+  );
   return refresh;
 }

@@ -19,7 +19,8 @@ services:
       - IMAGE_URL_PREFIX=${IMAGE_URL_PREFIX:-}
       - VITE_USE_LEGACY_VALIDATOR_PROFILE=${VITE_USE_LEGACY_VALIDATOR_PROFILE:-false}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   backend:
     build:
@@ -38,9 +39,20 @@ services:
       - SHARED_FILES_DIR=/shared
       - IMAGES_DIR=/images
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - METRICS_BEARER_TOKEN=${METRICS_BEARER_TOKEN:-}
     depends_on:
       redis:
         condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "node"
+        - "-e"
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
 
   redis:
     image: redis:7-alpine

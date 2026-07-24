@@ -237,7 +237,7 @@ curl -i http://localhost:3000/api/images/sol_logo.png
 
 ### Root `.env`
 
-Used by Docker Compose for the frontend container.
+Used by Docker Compose for frontend and backend container configuration.
 
 | Variable | Example | Description |
 | --- | --- | --- |
@@ -245,6 +245,7 @@ Used by Docker Compose for the frontend container.
 | `DISABLE_BACKEND_PREFIX` | `false` | If `false`, frontend adds `/api` before backend routes. If `true`, frontend does not add `/api`. |
 | `IMAGE_URL_PREFIX` | `https://your-domain.example/api/images` | Optional prefix for local `/images/...` widget assets loaded from the backend image file server. Leave empty for same-origin assets. |
 | `VITE_USE_LEGACY_VALIDATOR_PROFILE` | `false` | Emergency rollback flag. When true, the widget uses the legacy browser Stakewiz and Trillium requests instead of `/api/validator/profile`. |
+| `METRICS_BEARER_TOKEN` | Random secret | Passed to the backend container to protect `/api/metrics`. |
 
 Default local setup:
 
@@ -261,6 +262,7 @@ VITE_BACKEND_URL=https://your-domain.example/api
 DISABLE_BACKEND_PREFIX=true
 IMAGE_URL_PREFIX=https://your-domain.example/api/images
 VITE_USE_LEGACY_VALIDATOR_PROFILE=false
+METRICS_BEARER_TOKEN=replace-with-a-long-random-token
 ```
 
 With that production setup, frontend calls become:
@@ -296,9 +298,22 @@ Used by the Next.js backend.
 | `NEXT_PUBLIC_VALIDATOR_ADDRESS` | Yes for backend validator helpers | Validator vote account used by backend-side helpers. |
 | `VALIDATORS_APP_TOKEN` | No | Optional Validators.app API token. |
 | `REDIS_URL` | Recommended | Redis connection URL for the shared validator profile cache. Without it, requests use direct provider aggregation with local in-flight coalescing. |
+| `METRICS_BEARER_TOKEN` | Production | Bearer token required to scrape `/api/metrics`. Production returns 503 when it is unset. |
 | `APP_URL` | Recommended in production | Allowed CORS origin for `/api/*`; defaults to `http://localhost:8080`. |
 | `SHARED_FILES_DIR` | No | Filesystem path served by `/api/w/`; Docker sets this to `/shared`. |
 | `IMAGES_DIR` | No | Filesystem path served by `/api/images/`; Docker sets this to `/images`. |
+
+## Observability
+
+The backend exposes `GET /api/health` for container liveness and protected
+Prometheus metrics at `GET /api/metrics`. Metrics cover validator-profile
+status and latency, provider outcomes, cache operations, field freshness, and
+background refreshes. Validator profile failures are logged as one-line JSON.
+
+Prometheus/Grafana are managed outside this repository. Alert rules are in
+`ops/prometheus/validator-profile-alerts.yml`; scrape configuration, failure
+drills, rollback steps, and the 30-day legacy exit gate are documented in
+`ops/validator-profile-runbook.md`.
 
 ## Network Selection
 

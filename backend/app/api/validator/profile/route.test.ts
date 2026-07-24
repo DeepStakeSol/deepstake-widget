@@ -1,24 +1,38 @@
 import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { addressMock, assertIsAddressMock, getValidatorProfileMock } = vi.hoisted(
-  () => ({
-    addressMock: vi.fn((value: string) => {
-      if (value === "invalid") throw new Error("bad key");
-      return value;
-    }),
-    assertIsAddressMock: vi.fn(),
-    getValidatorProfileMock: vi.fn(),
-  })
-);
+const {
+  addressMock,
+  assertIsAddressMock,
+  getValidatorProfileMock,
+  operationalLogMock,
+  recordProfileResponseMock
+} = vi.hoisted(() => ({
+  addressMock: vi.fn((value: string) => {
+    if (value === "invalid") throw new Error("bad key");
+    return value;
+  }),
+  assertIsAddressMock: vi.fn(),
+  getValidatorProfileMock: vi.fn(),
+  operationalLogMock: vi.fn(),
+  recordProfileResponseMock: vi.fn()
+}));
 
 vi.mock("@solana/kit", () => ({
   address: addressMock,
-  assertIsAddress: assertIsAddressMock,
+  assertIsAddress: assertIsAddressMock
 }));
 
 vi.mock("@/utils/validatorProfile/service", () => ({
-  getValidatorProfile: getValidatorProfileMock,
+  getValidatorProfile: getValidatorProfileMock
+}));
+vi.mock("@/utils/observability/logger", () => ({
+  errorMessage: (error: unknown) =>
+    error instanceof Error ? error.message : String(error),
+  operationalLog: operationalLogMock
+}));
+vi.mock("@/utils/observability/metrics", () => ({
+  recordProfileResponse: recordProfileResponseMock
 }));
 
 import { GET } from "./route";
@@ -31,6 +45,8 @@ describe("GET /api/validator/profile", () => {
   beforeEach(() => {
     addressMock.mockClear();
     assertIsAddressMock.mockClear();
+    operationalLogMock.mockClear();
+    recordProfileResponseMock.mockClear();
     getValidatorProfileMock.mockReset().mockResolvedValue({
       network: "mainnet",
       voteAccount: "vote",
@@ -42,7 +58,7 @@ describe("GET /api/validator/profile", () => {
       mevCommissionPercent: null,
       mevEnabled: null,
       status: "unavailable",
-      fields: {},
+      fields: {}
     });
   });
 
@@ -52,7 +68,7 @@ describe("GET /api/validator/profile", () => {
     );
     expect(missing.status).toBe(400);
     await expect(missing.json()).resolves.toEqual({
-      error: "network must be mainnet or devnet",
+      error: "network must be mainnet or devnet"
     });
 
     const invalid = await GET(
@@ -69,7 +85,7 @@ describe("GET /api/validator/profile", () => {
     );
     expect(missing.status).toBe(400);
     await expect(missing.json()).resolves.toEqual({
-      error: "voteAccount parameter is required",
+      error: "voteAccount parameter is required"
     });
 
     const invalid = await GET(
@@ -79,7 +95,7 @@ describe("GET /api/validator/profile", () => {
     );
     expect(invalid.status).toBe(400);
     await expect(invalid.json()).resolves.toEqual({
-      error: "Invalid voteAccount address",
+      error: "Invalid voteAccount address"
     });
     expect(getValidatorProfileMock).not.toHaveBeenCalled();
   });
@@ -89,7 +105,7 @@ describe("GET /api/validator/profile", () => {
       network: "mainnet",
       voteAccount: "vote",
       name: "Validator",
-      status: "partial",
+      status: "partial"
     });
     const partial = await GET(
       request(
@@ -107,12 +123,11 @@ describe("GET /api/validator/profile", () => {
     );
     expect(unavailable.status).toBe(200);
     await expect(unavailable.json()).resolves.toMatchObject({
-      status: "unavailable",
+      status: "unavailable"
     });
   });
 
   it("maps unexpected aggregation errors to HTTP 500", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
     getValidatorProfileMock.mockRejectedValue(new Error("boom"));
 
     const response = await GET(
@@ -122,7 +137,17 @@ describe("GET /api/validator/profile", () => {
     );
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({
-      error: "Failed to aggregate validator profile",
+      error: "Failed to aggregate validator profile"
     });
+    expect(recordProfileResponseMock).toHaveBeenCalledWith(
+      "devnet",
+      null,
+      expect.any(Number)
+    );
+    expect(operationalLogMock).toHaveBeenCalledWith(
+      "error",
+      "validator_profile_aggregation_failed",
+      expect.objectContaining({ network: "devnet", error: "boom" })
+    );
   });
 });

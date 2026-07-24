@@ -3,6 +3,8 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { getValidatorProfile } from "@/utils/validatorProfile/service";
 import type { ValidatorNetwork } from "@/utils/validatorProfile/types";
+import { errorMessage, operationalLog } from "@/utils/observability/logger";
+import { recordProfileResponse } from "@/utils/observability/metrics";
 
 export const runtime = "nodejs";
 
@@ -35,14 +37,29 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const startedAt = Date.now();
   try {
     const profile = await getValidatorProfile(
       network as ValidatorNetwork,
       voteAccount
     );
+    recordProfileResponse(
+      network as ValidatorNetwork,
+      profile,
+      Date.now() - startedAt
+    );
     return NextResponse.json(profile);
   } catch (error) {
-    console.error("Validator profile aggregation failed", error);
+    recordProfileResponse(
+      network as ValidatorNetwork,
+      null,
+      Date.now() - startedAt
+    );
+    operationalLog("error", "validator_profile_aggregation_failed", {
+      network,
+      elapsedMs: Date.now() - startedAt,
+      error: errorMessage(error)
+    });
     return NextResponse.json(
       { error: "Failed to aggregate validator profile" },
       { status: 500 }
