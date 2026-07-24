@@ -10,6 +10,10 @@ import { cachedRequest, invalidateRequestCacheByPrefix } from "./requestCache";
 
 const SHORT_WALLET_CACHE_TTL_MS = 30_000;
 const MANAGE_CACHE_TTL_MS = 60_000;
+const stakeAccountsInFlight = new Map<
+  string,
+  Promise<GetStakeAccountResponse[]>
+>();
 
 async function getJson<T>(path: string): Promise<T> {
   const url = getBackendUrl(path);
@@ -43,12 +47,24 @@ export async function fetchStakeAccounts(
   const cached = getCachedStakeAccounts(owner, network);
   if (cached !== null) return cached;
 
-  const data = await getJson<{ stakeAccounts?: GetStakeAccountResponse[] }>(
+  const key = `${network}:${owner}`;
+  const existing = stakeAccountsInFlight.get(key);
+  if (existing) return existing;
+
+  const request = getJson<{ stakeAccounts?: GetStakeAccountResponse[] }>(
     `/stake/fetch?owner=${owner}&network=${network}`
-  );
-  const accounts = data.stakeAccounts || [];
-  setCachedStakeAccounts(owner, network, accounts);
-  return accounts;
+  )
+    .then((data) => {
+      const accounts = data.stakeAccounts || [];
+      setCachedStakeAccounts(owner, network, accounts);
+      return accounts;
+    })
+    .finally(() => {
+      stakeAccountsInFlight.delete(key);
+    });
+
+  stakeAccountsInFlight.set(key, request);
+  return request;
 }
 
 // epoch / perf information

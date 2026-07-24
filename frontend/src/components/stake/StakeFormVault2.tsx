@@ -13,10 +13,9 @@ import { useStakeForm } from "../../hooks/useStakeForm";
 import { getImageUrl } from "../../utils/imageUrl";
 import { ValidatorProfile } from "../../utils/solana/validator";
 import { fetchVaultManage, fetchLSTBalance, VaultManageResponse } from "../../utils/api";
+import { VSOL_MINT } from "../../utils/managePrefetch";
 
 install();
-
-const VSOL_MINT = "vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7";
 
 interface Props {
   validatorInfo: ValidatorProfile | null;

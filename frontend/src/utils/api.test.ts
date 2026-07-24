@@ -40,6 +40,22 @@ describe("API helpers", () => {
     );
   });
 
+  it("deduplicates concurrent stake account requests", async () => {
+    const fetchMock = vi.mocked(fetch);
+    let resolveResponse!: (response: Response) => void;
+    fetchMock.mockReturnValue(new Promise((resolve) => {
+      resolveResponse = resolve;
+    }));
+    const { fetchStakeAccounts } = await loadApi();
+
+    const first = fetchStakeAccounts("owner", "mainnet");
+    const second = fetchStakeAccounts("owner", "mainnet");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    resolveResponse(await mockJsonResponse({ stakeAccounts: [] }));
+    await expect(Promise.all([first, second])).resolves.toEqual([[], []]);
+  });
+
 
   it("caches SOL balance requests", async () => {
     const fetchMock = vi.mocked(fetch);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { install } from "@solana/webcrypto-ed25519-polyfill";
 import { WalletConnectButton } from "../WalletConnectButton";
 import { StakeAccountsTable } from "./StakeAccountsTable";
@@ -10,6 +11,7 @@ import { NoWalletTable } from "./NoWalletTable";
 import { NoAccountsTable } from "./NoAccountsTable";
 import { ValidatorProfile } from "../../utils/solana/validator";
 import { useStakeForm } from "../../hooks/useStakeForm";
+import { fetchStakeAccounts } from "../../utils/api";
 
 install();
 
@@ -42,14 +44,19 @@ export function StakeForm({
     inSufficientBalance,
   } = useStakeForm();
 
+  const handleManageOpen = useCallback(() => {
+    if (!selectedWalletAccount) return;
 
-
-
-
-    
+    void fetchStakeAccounts(selectedWalletAccount.address, network)
+      .then(setStakeAccounts)
+      .catch((error) => {
+        console.error("Failed to refresh stake accounts:", error);
+      });
+  }, [network, selectedWalletAccount, setStakeAccounts]);
 
   return (
     <StakeLayout
+      onManageOpen={handleManageOpen}
       stakeChildren={
         <>
           <StakeInputSection

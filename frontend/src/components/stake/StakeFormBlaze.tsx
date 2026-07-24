@@ -12,10 +12,9 @@ import { useStakeForm } from "../../hooks/useStakeForm";
 import { ValidatorProfile } from "../../utils/solana/validator";
 import { BlazeAppliedStake, fetchBlazeAppliedStakes, fetchLSTBalance } from "../../utils/api";
 import { getImageUrl } from "../../utils/imageUrl";
+import { BSOL_MINT } from "../../utils/managePrefetch";
 
 install();
-
-const BSOL_MINT = "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1";
 
 interface Props {
   validatorInfo: ValidatorProfile | null;
@@ -48,7 +47,7 @@ export function StakeFormBlaze({
   const manageValidatorName = isDevnet ? undefined : validatorInfo?.name ?? undefined;
   const blazeManageIsLoading = bSOLIsLoading || appliedStakesIsLoading;
 
-  const fetchAppliedStakes = async (walletAddress: string) => {
+  const fetchAppliedStakes = useCallback(async (walletAddress: string) => {
     if (isDevnet) {
       setAppliedStakes([]);
       setAppliedStakesIsLoading(false);
@@ -61,12 +60,11 @@ export function StakeFormBlaze({
       setAppliedStakes(stakes);
     } catch (err) {
       console.error("Failed to fetch applied stakes:", err);
-      setAppliedStakes([]);
     }
     setAppliedStakesIsLoading(false);
-  };
+  }, [isDevnet, network]);
 
-  const fetchBSOLBalance = async (walletAddress: string) => {
+  const fetchBSOLBalance = useCallback(async (walletAddress: string) => {
     setBSOLIsLoading(true);
     try {
       const balance = await fetchLSTBalance(walletAddress, network, BSOL_MINT);
@@ -75,7 +73,7 @@ export function StakeFormBlaze({
       console.error(err);
     }
     setBSOLIsLoading(false);
-  };
+  }, [network]);
 
   useEffect(() => {
     if (!isConnected) {
@@ -92,7 +90,14 @@ export function StakeFormBlaze({
     }
     fetchBSOLBalance(selectedWalletAccount.address);
     fetchAppliedStakes(selectedWalletAccount.address);
-  }, [isDevnet, selectedWalletAccount]);
+  }, [fetchAppliedStakes, fetchBSOLBalance, selectedWalletAccount]);
+
+  const handleManageOpen = useCallback(() => {
+    if (!selectedWalletAccount) return;
+
+    void fetchBSOLBalance(selectedWalletAccount.address);
+    void fetchAppliedStakes(selectedWalletAccount.address);
+  }, [fetchAppliedStakes, fetchBSOLBalance, selectedWalletAccount]);
 
   const handleSuccess = useCallback(() => {
     resetFormAndRefreshBalance();
@@ -102,6 +107,7 @@ export function StakeFormBlaze({
 
   return (
     <StakeLayout
+      onManageOpen={handleManageOpen}
       stakeChildren={
         <>
           <StakeInputSection

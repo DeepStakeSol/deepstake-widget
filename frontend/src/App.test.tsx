@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +8,7 @@ const {
   fetchEpochInfoMock,
   fetchPerfSamplesMock,
   fetchValidatorProfileMock,
+  prefetchManageDataMock,
   useNetworkMock,
   useOptionsMock,
 } = vi.hoisted(() => ({
@@ -28,6 +29,7 @@ const {
   fetchEpochInfoMock: vi.fn(),
   fetchPerfSamplesMock: vi.fn(),
   fetchValidatorProfileMock: vi.fn(),
+  prefetchManageDataMock: vi.fn(),
   useNetworkMock: vi.fn(),
   useOptionsMock: vi.fn(),
 }));
@@ -76,8 +78,12 @@ vi.mock("./utils/api", () => ({
 vi.mock("./utils/imageUrl", () => ({
   cssImageUrl: vi.fn((src: string) => 'url("' + src + '")'),
 }));
+vi.mock("./utils/managePrefetch", () => ({
+  prefetchManageData: prefetchManageDataMock,
+}));
 
 import App from "./App";
+import { SelectedWalletAccountContext } from "./context/SelectedWalletAccountContext";
 
 const profile = {
   name: "Validator",
@@ -99,6 +105,7 @@ describe("App", () => {
     fetchPerfSamplesMock.mockResolvedValue({
       sample: { numSlots: 10, samplePeriodSecs: 5 },
     });
+    prefetchManageDataMock.mockResolvedValue(undefined);
   });
 
   it("renders all tabs and fetches one validator profile", async () => {
@@ -131,6 +138,75 @@ describe("App", () => {
     expect(screen.getByText("Blaze form")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: /Vault/ }));
     expect(screen.getByText("Vault form")).toBeInTheDocument();
+  });
+
+  it("prefetches Manage data when a connected user shows tab intent", () => {
+    const account = { address: "wallet-address" } as never;
+
+    render(
+      <SelectedWalletAccountContext.Provider value={[account, vi.fn()]}>
+        <App />
+      </SelectedWalletAccountContext.Provider>
+    );
+
+    fireEvent.pointerEnter(screen.getByRole("tab", { name: /BlazeStake/ }));
+
+    expect(prefetchManageDataMock).toHaveBeenCalledWith(
+      "blaze",
+      "wallet-address",
+      "devnet"
+    );
+  });
+
+  it("prefetches inactive providers sequentially during idle time", async () => {
+    vi.useFakeTimers();
+    useNetworkMock.mockReturnValue({ network: "mainnet" });
+    const account = { address: "wallet-address" } as never;
+    let resolveBlaze!: () => void;
+    prefetchManageDataMock.mockImplementation((provider: string) => {
+      if (provider === "blaze") {
+        return new Promise<void>((resolve) => {
+          resolveBlaze = resolve;
+        });
+      }
+      return Promise.resolve();
+    });
+    vi.stubGlobal("requestIdleCallback", (callback: IdleRequestCallback) => {
+      callback({ didTimeout: false, timeRemaining: () => 50 });
+      return 1;
+    });
+
+    const { unmount } = render(
+      <SelectedWalletAccountContext.Provider value={[account, vi.fn()]}>
+        <App />
+      </SelectedWalletAccountContext.Provider>
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(prefetchManageDataMock).toHaveBeenCalledTimes(1);
+    expect(prefetchManageDataMock).toHaveBeenNthCalledWith(
+      1,
+      "blaze",
+      "wallet-address",
+      "mainnet"
+    );
+
+    await act(async () => {
+      resolveBlaze();
+      await Promise.resolve();
+    });
+    expect(prefetchManageDataMock).toHaveBeenNthCalledWith(
+      2,
+      "vault",
+      "wallet-address",
+      "mainnet"
+    );
+
+    unmount();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("does not fetch without a vote account", () => {

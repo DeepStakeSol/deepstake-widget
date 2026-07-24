@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, ReactNode } from "react";
+import { useCallback, useContext, useEffect, useState, ReactNode } from "react";
 import { Card, Flex } from "@radix-ui/themes";
 import * as Tabs from "@radix-ui/react-tabs";
 import { StakeForm } from "./components/stake/StakeForm";
@@ -19,6 +19,8 @@ import { fetchEpochInfo, fetchPerfSamples } from "./utils/api";
 import { useNetwork } from "./context/NetworkContext";
 import { cssImageUrl } from "./utils/imageUrl";
 import { useOptions, WidgetTab } from "./options";
+import { SelectedWalletAccountContext } from "./context/SelectedWalletAccountContext";
+import { prefetchManageData } from "./utils/managePrefetch";
 
 type TabConfig = {
   id: WidgetTab;
@@ -87,12 +89,81 @@ function App() {
     profile: ValidatorProfile;
   } | null>(null);
   const { network } = useNetwork();
+  const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
   const options = useOptions();
   const enabledTabs = getEnabledTabs(options?.tabs);
+  const [selectedTabId, setSelectedTabId] = useState<WidgetTab>(
+    enabledTabs[0].id
+  );
+  const activeTab = enabledTabs.find((tab) => tab.id === selectedTabId)
+    ?? enabledTabs[0];
+  const enabledTabIds = enabledTabs.map((tab) => tab.id).join(":");
   const voteAccount = options?.vote_account ?? "";
   const validatorKey = `${network}:${voteAccount}`;
   const validatorInfo =
     validatorState?.key === validatorKey ? validatorState.profile : null;
+
+  const prefetchProvider = useCallback((provider: WidgetTab) => {
+    if (!selectedWalletAccount) return;
+
+    void prefetchManageData(
+      provider,
+      selectedWalletAccount.address,
+      network
+    ).catch(() => undefined);
+  }, [network, selectedWalletAccount]);
+
+  useEffect(() => {
+    if (!selectedWalletAccount) return;
+
+    let cancelled = false;
+    let idleCallbackId: number | undefined;
+    const inactiveProviders = (enabledTabIds.split(":") as WidgetTab[])
+      .filter((provider) => provider !== activeTab.id);
+
+    const prefetchInactiveProviders = async () => {
+      for (const provider of inactiveProviders) {
+        if (cancelled) return;
+        try {
+          await prefetchManageData(
+            provider,
+            selectedWalletAccount.address,
+            network
+          );
+        } catch {
+          // Background prefetch failures are retried when the provider is opened.
+        }
+      }
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      if (typeof window.requestIdleCallback === "function") {
+        idleCallbackId = window.requestIdleCallback(
+          () => void prefetchInactiveProviders(),
+          { timeout: 2_000 }
+        );
+        return;
+      }
+
+      void prefetchInactiveProviders();
+    }, 1_000);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      if (
+        idleCallbackId !== undefined
+        && typeof window.cancelIdleCallback === "function"
+      ) {
+        window.cancelIdleCallback(idleCallbackId);
+      }
+    };
+  }, [
+    activeTab.id,
+    enabledTabIds,
+    network,
+    selectedWalletAccount,
+  ]);
 
   useEffect(() => {
     if (!voteAccount) return;
@@ -193,7 +264,14 @@ function App() {
         /> }
 
         
-          <Tabs.Root defaultValue={enabledTabs[0].value} style={{ width: "100%" }}>
+          <Tabs.Root
+            value={activeTab.value}
+            onValueChange={(value) => {
+              const nextTab = enabledTabs.find((tab) => tab.value === value);
+              if (nextTab) setSelectedTabId(nextTab.id);
+            }}
+            style={{ width: "100%" }}
+          >
             <Card
               size="3"
               className="sw-main-tabs"
@@ -210,6 +288,9 @@ function App() {
                     key={tab.id}
                     value={tab.value}
                     className={`tabs-trigger ${tab.className}`}
+                    onPointerEnter={() => prefetchProvider(tab.id)}
+                    onPointerDown={() => prefetchProvider(tab.id)}
+                    onFocus={() => prefetchProvider(tab.id)}
                   >
                     {tab.label}
                   </Tabs.Trigger>
