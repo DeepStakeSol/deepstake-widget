@@ -180,6 +180,31 @@ Default cache windows:
 
 Set `VITE_USE_LEGACY_VALIDATOR_PROFILE=true` only as a temporary rollback during migration. The legacy path makes browser requests to Stakewiz and the backend Trillium proxy and will be removed after the observation period.
 
+## Wallet Manage Data Cache
+
+When `REDIS_URL` is configured, Native stake accounts, Blaze applied stakes, and Vault Manage responses are cached by the backend. The frontend retains only in-flight request deduplication for these datasets, so cached results survive page reloads and are shared across widget instances. SOL and LST balances keep their short frontend cache.
+
+| Resource | Fresh window | Redis retention | Upstream |
+| --- | --- | --- | --- |
+| Native stake accounts | 2 minutes | 30 minutes | Solana RPC |
+| Blaze applied stakes | 2 minutes | 30 minutes | SolBlaze |
+| Vault Manage | 1 minute | 10 minutes | Solana RPC and Stakebot data |
+| Vault Manage while `updating` | 10 seconds | 1 minute | Solana RPC and Stakebot data |
+
+During the fresh window, Redis is returned without an upstream request. After freshness expires but before retention expires, stale data is returned immediately and one background refresh is coalesced per wallet/resource in each backend process. After retention expires, the request waits for upstream data. Empty arrays are valid cache entries. Redis connection, read, or write failures fall back to the live provider. Cache keys use the `wallet-data:v1` namespace.
+
+The three read routes accept `refresh=true` to bypass a cached value and synchronously replace it:
+
+`GET /api/stake/fetch?owner=<wallet>&network=<network>&refresh=true`
+
+`GET /api/blaze/manage/applied-stakes?wallet=<wallet>&network=<network>&refresh=true`
+
+`GET /api/blaze/manage/vault?wallet=<wallet>&network=<network>&refresh=true`
+
+Vote-filtered Native stake-account requests remain uncached. Transaction confirmation accepts a typed `cacheMutation` context, waits for `confirmed` commitment, and invalidates the corresponding Redis entry. Native stake, unstake, and withdraw invalidate Native accounts; Blaze stake invalidates applied stakes; Vault stake invalidates Vault Manage. Each frontend mutation then performs one forced read. Blaze CLS registration is proxied through `POST /api/blaze/stake/register` and invalidates applied stakes again after SolBlaze accepts the registration. Invalidation and refresh failures are best-effort and do not turn an already confirmed transaction into a failed transaction.
+
+See [the wallet cache runbook](ops/wallet-data-cache-runbook.md) for metrics and failure checks.
+
 ## Shared Folder and Widget Bundle
 
 The Docker setup uses a repo-root `shared/` directory:
@@ -300,7 +325,7 @@ Used by the Next.js backend.
 | `NEXT_PUBLIC_NETWORK_ENV` | No | Default network for backend helper URLs. |
 | `NEXT_PUBLIC_VALIDATOR_ADDRESS` | Yes for backend validator helpers | Validator vote account used by backend-side helpers. |
 | `VALIDATORS_APP_TOKEN` | No | Optional Validators.app API token. |
-| `REDIS_URL` | Recommended | Redis connection URL for the shared validator profile cache. Without it, requests use direct provider aggregation with local in-flight coalescing. |
+| `REDIS_URL` | Recommended | Redis connection URL for validator-profile and wallet-data caches. Without it, requests use direct providers with local in-flight coalescing. |
 | `METRICS_BEARER_TOKEN` | Production | Bearer token required to scrape `/api/metrics`. Production returns 503 when it is unset. |
 | `APP_URL` | Recommended in production | Allowed CORS origin for `/api/*`; defaults to `http://localhost:8080`. |
 | `SHARED_FILES_DIR` | No | Filesystem path served by `/api/w/`; Docker sets this to `/shared`. |
@@ -310,7 +335,7 @@ Used by the Next.js backend.
 
 The backend exposes `GET /api/health` for container liveness and protected
 Prometheus metrics at `GET /api/metrics`. Metrics cover validator-profile
-status and latency, provider outcomes, cache operations, field freshness, and
+status and latency, provider outcomes, validator and wallet cache operations, field freshness, and
 background refreshes. Validator profile failures are logged as one-line JSON.
 
 Prometheus/Grafana are managed outside this repository. Alert rules are in

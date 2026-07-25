@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { createClient, type RedisClientType } from "redis";
+import { getRedisClient, isRedisConfigured } from "../redis";
 
 import type {
   FieldMetadata,
@@ -92,15 +92,6 @@ export interface ValidatorProfileCache {
 }
 
 const CACHE_PREFIX = "validator-profile:v2";
-const REDIS_FAILURE_COOLDOWN_MS = 30_000;
-
-// Redis v6 uses empty object generic defaults for clients without extensions.
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-type RedisClient = RedisClientType<{}, {}, {}, 3, {}>;
-
-let redisClient: RedisClient | null = null;
-let redisConnection: Promise<RedisClient> | null = null;
-let redisUnavailableUntil = 0;
 let redisCache: ValidatorProfileCache | null | undefined;
 
 function cacheKey(
@@ -184,49 +175,12 @@ function parseGroup(
   }
 }
 
-async function connectedClient(): Promise<RedisClient> {
-  if (Date.now() < redisUnavailableUntil) {
-    throw new Error("Redis connection is in cooldown");
-  }
-  if (redisClient?.isReady) return redisClient;
-  if (redisConnection) return redisConnection;
-
-  const url = process.env.REDIS_URL;
-  if (!url) throw new Error("REDIS_URL is not configured");
-
-  const client = createClient({
-    url,
-    socket: {
-      connectTimeout: 1_000,
-      reconnectStrategy: false
-    }
-  });
-  client.on("error", () => undefined);
-
-  redisConnection = client
-    .connect()
-    .then(() => {
-      redisClient = client;
-      redisUnavailableUntil = 0;
-      return client;
-    })
-    .catch((error) => {
-      redisUnavailableUntil = Date.now() + REDIS_FAILURE_COOLDOWN_MS;
-      client.destroy();
-      throw error;
-    })
-    .finally(() => {
-      redisConnection = null;
-    });
-  return redisConnection!;
-}
-
 class RedisValidatorProfileCache implements ValidatorProfileCache {
   async read(
     network: ValidatorNetwork,
     voteAccount: string
   ): Promise<CachedProfileGroups> {
-    const client = await connectedClient();
+    const client = await getRedisClient();
     const serialized = await client.mGet(
       VALIDATOR_PROFILE_CACHE_GROUPS.map((group) =>
         cacheKey(network, voteAccount, group)
@@ -247,7 +201,7 @@ class RedisValidatorProfileCache implements ValidatorProfileCache {
     group: ValidatorProfileCacheGroup,
     value: CachedProfileGroup
   ): Promise<void> {
-    const client = await connectedClient();
+    const client = await getRedisClient();
     await client.set(
       cacheKey(network, voteAccount, group),
       JSON.stringify(value),
@@ -263,7 +217,7 @@ class RedisValidatorProfileCache implements ValidatorProfileCache {
     scope: "profile" | "logo",
     ttlMs: number
   ): Promise<string | null> {
-    const client = await connectedClient();
+    const client = await getRedisClient();
     const token = randomUUID();
     const result = await client.set(
       lockKey(network, voteAccount, scope),
@@ -282,7 +236,7 @@ class RedisValidatorProfileCache implements ValidatorProfileCache {
     scope: "profile" | "logo",
     token: string
   ): Promise<void> {
-    const client = await connectedClient();
+    const client = await getRedisClient();
     await client.eval(
       "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
       { keys: [lockKey(network, voteAccount, scope)], arguments: [token] }
@@ -291,7 +245,7 @@ class RedisValidatorProfileCache implements ValidatorProfileCache {
 }
 
 export function getValidatorProfileCache(): ValidatorProfileCache | null {
-  if (!process.env.REDIS_URL) return null;
+  if (!isRedisConfigured()) return null;
   if (redisCache === undefined) redisCache = new RedisValidatorProfileCache();
   return redisCache;
 }

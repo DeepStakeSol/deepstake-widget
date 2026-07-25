@@ -34,6 +34,10 @@ interface ValidatorProfileMetrics {
   cacheOperations: Counter<"operation" | "result" | "group">;
   fieldStates: Counter<"network" | "field" | "state">;
   backgroundOperations: Counter<"kind" | "outcome">;
+  walletCacheOperations: Counter<
+    "resource" | "operation" | "result" | "network"
+  >;
+  walletCacheRefreshDuration: Histogram<"resource" | "outcome" | "network">;
 }
 
 const globalMetrics = globalThis as typeof globalThis & {
@@ -107,6 +111,19 @@ function createMetrics(): ValidatorProfileMetrics {
       name: "deepstake_validator_background_operations_total",
       help: "Background validator enhancement and refresh outcomes.",
       labelNames: ["kind", "outcome"],
+      registers: [registry]
+    }),
+    walletCacheOperations: new Counter({
+      name: "deepstake_wallet_cache_operations_total",
+      help: "Wallet data cache operations by resource, network, and result.",
+      labelNames: ["resource", "operation", "result", "network"],
+      registers: [registry]
+    }),
+    walletCacheRefreshDuration: new Histogram({
+      name: "deepstake_wallet_cache_refresh_duration_seconds",
+      help: "Wallet data provider refresh duration by resource and outcome.",
+      labelNames: ["resource", "outcome", "network"],
+      buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 15],
       registers: [registry]
     })
   };
@@ -187,4 +204,30 @@ export function recordLogoResponse(
     field: "logoUrl",
     state
   });
+}
+
+export function recordWalletCacheOperation(
+  resource: "native-stake" | "blaze-applied" | "vault-manage",
+  operation: string,
+  result: string,
+  network: string
+): void {
+  validatorProfileMetrics.walletCacheOperations.inc({
+    resource,
+    operation,
+    result,
+    network
+  });
+}
+
+export function observeWalletCacheRefresh(
+  resource: "native-stake" | "blaze-applied" | "vault-manage",
+  outcome: "success" | "error",
+  network: string,
+  elapsedMs: number
+): void {
+  validatorProfileMetrics.walletCacheRefreshDuration.observe(
+    { resource, outcome, network },
+    elapsedMs / 1_000
+  );
 }

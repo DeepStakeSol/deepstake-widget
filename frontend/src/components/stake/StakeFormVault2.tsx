@@ -1,31 +1,28 @@
-"use client";
+'use client'
 
-import { useState, useEffect, useCallback } from "react";
-import { Card } from "@radix-ui/themes";
-import { install } from "@solana/webcrypto-ed25519-polyfill";
-import { StakeButtonVault2 } from "./StakeButtonVault2";
-import { WalletConnectButton } from "../WalletConnectButton";
-import { StakeInputSection } from "./StakeInputSection";
-import { StakeLayout } from "./StakeLayout";
-import { NoWalletTable } from "./NoWalletTable";
-import { VaultBindingBlock } from "./VaultBindingBlock";
-import { useStakeForm } from "../../hooks/useStakeForm";
-import { getImageUrl } from "../../utils/imageUrl";
-import { ValidatorProfile } from "../../utils/solana/validator";
-import { fetchVaultManage, fetchLSTBalance, VaultManageResponse } from "../../utils/api";
-import { VSOL_MINT } from "../../utils/managePrefetch";
+import { useState, useEffect, useCallback } from 'react'
+import { Card } from '@radix-ui/themes'
+import { install } from '@solana/webcrypto-ed25519-polyfill'
+import { StakeButtonVault2 } from './StakeButtonVault2'
+import { WalletConnectButton } from '../WalletConnectButton'
+import { StakeInputSection } from './StakeInputSection'
+import { StakeLayout } from './StakeLayout'
+import { NoWalletTable } from './NoWalletTable'
+import { VaultBindingBlock } from './VaultBindingBlock'
+import { useStakeForm } from '../../hooks/useStakeForm'
+import { getImageUrl } from '../../utils/imageUrl'
+import { ValidatorProfile } from '../../utils/solana/validator'
+import { fetchVaultManage, fetchLSTBalance, VaultManageResponse } from '../../utils/api'
+import { VSOL_MINT } from '../../utils/managePrefetch'
 
-install();
+install()
 
 interface Props {
-  validatorInfo: ValidatorProfile | null;
-  secondsRemainToEpochEnd: number;
+  validatorInfo: ValidatorProfile | null
+  secondsRemainToEpochEnd: number
 }
 
-export function StakeFormVault2({
-  validatorInfo,
-  secondsRemainToEpochEnd,
-}: Props) {
+export function StakeFormVault2({ validatorInfo, secondsRemainToEpochEnd }: Props) {
   const {
     selectedWalletAccount,
     network,
@@ -38,113 +35,107 @@ export function StakeFormVault2({
     handleInputChange,
     resetFormAndRefreshBalance,
     inSufficientBalance,
-  } = useStakeForm();
+  } = useStakeForm()
 
-  const isDevnet = network === "devnet";
-  const [, setvSOLBalance] = useState<number>(0);
-  const [, setVSOLIsLoading] = useState(false);
-  const [vaultManage, setVaultManage] = useState<VaultManageResponse | null>(null);
-  const [vaultManageIsLoading, setVaultManageIsLoading] = useState(false);
+  const isDevnet = network === 'devnet'
+  const [, setvSOLBalance] = useState<number>(0)
+  const [, setVSOLIsLoading] = useState(false)
+  const [vaultManage, setVaultManage] = useState<VaultManageResponse | null>(null)
+  const [vaultManageIsLoading, setVaultManageIsLoading] = useState(false)
 
-  const fetchVaultManageData = useCallback(async (walletAddress: string) => {
-    setVaultManageIsLoading(true);
-    try {
-      const data = await fetchVaultManage(walletAddress, network);
-      setVaultManage(data);
-      return data;
-    } catch {
-      setVaultManage(null);
-      return null;
-    } finally {
-      setVaultManageIsLoading(false);
-    }
-  }, [network]);
+  const fetchVaultManageData = useCallback(
+    async (walletAddress: string) => {
+      setVaultManageIsLoading(true)
+      try {
+        const data = await fetchVaultManage(walletAddress, network)
+        setVaultManage(data)
+        return data
+      } catch {
+        setVaultManage(null)
+        return null
+      } finally {
+        setVaultManageIsLoading(false)
+      }
+    },
+    [network]
+  )
 
   const logVaultManageData = useCallback((data: VaultManageResponse | null) => {
     if (!data) {
       // eslint-disable-next-line no-console
-      console.info("[Vault Manage]", {
+      console.info('[Vault Manage]', {
         hasVaultDirectedStakeBinding: false,
         latestStakebotDataContainsGeneratedStake: false,
         latestStakebotDataUrl: null,
-      });
-      return;
+      })
+      return
     }
 
     // eslint-disable-next-line no-console
-    console.info("[Vault Manage]", {
+    console.info('[Vault Manage]', {
       hasVaultDirectedStakeBinding: data.binding.hasBinding,
       latestStakebotDataContainsGeneratedStake: data.stakebot.found,
       latestStakebotDataUrl: data.stakebot.sourceUrl ?? null,
-    });
-  }, []);
+    })
+  }, [])
 
   const handleManageOpen = useCallback(async () => {
     if (isDevnet || !isConnected || !selectedWalletAccount) {
-      return;
+      return
     }
 
-    const data = await fetchVaultManageData(selectedWalletAccount.address);
-    logVaultManageData(data);
-  }, [
-    fetchVaultManageData,
-    isConnected,
-    isDevnet,
-    logVaultManageData,
-    selectedWalletAccount,
-  ]);
+    const data = await fetchVaultManageData(selectedWalletAccount.address)
+    logVaultManageData(data)
+  }, [fetchVaultManageData, isConnected, isDevnet, logVaultManageData, selectedWalletAccount])
 
-  const fetchVSOLBalance = useCallback(async (walletAddress: string) => {
-    setVSOLIsLoading(true);
-    try {
-      const balance = await fetchLSTBalance(walletAddress, network, VSOL_MINT);
-      setvSOLBalance(balance);
-    } catch (err) {
-      console.error(err);
-    }
-    setVSOLIsLoading(false);
-  }, [network]);
+  const fetchVSOLBalance = useCallback(
+    async (walletAddress: string) => {
+      setVSOLIsLoading(true)
+      try {
+        const balance = await fetchLSTBalance(walletAddress, network, VSOL_MINT)
+        setvSOLBalance(balance)
+      } catch (err) {
+        console.error(err)
+      }
+      setVSOLIsLoading(false)
+    },
+    [network]
+  )
 
   useEffect(() => {
     if (isDevnet || !isConnected) {
-      setvSOLBalance(0);
-      setVaultManage(null);
+      setvSOLBalance(0)
+      setVaultManage(null)
     }
-  }, [isDevnet, isConnected]);
+  }, [isDevnet, isConnected])
 
   useEffect(() => {
     if (isDevnet) {
-      setvSOLBalance(0);
-      setVaultManage(null);
-      setVSOLIsLoading(false);
-      setVaultManageIsLoading(false);
-      return;
+      setvSOLBalance(0)
+      setVaultManage(null)
+      setVSOLIsLoading(false)
+      setVaultManageIsLoading(false)
+      return
     }
 
     if (!selectedWalletAccount) {
-      setvSOLBalance(0);
-      setVaultManage(null);
-      return;
+      setvSOLBalance(0)
+      setVaultManage(null)
+      return
     }
-    fetchVSOLBalance(selectedWalletAccount.address);
-    fetchVaultManageData(selectedWalletAccount.address);
-  }, [fetchVSOLBalance, fetchVaultManageData, isDevnet, selectedWalletAccount]);
+    fetchVSOLBalance(selectedWalletAccount.address)
+    fetchVaultManageData(selectedWalletAccount.address)
+  }, [fetchVSOLBalance, fetchVaultManageData, isDevnet, selectedWalletAccount])
 
   const handleSuccess = useCallback(() => {
-    resetFormAndRefreshBalance();
-    setvSOLBalance(0);
-  }, [resetFormAndRefreshBalance]);
+    resetFormAndRefreshBalance()
+    setvSOLBalance(0)
+  }, [resetFormAndRefreshBalance])
 
   if (isDevnet) {
     return (
-      <Card
-        size="3"
-        className="stake-form vault-devnet-card"
-        style={{ padding: "25px 50px" }}
-      >
-        <div className="vault-devnet-empty">
-          The Vault only works in the mainnet cluster
-        </div>
+      <Card size="3" className="stake-form vault-devnet-card" style={{ padding: '25px 50px' }}>
+        <div className="vault-devnet-empty">The Vault only works in the mainnet cluster</div>
         <style>{`
           [data-widget="deepstake"] .vault-devnet-card {
             background-color: #fff;
@@ -173,7 +164,7 @@ export function StakeFormVault2({
           }
         `}</style>
       </Card>
-    );
+    )
   }
 
   return (
@@ -203,6 +194,7 @@ export function StakeFormVault2({
               onVSOLIsLoading={setVSOLIsLoading}
               balance={balance}
               voteIdentity={validatorInfo?.voteAccount}
+              onVaultManageLoaded={setVaultManage}
             />
           ) : (
             <WalletConnectButton />
@@ -214,14 +206,29 @@ export function StakeFormVault2({
           <div className="manage-wrap">
             {vaultManageIsLoading && (
               <div className="manage-overlay">
-                <img className="manage-loader-light" src={getImageUrl("/images/mid_loader.png")} alt="" />
-                <img className="manage-loader-dark" src={getImageUrl("/images/big_loader.png")} alt="" />
+                <img
+                  className="manage-loader-light"
+                  src={getImageUrl('/images/mid_loader.png')}
+                  alt=""
+                />
+                <img
+                  className="manage-loader-dark"
+                  src={getImageUrl('/images/big_loader.png')}
+                  alt=""
+                />
               </div>
             )}
             <VaultBindingBlock data={vaultManage} isLoading={false} validatorInfo={validatorInfo} />
             <div className="unstake-info">
               <p>To unstake it, sell them through your wallet or DEX.</p>
-              <a href="https://jup.ag" target="_blank" rel="noopener noreferrer" className="jupiter-btn">Jupiter</a>
+              <a
+                href="https://jup.ag"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="jupiter-btn"
+              >
+                Jupiter
+              </a>
             </div>
             <style>{`
               [data-widget="deepstake"] .manage-wrap {
@@ -321,5 +328,5 @@ export function StakeFormVault2({
       }
       onManageOpen={handleManageOpen}
     />
-  );
+  )
 }

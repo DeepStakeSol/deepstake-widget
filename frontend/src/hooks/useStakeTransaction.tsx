@@ -1,47 +1,45 @@
-"use client";
+'use client'
 
-import { useCallback, useState } from "react";
-import { UiWalletAccount } from "@wallet-standard/react";
-import { useWalletAccountTransactionSigner } from "@solana/react";
+import { useCallback, useState } from 'react'
+import { UiWalletAccount } from '@wallet-standard/react'
+import { useWalletAccountTransactionSigner } from '@solana/react'
 import {
   generateKeyPairSigner,
-  getBase58Decoder,
   getBase64Encoder,
   getBase64EncodedWireTransaction,
   getTransactionDecoder,
   partiallySignTransaction,
-} from "@solana/kit";
-import { getCurrentChain, getValidatorAddress } from "../utils/config";
-import { useOptions } from "../options";
-import { createRpcConnection } from "../utils/solana/rpc";
-import { LAMPORTS_PER_SOL } from "../utils/constants";
-import { GetStakeAccountResponse } from "../utils/solana/stake/get-stake-accounts";
+} from '@solana/kit'
+import { getCurrentChain, getValidatorAddress } from '../utils/config'
+import { useOptions } from '../options'
+import { createRpcConnection } from '../utils/solana/rpc'
+import { LAMPORTS_PER_SOL } from '../utils/constants'
+import { GetStakeAccountResponse } from '../utils/solana/stake/get-stake-accounts'
 import {
   generateStakeTransaction,
   fetchStakeAccounts,
   confirmTransaction,
   invalidateSolBalanceCache,
-} from "../utils/api";
-import { invalidateStakeAccountsCache } from "../utils/stakeAccountsCache";
+} from '../utils/api'
 
 export interface UseStakeTransactionOptions {
-  network: string;
-  account: UiWalletAccount;
-  stakeAmount: string;
-  inSufficientBalance: boolean;
-  onSuccess: () => void;
-  onDataLoaded: (stakeAccounts: GetStakeAccountResponse[]) => void;
+  network: string
+  account: UiWalletAccount
+  stakeAmount: string
+  inSufficientBalance: boolean
+  onSuccess: () => void
+  onDataLoaded: (stakeAccounts: GetStakeAccountResponse[]) => void
 }
 
 export interface UseStakeTransactionResult {
-  isSendingTransaction: boolean;
-  lastSignature?: string;
-  lastStakeAccount?: string;
-  error?: unknown;
-  disableStakeButton: boolean;
-  buttonLabel: string;
-  handleSubmit: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>;
-  handleCloseModal: () => void;
+  isSendingTransaction: boolean
+  lastSignature?: string
+  lastStakeAccount?: string
+  error?: unknown
+  disableStakeButton: boolean
+  buttonLabel: string
+  handleSubmit: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>
+  handleCloseModal: () => void
 }
 
 export function useStakeTransaction({
@@ -52,36 +50,31 @@ export function useStakeTransaction({
   onSuccess,
   onDataLoaded,
 }: UseStakeTransactionOptions) {
-  const currentChain = getCurrentChain();
-  const walletSigner = useWalletAccountTransactionSigner(
-    account,
-    currentChain
-  );
+  const currentChain = getCurrentChain()
+  const walletSigner = useWalletAccountTransactionSigner(account, currentChain)
 
-  const options = useOptions();
-  const [isSendingTransaction, setIsSendingTransaction] = useState(false);
-  const [lastSignature, setLastSignature] = useState<string | undefined>();
-  const [lastStakeAccount, setLastStakeAccount] = useState<string | undefined>();
+  const options = useOptions()
+  const [isSendingTransaction, setIsSendingTransaction] = useState(false)
+  const [lastSignature, setLastSignature] = useState<string | undefined>()
+  const [lastStakeAccount, setLastStakeAccount] = useState<string | undefined>()
 
-  const [error, setError] = useState<unknown | undefined>(undefined);
+  const [error, setError] = useState<unknown | undefined>(undefined)
 
   const handleSubmit = useCallback(
     async (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      if (!stakeAmount || !walletSigner) return;
+      event.preventDefault()
+      if (!stakeAmount || !walletSigner) return
 
-      setError(undefined);
-      setIsSendingTransaction(true);
-      setLastSignature(undefined);
-      setLastStakeAccount(undefined);
+      setError(undefined)
+      setIsSendingTransaction(true)
+      setLastSignature(undefined)
+      setLastStakeAccount(undefined)
       try {
-        const newAccount = await generateKeyPairSigner();
-        setLastStakeAccount(newAccount.address);
+        const newAccount = await generateKeyPairSigner()
+        setLastStakeAccount(newAccount.address)
 
         // Convert SOL to lamports
-        const stakeLamportsAmount = Math.floor(
-          parseFloat(stakeAmount) * LAMPORTS_PER_SOL
-        );
+        const stakeLamportsAmount = Math.floor(parseFloat(stakeAmount) * LAMPORTS_PER_SOL)
 
         // Step 1: Generate the transaction message
         const serverTransaction = await generateStakeTransaction(network, {
@@ -89,66 +82,62 @@ export function useStakeTransaction({
           stakeLamports: stakeLamportsAmount,
           stakerAddress: account.address,
           voteAccount: getValidatorAddress(options),
-        });
+        })
 
-        const base64Encoder = getBase64Encoder();
-        const transactionBytes = base64Encoder.encode(serverTransaction);
-        const transactionDecoder = getTransactionDecoder();
-        const decodedTransaction = transactionDecoder.decode(transactionBytes);
-        const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction]);
-        const fullySignedTx = await partiallySignTransaction([newAccount.keyPair], walletSignedTx);
-        const rpc = createRpcConnection(network);
-        const wireTransaction = getBase64EncodedWireTransaction(fullySignedTx);
-        const signature = await rpc.sendTransaction(wireTransaction, { encoding: "base64" }).send();
+        const base64Encoder = getBase64Encoder()
+        const transactionBytes = base64Encoder.encode(serverTransaction)
+        const transactionDecoder = getTransactionDecoder()
+        const decodedTransaction = transactionDecoder.decode(transactionBytes)
+        const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction])
+        const fullySignedTx = await partiallySignTransaction([newAccount.keyPair], walletSignedTx)
+        const rpc = createRpcConnection(network)
+        const wireTransaction = getBase64EncodedWireTransaction(fullySignedTx)
+        const signature = await rpc.sendTransaction(wireTransaction, { encoding: 'base64' }).send()
 
         // Call the new confirmation API endpoint
         await confirmTransaction(network, {
           txid: signature,
-          targetCommitment: "processed",
+          targetCommitment: 'confirmed',
           timeout: 30000,
           interval: 1000,
-        });
+          cacheMutation: { walletAddress: account.address, mutation: 'native-stake' },
+        })
 
-        invalidateSolBalanceCache(account.address, network);
-        invalidateStakeAccountsCache(account.address, network);
-        setLastSignature(signature);
+        invalidateSolBalanceCache(account.address, network)
+        setLastSignature(signature)
+        try {
+          const accounts = await fetchStakeAccounts(account.address, network, { refresh: true })
+          onDataLoaded(accounts)
+        } catch (refreshError) {
+          console.error('Failed to refresh stake accounts:', refreshError)
+        }
       } catch (err) {
-        console.error("Staking error:", err);
-        setError(err);
-        setLastStakeAccount(undefined);
+        console.error('Staking error:', err)
+        setError(err)
+        setLastStakeAccount(undefined)
       } finally {
-        setIsSendingTransaction(false);
-
-        // Fetch stake accounts
-        fetchStakeAccounts(account.address, network)
-          .then((accounts) => {
-            onDataLoaded(accounts);
-          })
-          .catch((error) =>
-            console.error("Failed to fetch stake accounts:", error)
-          );
+        setIsSendingTransaction(false)
       }
     },
-    [account, stakeAmount, walletSigner, network, onDataLoaded]
-  );
+    [account, stakeAmount, walletSigner, network, onDataLoaded, options]
+  )
 
   const handleCloseModal = useCallback(() => {
-    setLastSignature(undefined);
-    setLastStakeAccount(undefined);
-    onSuccess();
-  }, [onSuccess]);
+    setLastSignature(undefined)
+    setLastStakeAccount(undefined)
+    onSuccess()
+  }, [onSuccess])
 
-  const stakeAmountNumber = parseFloat(stakeAmount) || 0;
-  const isZeroStake = stakeAmountNumber <= 0;
-  const disableStakeButton =
-    isSendingTransaction || inSufficientBalance || isZeroStake;
+  const stakeAmountNumber = parseFloat(stakeAmount) || 0
+  const isZeroStake = stakeAmountNumber <= 0
+  const disableStakeButton = isSendingTransaction || inSufficientBalance || isZeroStake
   const buttonLabel = isSendingTransaction
-    ? "Confirming Transaction"
+    ? 'Confirming Transaction'
     : inSufficientBalance
-    ? "Insufficient Balance"
-    : isZeroStake
-    ? "Enter stake amount"
-    : "Stake";
+      ? 'Insufficient Balance'
+      : isZeroStake
+        ? 'Enter stake amount'
+        : 'Stake'
 
   return {
     isSendingTransaction,
@@ -159,5 +148,5 @@ export function useStakeTransaction({
     buttonLabel,
     handleSubmit,
     handleCloseModal,
-  } as UseStakeTransactionResult;
+  } as UseStakeTransactionResult
 }

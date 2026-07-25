@@ -1,32 +1,27 @@
-import { Button } from "@radix-ui/themes";
+import { Button } from '@radix-ui/themes'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { UiWalletAccount } from '@wallet-standard/react'
+import { useWalletAccountTransactionSendingSigner } from '@solana/react'
+import { getBase58Decoder, getBase64Encoder, getTransactionDecoder } from '@solana/kit'
 import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { UiWalletAccount } from "@wallet-standard/react";
-import { useWalletAccountTransactionSendingSigner } from "@solana/react";
-import {
-  getBase58Decoder,
-  getBase64Encoder,
-  getTransactionDecoder,
-} from "@solana/kit";
-import { confirmTransaction, generateWithdrawTransaction, invalidateSolBalanceCache } from "../../utils/api";
-import { invalidateStakeAccountsCache } from "../../utils/stakeAccountsCache";
-import { getCurrentChain } from "../../utils/config";
-import { ErrorDialog } from "../ErrorDialog";
-import { useStakingModal } from "../../context/StakingModalContext";
+  confirmTransaction,
+  fetchStakeAccounts,
+  generateWithdrawTransaction,
+  invalidateSolBalanceCache,
+} from '../../utils/api'
+import { getCurrentChain } from '../../utils/config'
+import { ErrorDialog } from '../ErrorDialog'
+import { useStakingModal } from '../../context/StakingModalContext'
 
-import { GetStakeAccountResponse } from "../../utils/solana/stake/get-stake-accounts";
+import { GetStakeAccountResponse } from '../../utils/solana/stake/get-stake-accounts'
 
 interface WithdrawButtonProps {
-  network: string;
-  account: UiWalletAccount;
+  network: string
+  account: UiWalletAccount
   //inSufficientBalance: boolean;
-  onSuccess: () => void;
-  selectedRow: GetStakeAccountResponse | null;
-  isDisabled: boolean;
+  onSuccess: () => void
+  selectedRow: GetStakeAccountResponse | null
+  isDisabled: boolean
 }
 
 // backend helpers imported below
@@ -38,100 +33,103 @@ export function WithdrawButton({
   selectedRow,
   isDisabled,
 }: WithdrawButtonProps) {
-  const { showTransactionModal, hideTransactionModal, showSuccessModal, hideSuccessModal } = useStakingModal();
-  const currentChain = getCurrentChain();
-  const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
-    account,
-    currentChain
-  );
-  const [isSendingTX, setIsSendingTX] = useState(false);
-  const [txSignature, setTxSignature] = useState<string | undefined>();
-  const [stakeAcct, setStakeAcct] = useState<string | undefined>();
-  const { current: NO_ERROR } = useRef(Symbol());
-  const [error, setError] = useState(NO_ERROR);
+  const { showTransactionModal, hideTransactionModal, showSuccessModal, hideSuccessModal } =
+    useStakingModal()
+  const currentChain = getCurrentChain()
+  const transactionSendingSigner = useWalletAccountTransactionSendingSigner(account, currentChain)
+  const [isSendingTX, setIsSendingTX] = useState(false)
+  const [txSignature, setTxSignature] = useState<string | undefined>()
+  const { current: NO_ERROR } = useRef(Symbol())
+  const [error, setError] = useState(NO_ERROR)
 
   const handleWithdrawSubmit = useCallback(
     async (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      if (!transactionSendingSigner) return;
+      event.preventDefault()
+      if (!transactionSendingSigner) return
 
-      if (!selectedRow) return;
+      if (!selectedRow) return
 
-      setError(NO_ERROR);
-      setIsSendingTX(true);
-      setTxSignature(undefined);
-      showTransactionModal();
+      setError(NO_ERROR)
+      setIsSendingTX(true)
+      setTxSignature(undefined)
+      showTransactionModal()
 
       try {
-
         // Step 1: Generate the transaction message
         const wireTransaction = await generateWithdrawTransaction(network, {
           stakeAccountAddress: selectedRow.address,
           recipientAccountAddress: account.address,
-        });
+        })
 
-        const base64Encoder = getBase64Encoder();
-        const transactionBytes = base64Encoder.encode(wireTransaction);
-        const transactionDecoder = getTransactionDecoder();
-        const decodedTransaction = transactionDecoder.decode(transactionBytes);
+        const base64Encoder = getBase64Encoder()
+        const transactionBytes = base64Encoder.encode(wireTransaction)
+        const transactionDecoder = getTransactionDecoder()
+        const decodedTransaction = transactionDecoder.decode(transactionBytes)
 
         // leverages the wallet's transaction sending signer and rpc
-        const rawSignature =
-          await transactionSendingSigner.signAndSendTransactions([
-            decodedTransaction
-          ]);
-        const signature = getBase58Decoder().decode(rawSignature[0]);
+        const rawSignature = await transactionSendingSigner.signAndSendTransactions([
+          decodedTransaction,
+        ])
+        const signature = getBase58Decoder().decode(rawSignature[0])
 
         // Call the new confirmation API endpoint
         await confirmTransaction(network, {
           txid: signature,
-          targetCommitment: "processed",
+          targetCommitment: 'confirmed',
           timeout: 30000,
           interval: 1000,
-        });
+          cacheMutation: { walletAddress: account.address, mutation: 'native-withdraw' },
+        })
 
-        invalidateSolBalanceCache(account.address, network);
-        invalidateStakeAccountsCache(account.address, network);
-        setTxSignature(signature);
-
+        invalidateSolBalanceCache(account.address, network)
+        setTxSignature(signature)
+        try {
+          await fetchStakeAccounts(account.address, network, { refresh: true })
+        } catch (refreshError) {
+          console.error('Failed to refresh stake accounts:', refreshError)
+        }
       } catch (error) {
-        console.error("UnStaking error:", error);
-        setError(error as symbol);
-        setStakeAcct(undefined);
+        console.error('UnStaking error:', error)
+        setError(error as symbol)
       } finally {
-        setIsSendingTX(false);
-        hideTransactionModal();
+        setIsSendingTX(false)
+        hideTransactionModal()
       }
     },
-    [account, network, transactionSendingSigner, NO_ERROR, showTransactionModal, hideTransactionModal]
-  );
+    [
+      account,
+      network,
+      transactionSendingSigner,
+      NO_ERROR,
+      showTransactionModal,
+      hideTransactionModal,
+      selectedRow,
+    ]
+  )
 
   const handleCloseModal = useCallback(() => {
-    setTxSignature(undefined);
-    setStakeAcct(undefined);
-    onSuccess();
-  }, [onSuccess]);
+    setTxSignature(undefined)
+    onSuccess()
+  }, [onSuccess])
 
   // Trigger success modal when transaction completes
   useEffect(() => {
     if (txSignature) {
       showSuccessModal({
-        title: "Transaction confirmed!",
-        message: "Your funds is already at your wallet.",
+        title: 'Transaction confirmed!',
+        message: 'Your funds is already at your wallet.',
         signature: txSignature,
         onClose: () => {
-          handleCloseModal();
+          handleCloseModal()
         },
-      });
+      })
     } else {
-      hideSuccessModal();
+      hideSuccessModal()
     }
-  }, [txSignature, showSuccessModal, hideSuccessModal, handleCloseModal]);
+  }, [txSignature, showSuccessModal, hideSuccessModal, handleCloseModal])
 
-  const disableUnstakeButton = isDisabled;
-  const buttonLabel = isSendingTX
-    ? "Confirming Transaction"
-    : "Withdraw";
+  const disableUnstakeButton = isDisabled
+  const buttonLabel = isSendingTX ? 'Confirming Transaction' : 'Withdraw'
 
   return (
     <>
@@ -142,15 +140,11 @@ export function WithdrawButton({
         onClick={handleWithdrawSubmit}
         disabled={disableUnstakeButton}
       >
-       <span>{buttonLabel}</span>
+        <span>{buttonLabel}</span>
       </Button>
 
       {error !== NO_ERROR && (
-        <ErrorDialog
-          error={error}
-          onClose={() => setError(NO_ERROR)}
-          title="Withdrawal failed"
-        />
+        <ErrorDialog error={error} onClose={() => setError(NO_ERROR)} title="Withdrawal failed" />
       )}
 
       <style>{`
@@ -171,5 +165,5 @@ export function WithdrawButton({
         }
       `}</style>
     </>
-  );
+  )
 }

@@ -1,30 +1,27 @@
-"use client";
+'use client'
 
-import { useState, useEffect, useCallback } from "react";
-import { install } from "@solana/webcrypto-ed25519-polyfill";
-import { StakeButtonBlaze } from "./StakeButtonBlaze";
-import { WalletConnectButton } from "../WalletConnectButton";
-import { StakeInputSection } from "./StakeInputSection";
-import { StakeLayout } from "./StakeLayout";
-import { NoWalletTable } from "./NoWalletTable";
-import { BSOLBalanceTable2 } from "./BSOLBalanceTable2";
-import { useStakeForm } from "../../hooks/useStakeForm";
-import { ValidatorProfile } from "../../utils/solana/validator";
-import { BlazeAppliedStake, fetchBlazeAppliedStakes, fetchLSTBalance } from "../../utils/api";
-import { getImageUrl } from "../../utils/imageUrl";
-import { BSOL_MINT } from "../../utils/managePrefetch";
+import { useState, useEffect, useCallback } from 'react'
+import { install } from '@solana/webcrypto-ed25519-polyfill'
+import { StakeButtonBlaze } from './StakeButtonBlaze'
+import { WalletConnectButton } from '../WalletConnectButton'
+import { StakeInputSection } from './StakeInputSection'
+import { StakeLayout } from './StakeLayout'
+import { NoWalletTable } from './NoWalletTable'
+import { BSOLBalanceTable2 } from './BSOLBalanceTable2'
+import { useStakeForm } from '../../hooks/useStakeForm'
+import { ValidatorProfile } from '../../utils/solana/validator'
+import { BlazeAppliedStake, fetchBlazeAppliedStakes, fetchLSTBalance } from '../../utils/api'
+import { getImageUrl } from '../../utils/imageUrl'
+import { BSOL_MINT } from '../../utils/managePrefetch'
 
-install();
+install()
 
 interface Props {
-  validatorInfo: ValidatorProfile | null;
-  secondsRemainToEpochEnd: number;
+  validatorInfo: ValidatorProfile | null
+  secondsRemainToEpochEnd: number
 }
 
-export function StakeFormBlaze({
-  validatorInfo,
-  secondsRemainToEpochEnd,
-}: Props) {
+export function StakeFormBlaze({ validatorInfo, secondsRemainToEpochEnd }: Props) {
   const {
     selectedWalletAccount,
     network,
@@ -37,73 +34,79 @@ export function StakeFormBlaze({
     handleInputChange,
     resetFormAndRefreshBalance,
     inSufficientBalance,
-  } = useStakeForm();
+  } = useStakeForm()
 
-  const [bSOLBalance, setbSOLBalance] = useState<number>(0);
-  const [bSOLIsLoading, setBSOLIsLoading] = useState(false);
-  const [appliedStakes, setAppliedStakes] = useState<BlazeAppliedStake[]>([]);
-  const [appliedStakesIsLoading, setAppliedStakesIsLoading] = useState(false);
-  const isDevnet = network === "devnet";
-  const manageValidatorName = isDevnet ? undefined : validatorInfo?.name ?? undefined;
-  const blazeManageIsLoading = bSOLIsLoading || appliedStakesIsLoading;
+  const [bSOLBalance, setbSOLBalance] = useState<number>(0)
+  const [bSOLIsLoading, setBSOLIsLoading] = useState(false)
+  const [appliedStakes, setAppliedStakes] = useState<BlazeAppliedStake[]>([])
+  const [appliedStakesIsLoading, setAppliedStakesIsLoading] = useState(false)
+  const isDevnet = network === 'devnet'
+  const manageValidatorName = isDevnet ? undefined : (validatorInfo?.name ?? undefined)
+  const blazeManageIsLoading = bSOLIsLoading || appliedStakesIsLoading
 
-  const fetchAppliedStakes = useCallback(async (walletAddress: string) => {
-    if (isDevnet) {
-      setAppliedStakes([]);
-      setAppliedStakesIsLoading(false);
-      return;
-    }
+  const fetchAppliedStakes = useCallback(
+    async (walletAddress: string) => {
+      if (isDevnet) {
+        setAppliedStakes([])
+        setAppliedStakesIsLoading(false)
+        return
+      }
 
-    setAppliedStakesIsLoading(true);
-    try {
-      const stakes = await fetchBlazeAppliedStakes(walletAddress, network);
-      setAppliedStakes(stakes);
-    } catch (err) {
-      console.error("Failed to fetch applied stakes:", err);
-    }
-    setAppliedStakesIsLoading(false);
-  }, [isDevnet, network]);
+      setAppliedStakesIsLoading(true)
+      try {
+        const stakes = await fetchBlazeAppliedStakes(walletAddress, network)
+        setAppliedStakes(stakes)
+      } catch (err) {
+        console.error('Failed to fetch applied stakes:', err)
+      }
+      setAppliedStakesIsLoading(false)
+    },
+    [isDevnet, network]
+  )
 
-  const fetchBSOLBalance = useCallback(async (walletAddress: string) => {
-    setBSOLIsLoading(true);
-    try {
-      const balance = await fetchLSTBalance(walletAddress, network, BSOL_MINT);
-      setbSOLBalance(balance);
-    } catch (err) {
-      console.error(err);
-    }
-    setBSOLIsLoading(false);
-  }, [network]);
+  const fetchBSOLBalance = useCallback(
+    async (walletAddress: string) => {
+      setBSOLIsLoading(true)
+      try {
+        const balance = await fetchLSTBalance(walletAddress, network, BSOL_MINT)
+        setbSOLBalance(balance)
+      } catch (err) {
+        console.error(err)
+      }
+      setBSOLIsLoading(false)
+    },
+    [network]
+  )
 
   useEffect(() => {
     if (!isConnected) {
-      setbSOLBalance(0);
-      setAppliedStakes([]);
+      setbSOLBalance(0)
+      setAppliedStakes([])
     }
-  }, [isConnected]);
+  }, [isConnected])
 
   useEffect(() => {
     if (!selectedWalletAccount) {
-      setbSOLBalance(0);
-      setAppliedStakes([]);
-      return;
+      setbSOLBalance(0)
+      setAppliedStakes([])
+      return
     }
-    fetchBSOLBalance(selectedWalletAccount.address);
-    fetchAppliedStakes(selectedWalletAccount.address);
-  }, [fetchAppliedStakes, fetchBSOLBalance, selectedWalletAccount]);
+    fetchBSOLBalance(selectedWalletAccount.address)
+    fetchAppliedStakes(selectedWalletAccount.address)
+  }, [fetchAppliedStakes, fetchBSOLBalance, selectedWalletAccount])
 
   const handleManageOpen = useCallback(() => {
-    if (!selectedWalletAccount) return;
+    if (!selectedWalletAccount) return
 
-    void fetchBSOLBalance(selectedWalletAccount.address);
-    void fetchAppliedStakes(selectedWalletAccount.address);
-  }, [fetchAppliedStakes, fetchBSOLBalance, selectedWalletAccount]);
+    void fetchBSOLBalance(selectedWalletAccount.address)
+    void fetchAppliedStakes(selectedWalletAccount.address)
+  }, [fetchAppliedStakes, fetchBSOLBalance, selectedWalletAccount])
 
   const handleSuccess = useCallback(() => {
-    resetFormAndRefreshBalance();
-    setbSOLBalance(0);
-    setAppliedStakes([]);
-  }, [resetFormAndRefreshBalance]);
+    resetFormAndRefreshBalance()
+    setbSOLBalance(0)
+    setAppliedStakes([])
+  }, [resetFormAndRefreshBalance])
 
   return (
     <StakeLayout
@@ -132,6 +135,7 @@ export function StakeFormBlaze({
               onDataLoaded={setbSOLBalance}
               onBSOLIsLoading={setBSOLIsLoading}
               voteIdentity={validatorInfo?.voteAccount}
+              onAppliedStakesLoaded={setAppliedStakes}
             />
           ) : (
             <WalletConnectButton />
@@ -143,8 +147,16 @@ export function StakeFormBlaze({
           <div className="manage-wrap">
             {blazeManageIsLoading && (
               <div className="manage-overlay">
-                <img className="manage-loader-light" src={getImageUrl("/images/mid_loader.png")} alt="" />
-                <img className="manage-loader-dark" src={getImageUrl("/images/big_loader.png")} alt="" />
+                <img
+                  className="manage-loader-light"
+                  src={getImageUrl('/images/mid_loader.png')}
+                  alt=""
+                />
+                <img
+                  className="manage-loader-dark"
+                  src={getImageUrl('/images/big_loader.png')}
+                  alt=""
+                />
               </div>
             )}
             <BSOLBalanceTable2
@@ -209,5 +221,5 @@ export function StakeFormBlaze({
         )
       }
     />
-  );
+  )
 }

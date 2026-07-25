@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   observeProviderRequest,
+  observeWalletCacheRefresh,
   recordCacheOperation,
   recordLogoResponse,
+  recordWalletCacheOperation,
   recordProfileResponse,
   validatorProfileMetrics
 } from "./metrics";
@@ -56,6 +58,8 @@ describe("validator profile metrics", () => {
     observeProviderRequest("stakewiz", "mainnet", "timeout", 8_000);
     recordCacheOperation("lookup", "stale");
     recordProfileResponse("mainnet", profile, 125);
+    recordWalletCacheOperation("native-stake", "lookup", "fresh", "mainnet");
+    observeWalletCacheRefresh("native-stake", "success", "mainnet", 50);
     recordLogoResponse(
       "mainnet",
       {
@@ -88,6 +92,12 @@ describe("validator profile metrics", () => {
       'deepstake_validator_logo_requests_total{network="mainnet",status="fresh"} 1'
     );
     expect(metrics).toContain('field="logoUrl",state="fresh"');
+    expect(metrics).toContain(
+      'deepstake_wallet_cache_operations_total{resource="native-stake",operation="lookup",result="fresh",network="mainnet"} 1'
+    );
+    expect(metrics).toContain(
+      'deepstake_wallet_cache_refresh_duration_seconds_count{resource="native-stake",outcome="success",network="mainnet"} 1'
+    );
     expect(metrics).not.toContain(profile.voteAccount);
   });
 });

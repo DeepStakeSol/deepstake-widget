@@ -1,23 +1,23 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { address } from "@solana/kit";
+
 import { ValidatorStakingError } from "@/utils/errors";
 import { createRpcConnection } from "@/utils/solana/rpc";
-import { address } from "@solana/kit";
 import { getStakeAccounts } from "@/utils/solana/stake/get-stake-accounts";
-
-/**
- * Get the stake accounts for a wallet address and optionally filtered by vote account
- * @param request - The request object
- * @returns The stake accounts associated with the wallet address
- * Endpoint: /api/stake?owner=<address>&vote=<address>
- */
+import { getNativeStakeAccounts } from "@/utils/walletData/providers";
+import { parseWalletNetwork } from "@/utils/walletData/network";
 
 export async function GET(request: NextRequest) {
   try {
-
     const searchParams = request.nextUrl.searchParams;
-    const network = searchParams.get("network");
+    const network = parseWalletNetwork(searchParams.get("network"), "devnet");
     const ownerAddress = searchParams.get("owner");
     const voteAddress = searchParams.get("vote");
+    const forceRefresh = searchParams.get("refresh") === "true";
+
+    if (!network) {
+      return NextResponse.json({ error: "Invalid network" }, { status: 400 });
+    }
 
     if (!ownerAddress) {
       return NextResponse.json(
@@ -26,13 +26,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const rpc = createRpcConnection(network);
-
-    const stakeAccounts = await getStakeAccounts({
-      rpc,
-      owner: address(ownerAddress),
-      vote: voteAddress ? address(voteAddress) : undefined
-    });
+    // Vote-filtered reads have a different result shape per vote account and remain uncached.
+    const stakeAccounts = voteAddress
+      ? await getStakeAccounts({
+          rpc: createRpcConnection(network),
+          owner: address(ownerAddress),
+          vote: address(voteAddress)
+        })
+      : await getNativeStakeAccounts(network, ownerAddress, forceRefresh);
 
     return NextResponse.json({ stakeAccounts });
   } catch (error) {

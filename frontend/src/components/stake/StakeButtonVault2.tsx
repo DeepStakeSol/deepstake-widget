@@ -1,44 +1,44 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { UiWalletAccount } from "@wallet-standard/react";
-import { useWalletAccountTransactionSigner } from "@solana/react";
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { UiWalletAccount } from '@wallet-standard/react'
+import { useWalletAccountTransactionSigner } from '@solana/react'
 import {
   type Base64EncodedWireTransaction,
   getBase64EncodedWireTransaction,
   getTransactionDecoder,
-} from "@solana/kit";
-import { getCurrentChain } from "../../utils/config";
-import { createRpcConnection } from "../../utils/solana/rpc";
-import { StakeButtonBase } from "./StakeButtonBase";
-import { useStakingModal } from "../../context/StakingModalContext";
-import { getBackendUrl } from "../../utils/backendUrl";
+} from '@solana/kit'
+import { getCurrentChain } from '../../utils/config'
+import { createRpcConnection } from '../../utils/solana/rpc'
+import { StakeButtonBase } from './StakeButtonBase'
+import { useStakingModal } from '../../context/StakingModalContext'
+import { getBackendUrl } from '../../utils/backendUrl'
 
-import * as solanaWeb3 from '@solana/web3.js';
+import * as solanaWeb3 from '@solana/web3.js'
 
 interface StakeButtonProps {
-  network: string;
-  account: UiWalletAccount;
-  stakeAmount: string;
-  inSufficientBalance: boolean;
-  onSuccess: () => void;
-  onDataLoaded: (vSOLBalance: number) => void;
-  onVSOLIsLoading: (isLoading: boolean) => void;
-  balance: number;
-  voteIdentity?: string;
+  network: string
+  account: UiWalletAccount
+  stakeAmount: string
+  inSufficientBalance: boolean
+  onSuccess: () => void
+  onDataLoaded: (vSOLBalance: number) => void
+  onVSOLIsLoading: (isLoading: boolean) => void
+  balance: number
+  voteIdentity?: string
+  onVaultManageLoaded: (data: import('../../utils/api').VaultManageResponse) => void
 }
 
 import {
   confirmTransaction,
+  fetchVaultManage,
   invalidateLSTBalanceCache,
   invalidateSolBalanceCache,
-  invalidateVaultManageCache,
-} from "../../utils/api";
-
+} from '../../utils/api'
 
 // ===================
 //  web3.js related
 // ===================
-const { LAMPORTS_PER_SOL } = solanaWeb3;
-const VSOL_MINT = "vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7";
+const { LAMPORTS_PER_SOL } = solanaWeb3
+const VSOL_MINT = 'vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7'
 
 export function StakeButtonVault2({
   network,
@@ -52,136 +52,148 @@ export function StakeButtonVault2({
   onVSOLIsLoading,
   balance,
   voteIdentity,
+  onVaultManageLoaded,
 }: StakeButtonProps) {
-  const { showSuccessModal, hideSuccessModal } = useStakingModal();
-  const currentChain = getCurrentChain();
-  const walletSigner = useWalletAccountTransactionSigner(
-    account,
-    currentChain
-  );
+  const { showSuccessModal, hideSuccessModal } = useStakingModal()
+  const currentChain = getCurrentChain()
+  const walletSigner = useWalletAccountTransactionSigner(account, currentChain)
 
-  const [isSubmittingTransaction, setIsSubmittingTransaction] = useState(false);
-  const [vaultSignature, setVaultSignature] = useState<string | undefined>();
-  const { current: NO_ERROR } = useRef(Symbol());
-  const [currentError, setCurrentError] = useState(NO_ERROR);
+  const [isSubmittingTransaction, setIsSubmittingTransaction] = useState(false)
+  const [vaultSignature, setVaultSignature] = useState<string | undefined>()
+  const { current: NO_ERROR } = useRef(Symbol())
+  const [currentError, setCurrentError] = useState(NO_ERROR)
 
-    const handleVaultSubmit = useCallback(
+  const handleVaultSubmit = useCallback(
     async (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-                  
-      if (!stakeAmount || !walletSigner) return;
+      event.preventDefault()
 
-      setCurrentError(NO_ERROR);
-      setIsSubmittingTransaction(true);
-      setVaultSignature(undefined);
+      if (!stakeAmount || !walletSigner) return
+
+      setCurrentError(NO_ERROR)
+      setIsSubmittingTransaction(true)
+      setVaultSignature(undefined)
 
       try {
-          // Convert SOL to lamports
-          const stakeLamportsAmount = Math.floor(
-            parseFloat(stakeAmount) * LAMPORTS_PER_SOL
-          );
+        // Convert SOL to lamports
+        const stakeLamportsAmount = Math.floor(parseFloat(stakeAmount) * LAMPORTS_PER_SOL)
 
-          // Convert Balance to lamports
-          const balanceLamports = Math.floor(
-            parseFloat(balance.toString()) * LAMPORTS_PER_SOL
-          );
+        // Convert Balance to lamports
+        const balanceLamports = Math.floor(parseFloat(balance.toString()) * LAMPORTS_PER_SOL)
 
-          const fetchVaultTransaction = async () => {
-              const mint = import.meta.env.VITE_VAULT_MINT;
-              const target = voteIdentity;
-              const useExternalApi = import.meta.env.VITE_VAULT_USE_EXTERNAL_API === "true";
+        const fetchVaultTransaction = async () => {
+          const mint = import.meta.env.VITE_VAULT_MINT
+          const target = voteIdentity
+          const useExternalApi = import.meta.env.VITE_VAULT_USE_EXTERNAL_API === 'true'
 
-              const url = useExternalApi
-                ? import.meta.env.VITE_VAULT_TX_URL +
-                    `?address=${account?.address}&mint=${mint}&amount=${stakeLamportsAmount}&balance=${balanceLamports}${target ? `&target=${target}` : ""}`
-                : getBackendUrl(`/vstake?address=${account?.address}&mint=${mint}&amount=${stakeLamportsAmount}&balance=${balanceLamports}&network=${network}${target ? `&target=${target}` : ""}`);
+          const url = useExternalApi
+            ? import.meta.env.VITE_VAULT_TX_URL +
+              `?address=${account?.address}&mint=${mint}&amount=${stakeLamportsAmount}&balance=${balanceLamports}${target ? `&target=${target}` : ''}`
+            : getBackendUrl(
+                `/vstake?address=${account?.address}&mint=${mint}&amount=${stakeLamportsAmount}&balance=${balanceLamports}&network=${network}${target ? `&target=${target}` : ''}`
+              )
 
-              const result = await fetch(url);
-              return await result.json();
-          };
+          const result = await fetch(url)
+          return await result.json()
+        }
 
-          const fetchedTX = await fetchVaultTransaction();
-          if (fetchedTX.error) {
-            throw new Error(fetchedTX.error);
-          }
-          const { transaction: serializedTxBase64 } = fetchedTX;
+        const fetchedTX = await fetchVaultTransaction()
+        if (fetchedTX.error) {
+          throw new Error(fetchedTX.error)
+        }
+        const { transaction: serializedTxBase64 } = fetchedTX
 
-          const rpc = createRpcConnection(network);
+        const rpc = createRpcConnection(network)
 
-          const simResult = await rpc.simulateTransaction(
-            serializedTxBase64 as Base64EncodedWireTransaction,
-            { encoding: "base64", sigVerify: false, commitment: "processed" }
-          ).send();
-          if (simResult.value.err) {
-            throw new Error(`Transaction simulation failed: ${JSON.stringify(simResult.value.err)}`);
-          }
+        const simResult = await rpc
+          .simulateTransaction(serializedTxBase64 as Base64EncodedWireTransaction, {
+            encoding: 'base64',
+            sigVerify: false,
+            commitment: 'processed',
+          })
+          .send()
+        if (simResult.value.err) {
+          throw new Error(`Transaction simulation failed: ${JSON.stringify(simResult.value.err)}`)
+        }
 
-          const txBytes = Uint8Array.from(Buffer.from(serializedTxBase64, "base64"));
-          const decodedTransaction = getTransactionDecoder().decode(txBytes);
-          const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction]);
-          const signature = await rpc.sendTransaction(
-            getBase64EncodedWireTransaction(walletSignedTx),
-            { encoding: "base64" }
-          ).send();
+        const txBytes = Uint8Array.from(Buffer.from(serializedTxBase64, 'base64'))
+        const decodedTransaction = getTransactionDecoder().decode(txBytes)
+        const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction])
+        const signature = await rpc
+          .sendTransaction(getBase64EncodedWireTransaction(walletSignedTx), { encoding: 'base64' })
+          .send()
 
-          // ===========================
-          // === CONFIRM TRANSACTION ===
-          // ===========================
+        // ===========================
+        // === CONFIRM TRANSACTION ===
+        // ===========================
 
-          // Call the new confirmation API endpoint
-          await confirmTransaction(network, {
-            txid: signature,
-            targetCommitment: "processed",
-            timeout: 30000,
-            interval: 1000,
-          });
+        // Call the new confirmation API endpoint
+        await confirmTransaction(network, {
+          txid: signature,
+          targetCommitment: 'confirmed',
+          timeout: 30000,
+          interval: 1000,
+          cacheMutation: { walletAddress: account.address, mutation: 'vault-stake' },
+        })
 
-          invalidateSolBalanceCache(account.address, network);
-          invalidateLSTBalanceCache(account.address, network, VSOL_MINT);
-          invalidateVaultManageCache(account.address, network);
-          setVaultSignature(signature);    
-
+        invalidateSolBalanceCache(account.address, network)
+        invalidateLSTBalanceCache(account.address, network, VSOL_MINT)
+        setVaultSignature(signature)
+        try {
+          const manage = await fetchVaultManage(account.address, network, { refresh: true })
+          onVaultManageLoaded(manage)
+        } catch (refreshError) {
+          console.error('Failed to refresh Vault manage data:', refreshError)
+        }
       } catch (error) {
-        console.error("Staking error:", error);
-        setCurrentError(error as symbol);
+        console.error('Staking error:', error)
+        setCurrentError(error as symbol)
       } finally {
-        setIsSubmittingTransaction(false);
+        setIsSubmittingTransaction(false)
       }
     },
-    [account, walletSigner, NO_ERROR]
-  );
+    [
+      account,
+      walletSigner,
+      NO_ERROR,
+      stakeAmount,
+      balance,
+      network,
+      voteIdentity,
+      onVaultManageLoaded,
+    ]
+  )
 
   const handleVaultCloseModal = useCallback(() => {
-    setVaultSignature(undefined);
-    onSuccess();
-  }, [onSuccess]);
+    setVaultSignature(undefined)
+    onSuccess()
+  }, [onSuccess])
 
   // Trigger success modal when transaction completes
   useEffect(() => {
     if (vaultSignature) {
       showSuccessModal({
-        title: "Congratulations!",
-        message: "Your Vault Stake has been activated and has started to earn rewards!",
+        title: 'Congratulations!',
+        message: 'Your Vault Stake has been activated and has started to earn rewards!',
         signature: vaultSignature,
         onClose: () => {
-          handleVaultCloseModal();
+          handleVaultCloseModal()
         },
-      });
+      })
     } else {
-      hideSuccessModal();
+      hideSuccessModal()
     }
-  }, [vaultSignature, showSuccessModal, hideSuccessModal, handleVaultCloseModal]);
+  }, [vaultSignature, showSuccessModal, hideSuccessModal, handleVaultCloseModal])
 
-  const stakeAmountValue = parseFloat(stakeAmount) || 0;
-  const isStakeAmountZero = stakeAmountValue <= 0;
-  const stakeButtonDisabled = isSubmittingTransaction || inSufficientBalance || isStakeAmountZero;
+  const stakeAmountValue = parseFloat(stakeAmount) || 0
+  const isStakeAmountZero = stakeAmountValue <= 0
+  const stakeButtonDisabled = isSubmittingTransaction || inSufficientBalance || isStakeAmountZero
   const stakeBtnLabel = isSubmittingTransaction
-    ? "Confirming Transaction"
+    ? 'Confirming Transaction'
     : inSufficientBalance
-      ? "Insufficient Balance"
+      ? 'Insufficient Balance'
       : isStakeAmountZero
-        ? "Enter stake amount"
-        : "Stake";
+        ? 'Enter stake amount'
+        : 'Stake'
 
   return (
     <StakeButtonBase
@@ -191,5 +203,5 @@ export function StakeButtonVault2({
       handleSubmit={handleVaultSubmit}
       error={currentError !== NO_ERROR ? currentError : undefined}
     />
-  );
+  )
 }

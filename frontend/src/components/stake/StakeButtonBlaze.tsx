@@ -1,42 +1,42 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { UiWalletAccount } from "@wallet-standard/react";
-import { useWalletAccountTransactionSigner } from "@solana/react";
-import { StakeButtonBase } from "./StakeButtonBase";
-import { useStakingModal } from "../../context/StakingModalContext";
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { UiWalletAccount } from '@wallet-standard/react'
+import { useWalletAccountTransactionSigner } from '@solana/react'
+import { StakeButtonBase } from './StakeButtonBase'
+import { useStakingModal } from '../../context/StakingModalContext'
 import {
   type Base64EncodedWireTransaction,
   getBase64EncodedWireTransaction,
   getTransactionDecoder,
-} from "@solana/kit";
-import { getCurrentChain } from "../../utils/config";
-import { createRpcConnection } from "../../utils/solana/rpc";
+} from '@solana/kit'
+import { getCurrentChain } from '../../utils/config'
+import { createRpcConnection } from '../../utils/solana/rpc'
 import {
   confirmTransaction,
+  fetchBlazeAppliedStakes,
   fetchLSTBalance,
   generateBlazeStakeTransaction,
-  invalidateBlazeAppliedStakesCache,
+  registerBlazeStake,
   invalidateLSTBalanceCache,
   invalidateSolBalanceCache,
-} from "../../utils/api";
+} from '../../utils/api'
 
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 
-const BSOL_MINT = "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1";
+const BSOL_MINT = 'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1'
 
 interface StakeButtonProps {
-  network: string;
-  account: UiWalletAccount;
-  stakeAmount: string;
-  inSufficientBalance: boolean;
-  onSuccess: () => void;
-  onDataLoaded: (bSOLBalance: number) => void;
-  onBSOLIsLoading: (isLoading: boolean) => void;
-  voteIdentity?: string;
+  network: string
+  account: UiWalletAccount
+  stakeAmount: string
+  inSufficientBalance: boolean
+  onSuccess: () => void
+  onDataLoaded: (bSOLBalance: number) => void
+  onBSOLIsLoading: (isLoading: boolean) => void
+  voteIdentity?: string
+  onAppliedStakesLoaded: (stakes: import('../../utils/api').BlazeAppliedStake[]) => void
 }
 
-const sleep = (ms: number) =>
-  new Promise<void>(resolve => setTimeout(resolve, ms));
-
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 export function StakeButtonBlaze({
   network,
@@ -47,127 +47,149 @@ export function StakeButtonBlaze({
   onDataLoaded,
   onBSOLIsLoading,
   voteIdentity,
+  onAppliedStakesLoaded,
 }: StakeButtonProps) {
-  const { showSuccessModal, hideSuccessModal } = useStakingModal();
-  const currentChain = getCurrentChain();
-  const walletSigner = useWalletAccountTransactionSigner(
-    account,
-    currentChain
-  );
+  const { showSuccessModal, hideSuccessModal } = useStakingModal()
+  const currentChain = getCurrentChain()
+  const walletSigner = useWalletAccountTransactionSigner(account, currentChain)
 
-  const [isSubmittingTransaction, setIsSubmittingTransaction] = useState(false);
-  const [blazeSignature, setBlazeSignature] = useState<string | undefined>();
-  const { current: NO_ERROR } = useRef(Symbol());
-  const [currentError, setCurrentError] = useState(NO_ERROR);
+  const [isSubmittingTransaction, setIsSubmittingTransaction] = useState(false)
+  const [blazeSignature, setBlazeSignature] = useState<string | undefined>()
+  const { current: NO_ERROR } = useRef(Symbol())
+  const [currentError, setCurrentError] = useState(NO_ERROR)
 
   const handleBlazeSubmit = useCallback(
     async (evt: React.MouseEvent<HTMLButtonElement>) => {
-      evt.preventDefault();
+      evt.preventDefault()
 
-      if (!stakeAmount || !walletSigner) return;
+      if (!stakeAmount || !walletSigner) return
 
-      setCurrentError(NO_ERROR);
-      setIsSubmittingTransaction(true);
-      setBlazeSignature(undefined);
+      setCurrentError(NO_ERROR)
+      setIsSubmittingTransaction(true)
+      setBlazeSignature(undefined)
 
       try {
-        const stakeLamportsAmount = Math.floor(
-          parseFloat(stakeAmount) * LAMPORTS_PER_SOL
-        );
+        const stakeLamportsAmount = Math.floor(parseFloat(stakeAmount) * LAMPORTS_PER_SOL)
 
         const { transaction: txBase64 } = await generateBlazeStakeTransaction(network, {
           wallet: account.address,
           stakeLamports: stakeLamportsAmount,
           voteIdentity,
-        });
+        })
 
-        const rpc = createRpcConnection(network);
+        const rpc = createRpcConnection(network)
 
-        const simResult = await rpc.simulateTransaction(
-          txBase64 as Base64EncodedWireTransaction,
-          { encoding: "base64", sigVerify: false, commitment: "processed" }
-        ).send();
+        const simResult = await rpc
+          .simulateTransaction(txBase64 as Base64EncodedWireTransaction, {
+            encoding: 'base64',
+            sigVerify: false,
+            commitment: 'processed',
+          })
+          .send()
         if (simResult.value.err) {
-          throw new Error(`Transaction simulation failed: ${JSON.stringify(simResult.value.err)}`);
+          throw new Error(`Transaction simulation failed: ${JSON.stringify(simResult.value.err)}`)
         }
 
-        const txBytes = Uint8Array.from(Buffer.from(txBase64, "base64"));
-        const decodedTransaction = getTransactionDecoder().decode(txBytes);
-        const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction]);
-        const signature = await rpc.sendTransaction(
-          getBase64EncodedWireTransaction(walletSignedTx),
-          { encoding: "base64" }
-        ).send();
+        const txBytes = Uint8Array.from(Buffer.from(txBase64, 'base64'))
+        const decodedTransaction = getTransactionDecoder().decode(txBytes)
+        const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction])
+        const signature = await rpc
+          .sendTransaction(getBase64EncodedWireTransaction(walletSignedTx), { encoding: 'base64' })
+          .send()
 
         await confirmTransaction(network, {
           txid: signature,
-          targetCommitment: "processed",
+          targetCommitment: 'confirmed',
           timeout: 30000,
           interval: 1000,
-        });
+          cacheMutation: { walletAddress: account.address, mutation: 'blaze-stake' },
+        })
 
-        invalidateSolBalanceCache(account.address, network);
-        invalidateLSTBalanceCache(account.address, network, BSOL_MINT);
-        invalidateBlazeAppliedStakesCache(account.address, network);
-
+        invalidateSolBalanceCache(account.address, network)
+        invalidateLSTBalanceCache(account.address, network, BSOL_MINT)
         if (voteIdentity) {
           try {
-            await fetch(
-              `https://stake.solblaze.org/api/v1/cls_stake?validator=${voteIdentity}&txid=${signature}`
-            );
+            await registerBlazeStake(network, {
+              validator: voteIdentity,
+              txid: signature,
+              wallet: account.address,
+            })
           } catch (clsError) {
-            console.error("Failed to register CLS stake:", clsError);
+            console.error('Failed to register CLS stake:', clsError)
           }
         }
 
-        setBlazeSignature(signature);
+        setBlazeSignature(signature)
+        try {
+          const appliedStakes = await fetchBlazeAppliedStakes(account.address, network, {
+            refresh: true,
+          })
+          onAppliedStakesLoaded(appliedStakes)
+        } catch (refreshError) {
+          console.error('Failed to refresh Blaze applied stakes:', refreshError)
+        }
       } catch (error) {
-        console.error("Staking error:", error);
-        setCurrentError(error as symbol);
+        console.error('Staking error:', error)
+        setCurrentError(error as symbol)
       } finally {
-        setIsSubmittingTransaction(false);
+        setIsSubmittingTransaction(false)
 
-        onBSOLIsLoading(true);
-        await sleep(10000);
-        const bSOLBalance = await fetchLSTBalance(account.address, network, BSOL_MINT);
-        onDataLoaded(bSOLBalance);
-        onBSOLIsLoading(false);
+        onBSOLIsLoading(true)
+        try {
+          await sleep(10000)
+          const bSOLBalance = await fetchLSTBalance(account.address, network, BSOL_MINT)
+          onDataLoaded(bSOLBalance)
+        } catch (balanceError) {
+          console.error('Failed to refresh bSOL balance:', balanceError)
+        } finally {
+          onBSOLIsLoading(false)
+        }
       }
     },
-    [account, walletSigner, NO_ERROR]
-  );
+    [
+      account,
+      walletSigner,
+      NO_ERROR,
+      stakeAmount,
+      network,
+      voteIdentity,
+      onAppliedStakesLoaded,
+      onBSOLIsLoading,
+      onDataLoaded,
+    ]
+  )
 
   const handleBlazeCloseModal = useCallback(() => {
-    setBlazeSignature(undefined);
-    onSuccess();
-  }, [onSuccess]);
+    setBlazeSignature(undefined)
+    onSuccess()
+  }, [onSuccess])
 
   // Trigger success modal when transaction completes
   useEffect(() => {
     if (blazeSignature) {
       showSuccessModal({
-        title: "Congratulations!",
-        message: "Your Blaze Stake has been activated and has started to earn rewards!",
+        title: 'Congratulations!',
+        message: 'Your Blaze Stake has been activated and has started to earn rewards!',
         signature: blazeSignature,
         onClose: () => {
-          handleBlazeCloseModal();
+          handleBlazeCloseModal()
         },
-      });
+      })
     } else {
-      hideSuccessModal();
+      hideSuccessModal()
     }
-  }, [blazeSignature, showSuccessModal, hideSuccessModal, handleBlazeCloseModal]);
+  }, [blazeSignature, showSuccessModal, hideSuccessModal, handleBlazeCloseModal])
 
-  const stakeAmountNumber = parseFloat(stakeAmount) || 0;
-  const isZeroStake = stakeAmountNumber <= 0;
-  const disableStakeButton = isSubmittingTransaction || inSufficientBalance || isZeroStake;
+  const stakeAmountNumber = parseFloat(stakeAmount) || 0
+  const isZeroStake = stakeAmountNumber <= 0
+  const disableStakeButton = isSubmittingTransaction || inSufficientBalance || isZeroStake
   const buttonLabel = isSubmittingTransaction
-    ? "Confirming Transaction"
+    ? 'Confirming Transaction'
     : inSufficientBalance
-      ? "Insufficient Balance"
+      ? 'Insufficient Balance'
       : isZeroStake
-        ? "Enter stake amount"
-        : "Stake";
+        ? 'Enter stake amount'
+        : 'Stake'
 
   return (
     <StakeButtonBase
@@ -177,5 +199,5 @@ export function StakeButtonBlaze({
       handleSubmit={handleBlazeSubmit}
       error={currentError !== NO_ERROR ? currentError : undefined}
     />
-  );
+  )
 }
