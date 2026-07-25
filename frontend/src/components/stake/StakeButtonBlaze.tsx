@@ -20,7 +20,7 @@ import {
   invalidateSolBalanceCache,
 } from '../../utils/api'
 
-import { LAMPORTS_PER_SOL } from '@solana/web3.js'
+import { LAMPORTS_PER_SOL } from '../../utils/constants'
 
 const BSOL_MINT = 'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1'
 

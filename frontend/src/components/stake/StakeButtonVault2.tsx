@@ -12,7 +12,7 @@ import { StakeButtonBase } from './StakeButtonBase'
 import { useStakingModal } from '../../context/StakingModalContext'
 import { getBackendUrl } from '../../utils/backendUrl'
 
-import * as solanaWeb3 from '@solana/web3.js'
+import { LAMPORTS_PER_SOL } from '../../utils/constants'
 
 interface StakeButtonProps {
   network: string
@@ -34,10 +34,6 @@ import {
   invalidateSolBalanceCache,
 } from '../../utils/api'
 
-// ===================
-//  web3.js related
-// ===================
-const { LAMPORTS_PER_SOL } = solanaWeb3
 const VSOL_MINT = 'vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7'
 
 export function StakeButtonVault2({
