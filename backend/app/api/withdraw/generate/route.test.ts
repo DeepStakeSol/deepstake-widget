@@ -7,19 +7,19 @@ const {
   getBalanceMock,
   getBase64EncodedWireTransactionMock,
   getWithdrawInstructionMock,
-  latestBlockhashSendMock,
+  latestBlockhashSendMock
 } = vi.hoisted(() => {
   const latestBlockhashSendMock = vi.fn();
   return {
     compileTransactionMock: vi.fn(() => "compiled-withdraw-tx"),
     computeEstimateMock: vi.fn(),
     createRpcConnectionMock: vi.fn(() => ({
-      getLatestBlockhash: vi.fn(() => ({ send: latestBlockhashSendMock })),
+      getLatestBlockhash: vi.fn(() => ({ send: latestBlockhashSendMock }))
     })),
     getBalanceMock: vi.fn(),
     getBase64EncodedWireTransactionMock: vi.fn(() => "withdraw-wire-tx"),
     getWithdrawInstructionMock: vi.fn((input) => ({ type: "withdraw", input })),
-    latestBlockhashSendMock,
+    latestBlockhashSendMock
   };
 });
 
@@ -27,7 +27,7 @@ vi.mock("@solana/kit", () => ({
   address: vi.fn((value: string) => value),
   appendTransactionMessageInstruction: vi.fn((instruction, message) => ({
     ...message,
-    instructions: [...(message.instructions ?? []), instruction],
+    instructions: [...(message.instructions ?? []), instruction]
   })),
   assertIsAddress: vi.fn(),
   assertIsTransactionMessageWithBlockhashLifetime: vi.fn(),
@@ -35,39 +35,56 @@ vi.mock("@solana/kit", () => ({
   createNoopSigner: vi.fn((value: string) => "signer:" + value),
   createTransactionMessage: vi.fn(() => ({ version: 0, instructions: [] })),
   getBase64EncodedWireTransaction: getBase64EncodedWireTransactionMock,
-  getComputeUnitEstimateForTransactionMessageFactory: vi.fn(() => computeEstimateMock),
-  pipe: vi.fn((value, ...fns) => fns.reduce((current, fn) => fn(current), value)),
+  getComputeUnitEstimateForTransactionMessageFactory: vi.fn(
+    () => computeEstimateMock
+  ),
+  pipe: vi.fn((value, ...fns) =>
+    fns.reduce((current, fn) => fn(current), value)
+  ),
   prependTransactionMessageInstruction: vi.fn((instruction, message) => ({
     ...message,
-    instructions: [instruction, ...(message.instructions ?? [])],
+    instructions: [instruction, ...(message.instructions ?? [])]
   })),
-  setTransactionMessageFeePayer: vi.fn((feePayer, message) => ({ ...message, feePayer })),
+  setTransactionMessageFeePayer: vi.fn((feePayer, message) => ({
+    ...message,
+    feePayer
+  })),
   setTransactionMessageLifetimeUsingBlockhash: vi.fn((blockhash, message) => ({
     ...message,
-    blockhash,
-  })),
+    blockhash
+  }))
 }));
 
 vi.mock("@solana-program/compute-budget", () => ({
-  getSetComputeUnitLimitInstruction: vi.fn((input) => ({ type: "compute-limit", input })),
-  getSetComputeUnitPriceInstruction: vi.fn((input) => ({ type: "compute-price", input })),
+  getSetComputeUnitLimitInstruction: vi.fn((input) => ({
+    type: "compute-limit",
+    input
+  })),
+  getSetComputeUnitPriceInstruction: vi.fn((input) => ({
+    type: "compute-price",
+    input
+  }))
 }));
 
-vi.mock("@/utils/solana/stake/withdraw-instructions-v2", () => ({
-  getWithdrawInstruction: getWithdrawInstructionMock,
+vi.mock("@solana-program/stake", () => ({
+  STAKE_PROGRAM_ADDRESS: "Stake11111111111111111111111111111111111111",
+  getWithdrawInstruction: getWithdrawInstructionMock
 }));
 
 vi.mock("@/utils/solana/rpc", () => ({
-  createRpcConnection: createRpcConnectionMock,
+  createRpcConnection: createRpcConnectionMock
 }));
 
 vi.mock("@/utils/solana/balance", () => ({
-  getBalance: getBalanceMock,
+  getBalance: getBalanceMock
 }));
 
 import { POST } from "./route";
 
-function request(body: unknown, url = "http://localhost/api/withdraw/generate?network=devnet") {
+function request(
+  body: unknown,
+  url = "http://localhost/api/withdraw/generate?network=devnet"
+) {
   return new Request(url, { method: "POST", body: JSON.stringify(body) });
 }
 
@@ -82,39 +99,48 @@ describe("POST /api/withdraw/generate", () => {
     getBalanceMock.mockResolvedValue(999);
     computeEstimateMock.mockResolvedValue(222);
     latestBlockhashSendMock.mockResolvedValue({
-      value: { blockhash: "latest-blockhash", lastValidBlockHeight: BigInt(1) },
+      value: { blockhash: "latest-blockhash", lastValidBlockHeight: BigInt(1) }
     });
   });
 
   it("requires stakeAccountAddress", async () => {
-    const response = await POST(request({ recipientAccountAddress: "recipient" }));
+    const response = await POST(
+      request({ recipientAccountAddress: "recipient" })
+    );
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Missing required parameter: stakeAccountAddress",
+      error: "Missing required parameter: stakeAccountAddress"
     });
   });
 
   it("requires recipientAccountAddress", async () => {
-    const response = await POST(request({ stakeAccountAddress: "stake-account" }));
+    const response = await POST(
+      request({ stakeAccountAddress: "stake-account" })
+    );
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Missing required parameter: recipientAccountAddress",
+      error: "Missing required parameter: recipientAccountAddress"
     });
   });
 
   it("returns a generated wire transaction using the stake account balance", async () => {
     const response = await POST(
-      request({ stakeAccountAddress: "stake-account", recipientAccountAddress: "recipient" })
+      request({
+        stakeAccountAddress: "stake-account",
+        recipientAccountAddress: "recipient"
+      })
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ wireTransaction: "withdraw-wire-tx" });
+    await expect(response.json()).resolves.toEqual({
+      wireTransaction: "withdraw-wire-tx"
+    });
     expect(createRpcConnectionMock).toHaveBeenCalledWith("devnet");
     expect(getBalanceMock).toHaveBeenCalledWith({
       rpc: expect.anything(),
-      address: "stake-account",
+      address: "stake-account"
     });
     expect(getWithdrawInstructionMock).toHaveBeenCalledWith(
       expect.objectContaining({ args: 999 }),

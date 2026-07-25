@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { Connection, PublicKey, VoteProgram } from "@solana/web3.js";
 import {
   address,
   appendTransactionMessageInstruction,
@@ -15,21 +14,24 @@ import {
   prependTransactionMessageInstruction,
   getComputeUnitEstimateForTransactionMessageFactory,
   type Address,
+  type Rpc,
+  type SolanaRpcApi,
   type TransactionSigner,
   type Blockhash
 } from "@solana/kit";
 import { getCreateAccountInstruction } from "@solana-program/system";
 import {
-  getInitializeInstruction,
-  getDelegateStakeInstruction
-} from "@/utils/solana/stake/stake-instructions";
-import { createRpcConnection, getRpcEndpoint } from "@/utils/solana/rpc";
+  getDelegateStakeInstruction,
+  getInitializeInstruction
+} from "@solana-program/stake";
+import { createRpcConnection } from "@/utils/solana/rpc";
 import {
   DEFAULT_PRIORITY_FEE_MICRO_LAMPORTS,
   INVALID_BUT_SUFFICIENT_FOR_COMPILATION_BLOCKHASH,
   MAX_COMPUTE_UNIT_LIMIT,
   STAKE_PROGRAM,
-  SYSVAR
+  SYSVAR,
+  VOTE_PROGRAM_ADDRESS
 } from "@/utils/constants";
 import {
   getSetComputeUnitLimitInstruction,
@@ -57,10 +59,9 @@ function toJsonSafe(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(toJsonSafe);
 
   return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).map(([key, nestedValue]) => [
-      key,
-      toJsonSafe(nestedValue)
-    ])
+    Object.entries(value as Record<string, unknown>).map(
+      ([key, nestedValue]) => [key, toJsonSafe(nestedValue)]
+    )
   );
 }
 
@@ -77,23 +78,40 @@ function getErrorDetails(error: unknown): unknown {
   return {
     message: err.message,
     context: toJsonSafe(err.context),
-    cause: toJsonSafe(err.cause),
+    cause: toJsonSafe(err.cause)
   };
 }
 
 async function validateStakeRequest({
   network,
+  rpc,
   stakeLamports,
   voteAccount
 }: {
   network: string | null;
+  rpc: Rpc<SolanaRpcApi>;
   stakeLamports: number;
-  voteAccount: string;
+  voteAccount: Address;
 }) {
-  const endpoint = getRpcEndpoint(network);
-  const connection = new Connection(endpoint, "confirmed");
-  const votePublicKey = new PublicKey(voteAccount);
-  const voteAccountInfo = await connection.getAccountInfo(votePublicKey, "confirmed");
+  const [
+    { value: voteAccountInfo },
+    rentExemptReserve,
+    { value: minimumDelegation }
+  ] = await Promise.all([
+    rpc
+      .getAccountInfo(voteAccount, {
+        commitment: "confirmed",
+        encoding: "base64"
+      })
+      .send(),
+    rpc
+      .getMinimumBalanceForRentExemption(
+        BigInt(STAKE_PROGRAM.STAKE_ACCOUNT_SPACE),
+        { commitment: "confirmed" }
+      )
+      .send(),
+    rpc.getStakeMinimumDelegation({ commitment: "confirmed" }).send()
+  ]);
 
   if (!voteAccountInfo) {
     return NextResponse.json(
@@ -108,40 +126,35 @@ async function validateStakeRequest({
     );
   }
 
-  if (!voteAccountInfo.owner.equals(VoteProgram.programId)) {
+  if (voteAccountInfo.owner !== VOTE_PROGRAM_ADDRESS) {
     return NextResponse.json(
       {
-        error: "Configured vote account is not a Solana vote account on selected network",
+        error:
+          "Configured vote account is not a Solana vote account on selected network",
         details: {
           network: network || "devnet",
           voteAccount,
-          owner: voteAccountInfo.owner.toBase58(),
-          expectedOwner: VoteProgram.programId.toBase58()
+          owner: voteAccountInfo.owner,
+          expectedOwner: VOTE_PROGRAM_ADDRESS
         }
       },
       { status: 400 }
     );
   }
 
-  const rentExemptReserve = await connection.getMinimumBalanceForRentExemption(
-    Number(STAKE_PROGRAM.STAKE_ACCOUNT_SPACE)
-  );
-  const minimumDelegation = (
-    await connection.getStakeMinimumDelegation({ commitment: "confirmed" })
-  ).value;
   const minimumStakeLamports = rentExemptReserve + minimumDelegation;
 
-  if (stakeLamports < minimumStakeLamports) {
+  if (BigInt(stakeLamports) < minimumStakeLamports) {
     return NextResponse.json(
       {
         error: "Stake amount is below the selected network minimum",
         details: {
           network: network || "devnet",
           stakeLamports,
-          rentExemptReserve,
-          minimumDelegation,
-          minimumStakeLamports,
-          minimumStakeSol: minimumStakeLamports / 1_000_000_000
+          rentExemptReserve: Number(rentExemptReserve),
+          minimumDelegation: Number(minimumDelegation),
+          minimumStakeLamports: Number(minimumStakeLamports),
+          minimumStakeSol: Number(minimumStakeLamports) / 1_000_000_000
         }
       },
       { status: 400 }
@@ -195,11 +208,11 @@ function getStakeMessage({
           {
             stake: newAccount,
             rentSysvar: SYSVAR.RENT_ADDRESS,
-            authorized: {
+            arg0: {
               staker: authority,
               withdrawer: authority
             },
-            lockup: STAKE_PROGRAM.DEFAULT_LOCKUP
+            arg1: STAKE_PROGRAM.DEFAULT_LOCKUP
           },
           { programAddress: STAKE_PROGRAM.ADDRESS }
         ),
@@ -257,8 +270,6 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("voteAcc", voteAccount);
-
     const authority = address(stakerAddress);
     const newAccount = address(newAccountAddress);
     const voteAccountAddress = address(voteAccount);
@@ -270,8 +281,9 @@ export async function POST(request: Request) {
 
     const validationError = await validateStakeRequest({
       network,
+      rpc,
       stakeLamports,
-      voteAccount
+      voteAccount: voteAccountAddress
     });
     if (validationError) return validationError;
 
@@ -294,8 +306,8 @@ export async function POST(request: Request) {
     try {
       computeUnitEstimate =
         await getComputeUnitEstimateForTransactionMessageFactory({ rpc })(
-        sampleMessage
-      );
+          sampleMessage
+        );
     } catch (error) {
       console.error("Stake compute estimate error:", error);
       return NextResponse.json(

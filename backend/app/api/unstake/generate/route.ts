@@ -17,9 +17,7 @@ import {
   type TransactionSigner,
   type Blockhash
 } from "@solana/kit";
-import {
-  getUnstakeInstruction,
-} from "@/utils/solana/stake/unstake-instructions";
+import { getDeactivateInstruction } from "@solana-program/stake";
 import { createRpcConnection } from "@/utils/solana/rpc";
 import {
   DEFAULT_PRIORITY_FEE_MICRO_LAMPORTS,
@@ -51,7 +49,7 @@ function getUnstakeMessage({
   newAccount,
   blockhashObject,
   computeUnitLimit,
-  priorityFeeMicroLamports = DEFAULT_PRIORITY_FEE_MICRO_LAMPORTS,
+  priorityFeeMicroLamports = DEFAULT_PRIORITY_FEE_MICRO_LAMPORTS
 }: UnstakeMessageParams) {
   return pipe(
     createTransactionMessage({ version: 0 }),
@@ -69,9 +67,9 @@ function getUnstakeMessage({
         }),
         msg
       ),
-      (msg) =>
+    (msg) =>
       appendTransactionMessageInstruction(
-        getUnstakeInstruction(
+        getDeactivateInstruction(
           {
             stake: newAccount,
             clockSysvar: SYSVAR.CLOCK_ADDRESS,
@@ -88,78 +86,64 @@ export async function POST(request: Request) {
   const { searchParams } = new URL(request.url);
   const network = searchParams.get("network") || "devnet";
 
-  const { stakerAddress, stakeAccountAddress} =
-      await request.json();
+  const { stakerAddress, stakeAccountAddress } = await request.json();
 
-    
-    if (!stakerAddress) {
-      return NextResponse.json(
-        { error: "Missing required parameter: stakerAddress" },
-        { status: 400 }
-      );
-    }
+  if (!stakerAddress) {
+    return NextResponse.json(
+      { error: "Missing required parameter: stakerAddress" },
+      { status: 400 }
+    );
+  }
 
-    if (!stakeAccountAddress) {
-      return NextResponse.json(
-        { error: "Missing required parameter: stakeAccountAddress" },
-        { status: 400 }
-      );
-    }
+  if (!stakeAccountAddress) {
+    return NextResponse.json(
+      { error: "Missing required parameter: stakeAccountAddress" },
+      { status: 400 }
+    );
+  }
 
-    const authority = address(stakerAddress);
-    const newAccount = address(stakeAccountAddress);
-    assertIsAddress(authority);
-    assertIsAddress(newAccount);
+  const authority = address(stakerAddress);
+  const newAccount = address(stakeAccountAddress);
+  assertIsAddress(authority);
+  assertIsAddress(newAccount);
 
-    const rpc = createRpcConnection(network);
+  const rpc = createRpcConnection(network);
 
-    const authorityNoopSigner = createNoopSigner(authority);
+  const authorityNoopSigner = createNoopSigner(authority);
 
-    const sampleMessage = getUnstakeMessage({
-      authority,
-      authorityNoopSigner,
-      newAccount,
-      blockhashObject: INVALID_BUT_SUFFICIENT_FOR_COMPILATION_BLOCKHASH,
-      computeUnitLimit: MAX_COMPUTE_UNIT_LIMIT,
-    });
+  const sampleMessage = getUnstakeMessage({
+    authority,
+    authorityNoopSigner,
+    newAccount,
+    blockhashObject: INVALID_BUT_SUFFICIENT_FOR_COMPILATION_BLOCKHASH,
+    computeUnitLimit: MAX_COMPUTE_UNIT_LIMIT
+  });
 
-    assertIsTransactionMessageWithBlockhashLifetime(sampleMessage);
+  assertIsTransactionMessageWithBlockhashLifetime(sampleMessage);
 
-    const computeUnitEstimate =
-      await getComputeUnitEstimateForTransactionMessageFactory({ rpc })(
-        sampleMessage
-      );
+  const computeUnitEstimate =
+    await getComputeUnitEstimateForTransactionMessageFactory({ rpc })(
+      sampleMessage
+    );
 
-    const { value: latestBlockhash } = await rpc
-      .getLatestBlockhash({ commitment: "confirmed" })
-      .send();
-    const message = getUnstakeMessage({
-      authority,
-      authorityNoopSigner,
-      newAccount,
-      blockhashObject: latestBlockhash,
-      computeUnitLimit: computeUnitEstimate,
-    });
+  const { value: latestBlockhash } = await rpc
+    .getLatestBlockhash({ commitment: "confirmed" })
+    .send();
+  const message = getUnstakeMessage({
+    authority,
+    authorityNoopSigner,
+    newAccount,
+    blockhashObject: latestBlockhash,
+    computeUnitLimit: computeUnitEstimate
+  });
 
-    console.log("[unstake]sampleMessage: ", sampleMessage);
+  assertIsTransactionMessageWithBlockhashLifetime(message);
 
-    assertIsTransactionMessageWithBlockhashLifetime(message);
+  const compiledTransaction = compileTransaction(message);
 
-    const compiledTransaction = compileTransaction(message);
+  const wireTransaction = getBase64EncodedWireTransaction(compiledTransaction);
 
-    console.log("[unstake]compiledTransaction: ", compiledTransaction);
-
-    const wireTransaction =
-      getBase64EncodedWireTransaction(compiledTransaction);
-
-    console.log("[unstake]wireTransaction: ", wireTransaction);
-
-    const resp = 
-      NextResponse.json({
-        wireTransaction
-    });
-
-    console.log("[unstake]resp: ", resp);
-
-    return resp;
+  return NextResponse.json({
+    wireTransaction
+  });
 }

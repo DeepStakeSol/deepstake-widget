@@ -14,11 +14,11 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  getDeactivateInstruction,
   getDelegateStakeInstruction,
-  getInitializeInstruction
-} from "../utils/solana/stake/stake-instructions";
-import { getUnstakeInstruction } from "../utils/solana/stake/unstake-instructions";
-import { getWithdrawInstruction } from "../utils/solana/stake/withdraw-instructions-v2";
+  getInitializeInstruction,
+  getWithdrawInstruction
+} from "@solana-program/stake";
 import compatibility from "./fixtures/solana-compatibility.json";
 
 const SYSTEM_ADDRESS = address("11111111111111111111111111111111");
@@ -85,11 +85,11 @@ describe("Solana SDK migration compatibility", () => {
         getInitializeInstruction({
           stake: STAKE_ADDRESS,
           rentSysvar: RENT_ADDRESS,
-          authorized: {
+          arg0: {
             staker: SYSTEM_ADDRESS,
             withdrawer: SYSTEM_ADDRESS
           },
-          lockup: {
+          arg1: {
             unixTimestamp: 0n,
             epoch: 0n,
             custodian: SYSTEM_ADDRESS
@@ -107,7 +107,7 @@ describe("Solana SDK migration compatibility", () => {
         })
       ),
       deactivate: normalizeKitInstruction(
-        getUnstakeInstruction({
+        getDeactivateInstruction({
           stake: STAKE_ADDRESS,
           clockSysvar: CLOCK_ADDRESS,
           stakeAuthority: authoritySigner
