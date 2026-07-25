@@ -16,22 +16,20 @@ The demo uses
 
 ### Install Dependencies
 
-Open the project dictory: 
+Use Node.js 20.19.0 or newer. From the repository root, open the backend package:
 
 ```bash
-cd sample-dapps/solana-staking-ui
+cd backend
 ```
-Then, install the dependencies:
+
+Install the locked dependencies for a clean setup:
 
 ```bash
-npm install
-# or
-yarn
-# or
-pnpm install
-# or
-bun install
+npm ci
 ```
+
+To add or update a dependency, use `npm install <package>` and commit the resulting
+changes to both `package.json` and `package-lock.json`.
 
 ### Set Environment Variables
 
@@ -52,12 +50,6 @@ First, run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
