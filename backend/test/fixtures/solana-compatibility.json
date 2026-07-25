@@ -1,0 +1,244 @@
+{
+  "native": {
+    "initialize": {
+      "programAddress": "Stake11111111111111111111111111111111111111",
+      "accounts": [
+        { "address": "Stake11111111111111111111111111111111111111", "role": 1 },
+        { "address": "SysvarRent111111111111111111111111111111111", "role": 0 }
+      ],
+      "dataHex": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "delegate": {
+      "programAddress": "Stake11111111111111111111111111111111111111",
+      "accounts": [
+        { "address": "Stake11111111111111111111111111111111111111", "role": 1 },
+        { "address": "Vote111111111111111111111111111111111111111", "role": 0 },
+        { "address": "SysvarC1ock11111111111111111111111111111111", "role": 0 },
+        { "address": "SysvarStakeHistory1111111111111111111111111", "role": 0 },
+        { "address": "StakeConfig11111111111111111111111111111111", "role": 0 },
+        { "address": "11111111111111111111111111111111", "role": 2 }
+      ],
+      "dataHex": "02000000"
+    },
+    "deactivate": {
+      "programAddress": "Stake11111111111111111111111111111111111111",
+      "accounts": [
+        { "address": "Stake11111111111111111111111111111111111111", "role": 1 },
+        { "address": "SysvarC1ock11111111111111111111111111111111", "role": 0 },
+        { "address": "11111111111111111111111111111111", "role": 2 }
+      ],
+      "dataHex": "05000000"
+    },
+    "withdraw": {
+      "programAddress": "Stake11111111111111111111111111111111111111",
+      "accounts": [
+        { "address": "Stake11111111111111111111111111111111111111", "role": 1 },
+        { "address": "11111111111111111111111111111111", "role": 1 },
+        { "address": "SysvarC1ock11111111111111111111111111111111", "role": 0 },
+        { "address": "SysvarStakeHistory1111111111111111111111111", "role": 0 },
+        { "address": "11111111111111111111111111111111", "role": 2 }
+      ],
+      "dataHex": "0400000015cd5b0700000000"
+    },
+    "signerRoles": {
+      "authority": "11111111111111111111111111111111",
+      "stake": "Stake11111111111111111111111111111111111111"
+    }
+  },
+  "blaze": {
+    "destination": "9ZG53rrymmxDQTsGSebjTgMwLLmVJXBUXiSybCFd8CCi",
+    "withdrawAuthority": "6WecYymEARvjG5ZyqkrVQ6YkhPfujNzWpSPwNKXHCbV2",
+    "createAta": {
+      "programAddress": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+      "accounts": [
+        {
+          "address": "11111111111111111111111111111111",
+          "isSigner": true,
+          "isWritable": true
+        },
+        {
+          "address": "9ZG53rrymmxDQTsGSebjTgMwLLmVJXBUXiSybCFd8CCi",
+          "isSigner": false,
+          "isWritable": true
+        },
+        {
+          "address": "11111111111111111111111111111111",
+          "isSigner": false,
+          "isWritable": false
+        },
+        {
+          "address": "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1",
+          "isSigner": false,
+          "isWritable": false
+        },
+        {
+          "address": "11111111111111111111111111111111",
+          "isSigner": false,
+          "isWritable": false
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "isSigner": false,
+          "isWritable": false
+        }
+      ],
+      "dataHex": ""
+    },
+    "deposit": {
+      "programAddress": "SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy",
+      "accounts": [
+        {
+          "address": "stk9ApL5HeVAwPLr3TLhDXdZS8ptVu7zp6ov8HFDuMi",
+          "isSigner": false,
+          "isWritable": true
+        },
+        {
+          "address": "6WecYymEARvjG5ZyqkrVQ6YkhPfujNzWpSPwNKXHCbV2",
+          "isSigner": false,
+          "isWritable": false
+        },
+        {
+          "address": "Stake11111111111111111111111111111111111111",
+          "isSigner": false,
+          "isWritable": true
+        },
+        {
+          "address": "11111111111111111111111111111111",
+          "isSigner": true,
+          "isWritable": true
+        },
+        {
+          "address": "9ZG53rrymmxDQTsGSebjTgMwLLmVJXBUXiSybCFd8CCi",
+          "isSigner": false,
+          "isWritable": true
+        },
+        {
+          "address": "Vote111111111111111111111111111111111111111",
+          "isSigner": false,
+          "isWritable": true
+        },
+        {
+          "address": "9ZG53rrymmxDQTsGSebjTgMwLLmVJXBUXiSybCFd8CCi",
+          "isSigner": false,
+          "isWritable": true
+        },
+        {
+          "address": "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1",
+          "isSigner": false,
+          "isWritable": true
+        },
+        {
+          "address": "11111111111111111111111111111111",
+          "isSigner": false,
+          "isWritable": false
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "isSigner": false,
+          "isWritable": false
+        }
+      ],
+      "dataHex": "0e15cd5b0700000000"
+    }
+  },
+  "vault": {
+    "directorAddress": "BgL8Pwd3qTpZ9TSLGsaUG1vJF125f121BE3kEwbDJkLu",
+    "dst": "8457whJMETSW7nPV8xxGsrvU6mVb48BZ1zoo79A9ryVq",
+    "sourceVsolAccount": "2irL45zLi1Hmrqubmk6dmBKNEyYr35HsZtpAaJ1paqoJ",
+    "director": [
+      {
+        "programAddress": "DStkUE3DjxBhVwEGNzv89eni1p7LpYuHSxxm1foggbEv",
+        "accounts": [
+          {
+            "address": "11111111111111111111111111111111",
+            "isSigner": true,
+            "isWritable": false
+          },
+          {
+            "address": "BgL8Pwd3qTpZ9TSLGsaUG1vJF125f121BE3kEwbDJkLu",
+            "isSigner": false,
+            "isWritable": true
+          },
+          {
+            "address": "11111111111111111111111111111111",
+            "isSigner": true,
+            "isWritable": true
+          },
+          {
+            "address": "11111111111111111111111111111111",
+            "isSigner": false,
+            "isWritable": false
+          }
+        ],
+        "dataHex": "bbb0d7e52ff9bec7"
+      },
+      {
+        "programAddress": "DStkUE3DjxBhVwEGNzv89eni1p7LpYuHSxxm1foggbEv",
+        "accounts": [
+          {
+            "address": "11111111111111111111111111111111",
+            "isSigner": true,
+            "isWritable": false
+          },
+          {
+            "address": "BgL8Pwd3qTpZ9TSLGsaUG1vJF125f121BE3kEwbDJkLu",
+            "isSigner": false,
+            "isWritable": true
+          },
+          {
+            "address": "Vote111111111111111111111111111111111111111",
+            "isSigner": false,
+            "isWritable": false
+          },
+          {
+            "address": "SysvarC1ock11111111111111111111111111111111",
+            "isSigner": false,
+            "isWritable": false
+          }
+        ],
+        "dataHex": "52ac6aff6a1899f3"
+      }
+    ],
+    "mint": {
+      "programAddress": "VtokuDkNTQxXPJAp37ZXsoS4myJpxjHZ5RmCbDhUED4",
+      "accounts": [
+        {
+          "address": "8457whJMETSW7nPV8xxGsrvU6mVb48BZ1zoo79A9ryVq",
+          "isSigner": false,
+          "isWritable": true
+        },
+        {
+          "address": "2irL45zLi1Hmrqubmk6dmBKNEyYr35HsZtpAaJ1paqoJ",
+          "isSigner": false,
+          "isWritable": true
+        },
+        {
+          "address": "2irL45zLi1Hmrqubmk6dmBKNEyYr35HsZtpAaJ1paqoJ",
+          "isSigner": false,
+          "isWritable": true
+        },
+        {
+          "address": "11111111111111111111111111111111",
+          "isSigner": true,
+          "isWritable": false
+        },
+        {
+          "address": "2irL45zLi1Hmrqubmk6dmBKNEyYr35HsZtpAaJ1paqoJ",
+          "isSigner": false,
+          "isWritable": true
+        },
+        {
+          "address": "vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7",
+          "isSigner": false,
+          "isWritable": true
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "isSigner": false,
+          "isWritable": false
+        }
+      ],
+      "dataHex": "db6ed80d63ccd6e415cd5b0700000000"
+    }
+  }
+}
