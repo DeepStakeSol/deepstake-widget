@@ -1,22 +1,21 @@
+import type * as WalletMutations from "@/utils/walletData/mutations";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { confirmTransactionMock, invalidateMutationDataMock, PublicKeyMock } =
+const { confirmTransactionMock, invalidateMutationDataMock, addressMock } =
   vi.hoisted(() => ({
     confirmTransactionMock: vi.fn(),
     invalidateMutationDataMock: vi.fn(),
-    PublicKeyMock: class {
-      constructor(value: string) {
-        if (value === "invalid") throw new Error("bad key");
-      }
-    }
+    addressMock: vi.fn((value: string) => {
+      if (value === "invalid") throw new Error("bad key");
+      return value;
+    })
   }));
-vi.mock("@solana/web3.js", () => ({ PublicKey: PublicKeyMock }));
+vi.mock("@solana/kit", () => ({ address: addressMock }));
 vi.mock("@/utils/solana/status", () => ({
   confirmTransaction: confirmTransactionMock
 }));
 vi.mock("@/utils/walletData/mutations", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/utils/walletData/mutations")>();
+  const actual = await importOriginal<typeof WalletMutations>();
   return { ...actual, invalidateMutationData: invalidateMutationDataMock };
 });
 

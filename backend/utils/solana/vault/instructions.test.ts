@@ -18,11 +18,11 @@ describe("Vault account decoders", () => {
   });
 
   it("decodes the DST mint and vSOL reserves", () => {
-    const bytes = new Uint8Array(136);
+    const bytes = new Uint8Array(204);
     const encoder = getAddressEncoder();
     bytes.set(encoder.encode(TOKEN_MINT), 8);
     bytes.set(encoder.encode(VSOL_RESERVES), 104);
-    expect(decodeDstInfoAccount(bytes)).toEqual({
+    expect(decodeDstInfoAccount(bytes)).toMatchObject({
       tokenMint: TOKEN_MINT,
       vsolReserves: VSOL_RESERVES
     });
@@ -32,7 +32,7 @@ describe("Vault account decoders", () => {
     expect(() => decodeDirectorStakeTarget(new Uint8Array(39))).toThrow(
       "Invalid director account data"
     );
-    expect(() => decodeDstInfoAccount(new Uint8Array(135))).toThrow(
+    expect(() => decodeDstInfoAccount(new Uint8Array(203))).toThrow(
       "Invalid DST account data"
     );
   });

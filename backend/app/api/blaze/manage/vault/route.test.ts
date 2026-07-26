@@ -5,15 +5,14 @@ vi.mock("@/utils/errors", () => ({
   ValidatorStakingError: class ValidatorStakingError extends Error {}
 }));
 
-const { getVaultManageMock, PublicKeyMock } = vi.hoisted(() => ({
+const { getVaultManageMock, addressMock } = vi.hoisted(() => ({
   getVaultManageMock: vi.fn(),
-  PublicKeyMock: class {
-    constructor(value: string) {
-      if (value === "invalid") throw new Error("bad key");
-    }
-  }
+  addressMock: vi.fn((value: string) => {
+    if (value === "invalid") throw new Error("bad key");
+    return value;
+  })
 }));
-vi.mock("@solana/web3.js", () => ({ PublicKey: PublicKeyMock }));
+vi.mock("@solana/kit", () => ({ address: addressMock }));
 vi.mock("@/utils/walletData/providers", () => ({
   getVaultManage: getVaultManageMock
 }));

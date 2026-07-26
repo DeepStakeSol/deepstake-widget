@@ -36,6 +36,14 @@ const MINT_DST_DISCRIMINATOR = new Uint8Array([
 ]);
 const DST_TOKEN_MINT_OFFSET = 8;
 const DST_VSOL_RESERVES_OFFSET = 104;
+const DST_LIFETIME_OPERATOR_FEES_OFFSET = 136;
+const DST_UNCLAIMED_OPERATOR_FEES_OFFSET = 144;
+const DST_LIFETIME_PARTNER_FEES_OFFSET = 152;
+const DST_UNCLAIMED_PARTNER_FEES_OFFSET = 160;
+const DST_BUMP_OFFSET = 168;
+const DST_BASE_FEE_OFFSET = 169;
+const DST_OPERATOR_FEE_OFFSET = 170;
+const DST_PENDING_OPERATOR_OFFSET = 172;
 
 type VaultInstruction = IInstruction &
   IInstructionWithAccounts<
@@ -43,29 +51,78 @@ type VaultInstruction = IInstruction &
   > &
   IInstructionWithData<Uint8Array>;
 
+export interface DirectorAccount {
+  stakeTarget: Address;
+  lastUpdatedAt: bigint;
+}
+
 export interface DstInfoAccount {
   tokenMint: Address;
+  operator: Address;
+  partner: Address;
   vsolReserves: Address;
+  lifetimeOperatorFees: bigint;
+  unclaimedOperatorFees: bigint;
+  lifetimePartnerFees: bigint;
+  unclaimedPartnerFees: bigint;
+  bump: number;
+  baseFee: number;
+  operatorFee: number;
+  pendingOperator: Address;
 }
 
 function decodeAddress(bytes: Uint8Array, offset: number): Address {
   return getAddressDecoder().decode(bytes.slice(offset, offset + 32));
 }
 
-export function decodeDirectorStakeTarget(bytes: Uint8Array): Address {
-  if (bytes.length < 40) {
+export function decodeDirectorAccount(bytes: Uint8Array): DirectorAccount {
+  if (bytes.length < 48) {
     throw new Error("Invalid director account data");
   }
-  return decodeAddress(bytes, 8);
+  return {
+    stakeTarget: decodeAddress(bytes, 8),
+    lastUpdatedAt: new DataView(
+      bytes.buffer,
+      bytes.byteOffset + 40,
+      8
+    ).getBigUint64(0, true)
+  };
+}
+
+export function decodeDirectorStakeTarget(bytes: Uint8Array): Address {
+  return decodeDirectorAccount(bytes).stakeTarget;
 }
 
 export function decodeDstInfoAccount(bytes: Uint8Array): DstInfoAccount {
-  if (bytes.length < DST_VSOL_RESERVES_OFFSET + 32) {
+  if (bytes.length < DST_PENDING_OPERATOR_OFFSET + 32) {
     throw new Error("Invalid DST account data");
   }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   return {
     tokenMint: decodeAddress(bytes, DST_TOKEN_MINT_OFFSET),
-    vsolReserves: decodeAddress(bytes, DST_VSOL_RESERVES_OFFSET)
+    operator: decodeAddress(bytes, 40),
+    partner: decodeAddress(bytes, 72),
+    vsolReserves: decodeAddress(bytes, DST_VSOL_RESERVES_OFFSET),
+    lifetimeOperatorFees: view.getBigUint64(
+      DST_LIFETIME_OPERATOR_FEES_OFFSET,
+      true
+    ),
+    unclaimedOperatorFees: view.getBigUint64(
+      DST_UNCLAIMED_OPERATOR_FEES_OFFSET,
+      true
+    ),
+    lifetimePartnerFees: view.getBigUint64(
+      DST_LIFETIME_PARTNER_FEES_OFFSET,
+      true
+    ),
+    unclaimedPartnerFees: view.getBigUint64(
+      DST_UNCLAIMED_PARTNER_FEES_OFFSET,
+      true
+    ),
+    bump: view.getUint8(DST_BUMP_OFFSET),
+    baseFee: view.getUint8(DST_BASE_FEE_OFFSET),
+    operatorFee: view.getUint16(DST_OPERATOR_FEE_OFFSET, true),
+    pendingOperator: decodeAddress(bytes, DST_PENDING_OPERATOR_OFFSET)
   };
 }
 

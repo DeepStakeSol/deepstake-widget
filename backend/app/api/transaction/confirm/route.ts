@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PublicKey } from "@solana/web3.js";
+import { address } from "@solana/kit";
 
 import { confirmTransaction } from "@/utils/solana/status";
 import {
@@ -19,7 +19,7 @@ function parseMutationContext(
   if (typeof raw.walletAddress !== "string" || !isWalletMutation(raw.mutation))
     return null;
   try {
-    new PublicKey(raw.walletAddress);
+    address(raw.walletAddress);
   } catch {
     return null;
   }

@@ -1,9 +1,11 @@
 import { address } from "@solana/kit";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { Connection, PublicKey } from "@solana/web3.js";
+import {
+  findAssociatedTokenPda,
+  TOKEN_PROGRAM_ADDRESS
+} from "@solana-program/token";
 
 import { VSOL_MINT } from "../consts";
-import { createRpcConnection, getRpcEndpoint } from "../solana/rpc";
+import { createRpcConnection } from "../solana/rpc";
 import {
   getStakeAccounts,
   type GetStakeAccountResponse
@@ -107,21 +109,21 @@ export async function fetchVaultManage(
   network: string,
   wallet: string
 ): Promise<VaultManageResponse> {
-  const rpcUrl = getRpcEndpoint(network);
-  if (!rpcUrl) throw new Error("RPC endpoint not configured");
-  const connection = new Connection(rpcUrl);
+  const rpc = createRpcConnection(network);
+  const walletAddress = address(wallet);
   const [binding, stakebot] = await Promise.all([
-    getVaultBinding(wallet, connection),
-    getStakebotStake(wallet, connection)
+    getVaultBinding(wallet, rpc),
+    getStakebotStake(wallet, rpc)
   ]);
-  const lstAta = getAssociatedTokenAddressSync(
-    new PublicKey(VSOL_MINT),
-    new PublicKey(wallet)
-  );
+  const [lstAta] = await findAssociatedTokenPda({
+    owner: walletAddress,
+    mint: address(VSOL_MINT),
+    tokenProgram: TOKEN_PROGRAM_ADDRESS
+  });
 
   let vsolRaw = "0";
   try {
-    const result = await connection.getTokenAccountBalance(lstAta);
+    const result = await rpc.getTokenAccountBalance(lstAta).send();
     vsolRaw = result.value.amount;
   } catch {
     vsolRaw = "0";

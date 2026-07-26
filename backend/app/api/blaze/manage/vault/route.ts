@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { PublicKey } from "@solana/web3.js";
+import { address } from "@solana/kit";
 
 import { ValidatorStakingError } from "@/utils/errors";
 import { getVaultManage } from "@/utils/walletData/providers";
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       );
     }
     try {
-      new PublicKey(wallet);
+      address(wallet);
     } catch {
       return NextResponse.json(
         { error: "Invalid wallet address" },

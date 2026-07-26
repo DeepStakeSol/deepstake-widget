@@ -1,48 +1,56 @@
+import { getBase64Encoder, type Rpc, type SolanaRpcApi } from "@solana/kit";
+
 import {
-  DST_PROGRAM_ID,
-  dstInfoParser,
-  findDSTInfoAddress,
-} from "@thevault/dst";
-import { type Connection } from "@solana/web3.js";
-import { directorParser, findDirectorAddress } from '@thevault/directed-stake';
+  decodeDirectorAccount,
+  decodeDstInfoAccount,
+  DST_PROGRAM_ADDRESS,
+  findDirectorAddress,
+  findDstInfoAddress
+} from "./solana/vault/instructions";
 
-export async function getAllDSTs(connection: Connection) {
-  const info = (await connection.getProgramAccounts(DST_PROGRAM_ID))
-    .map((account) => {
-      const data = dstInfoParser.parse(Buffer.from(account.account.data));
-      return {
-        address: account.pubkey,
-        data: data,
-      };
+function decodeBase64(data: readonly [string, "base64"]): Uint8Array {
+  return new Uint8Array(getBase64Encoder().encode(data[0]));
+}
+
+export async function getAllDSTs(rpc: Rpc<SolanaRpcApi>) {
+  const accounts = await rpc
+    .getProgramAccounts(DST_PROGRAM_ADDRESS, {
+      commitment: "confirmed",
+      encoding: "base64"
     })
-    .map((account) => {
-      const dstAddress = findDSTInfoAddress(account.data.tokenMint);
-      const directorAddress = findDirectorAddress(dstAddress);
-      return { ...account, directorAddress };
-    });
+    .send();
+  const info = await Promise.all(
+    accounts.map(async (account) => {
+      const data = decodeDstInfoAccount(decodeBase64(account.account.data));
+      const dstAddress = await findDstInfoAddress(data.tokenMint);
+      const directorAddress = await findDirectorAddress(dstAddress);
+      return { address: account.pubkey, data, directorAddress };
+    })
+  );
 
-  // batch call on director addresses
-  const directors = (
-    await connection.getMultipleAccountsInfo(
+  if (info.length === 0) return info;
+
+  const { value: directorAccounts } = await rpc
+    .getMultipleAccounts(
       info.map((account) => account.directorAddress),
+      { commitment: "confirmed", encoding: "base64" }
     )
-  ).map((account, i) => {
-    if (!account) {
+    .send();
+  const directors = directorAccounts.map((account, index) => {
+    if (!account) return undefined;
+    try {
+      return {
+        address: info[index].directorAddress,
+        data: decodeDirectorAccount(decodeBase64(account.data))
+      };
+    } catch {
       return undefined;
     }
-
-    const data = directorParser.parse(Buffer.from(account.data));
-    return {
-      address: info[i].directorAddress,
-      data: data,
-    };
   });
 
-  // Merge arrays
   return info.map((account) => {
     const director = directors.find(
-      (director) =>
-        director?.address.toString() === account.directorAddress.toString(),
+      (candidate) => candidate?.address === account.directorAddress
     );
     return { ...account, director: director?.data };
   });

@@ -1,20 +1,37 @@
-import { findDirectorAddress, DIRECTED_STAKE_PROGRAM_ID } from "@thevault/directed-stake";
-import { Connection, PublicKey } from "@solana/web3.js";
+import {
+  address,
+  getBase64Encoder,
+  type Rpc,
+  type SolanaRpcApi
+} from "@solana/kit";
 
-const ZERO_KEY = "11111111111111111111111111111111";
+import {
+  decodeDirectorAccount,
+  DIRECTED_STAKE_PROGRAM_ADDRESS,
+  findDirectorAddress
+} from "./solana/vault/instructions";
 
-export async function getVaultBinding(wallet: string, connection: Connection) {
-  const pda = findDirectorAddress(new PublicKey(wallet));
-  const info = await connection.getAccountInfo(pda);
+const ZERO_KEY = address("11111111111111111111111111111111");
 
-  if (!info || !info.owner.equals(DIRECTED_STAKE_PROGRAM_ID) || info.data.length < 40) {
+export async function getVaultBinding(wallet: string, rpc: Rpc<SolanaRpcApi>) {
+  const pda = await findDirectorAddress(address(wallet));
+  const { value: info } = await rpc
+    .getAccountInfo(pda, { commitment: "confirmed", encoding: "base64" })
+    .send();
+
+  if (!info || info.owner !== DIRECTED_STAKE_PROGRAM_ADDRESS) {
     return { hasBinding: false };
   }
 
-  const stakeTarget = new PublicKey(info.data.slice(8, 40));
-  if (stakeTarget.toBase58() === ZERO_KEY) {
+  try {
+    const director = decodeDirectorAccount(
+      new Uint8Array(getBase64Encoder().encode(info.data[0]))
+    );
+    if (director.stakeTarget === ZERO_KEY) {
+      return { hasBinding: false };
+    }
+    return { hasBinding: true, stakeTarget: director.stakeTarget };
+  } catch {
     return { hasBinding: false };
   }
-
-  return { hasBinding: true, stakeTarget: stakeTarget.toBase58() };
 }

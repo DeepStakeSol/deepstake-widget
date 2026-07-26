@@ -1,4 +1,4 @@
-import type { Connection } from "@solana/web3.js";
+import type { Rpc, SolanaRpcApi } from "@solana/kit";
 
 const GH_API =
   "https://api.github.com/repos/SolanaVault/stakebot-data/contents";
@@ -125,8 +125,11 @@ function findStakebotAmount(
   );
 }
 
-export async function getStakebotStake(wallet: string, connection: Connection) {
-  const { epoch } = await connection.getEpochInfo();
+export async function getStakebotStake(wallet: string, rpc: Rpc<SolanaRpcApi>) {
+  const { epoch: epochValue } = await rpc
+    .getEpochInfo({ commitment: "confirmed" })
+    .send();
+  const epoch = Number(epochValue);
 
   const latestFile = await getLatestStakebotFile(epoch);
   if (!latestFile) {
