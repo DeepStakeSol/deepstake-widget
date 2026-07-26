@@ -1,28 +1,37 @@
-import bs58 from 'bs58';
+import { getBase58Decoder } from "@solana/kit";
 
-export async function getPriorityFeeEstimate(priorityLevel, transaction, heliusUrl) {
+interface SerializableTransaction {
+  serialize(): Parameters<ReturnType<typeof getBase58Decoder>["decode"]>[0];
+}
 
-    const response = await fetch(heliusUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: "1",
-            method: "getPriorityFeeEstimate",
-            params: [
-                {
-                    transaction: bs58.encode(transaction.serialize()), // Pass the serialized transaction in Base58
-                    options: { priorityLevel: priorityLevel },
-                },
-            ],
-        }),
-    });
-    const data = await response.json();
-    console.log(
-        "Fee in function for",
-        priorityLevel,
-        " :",
-        data.result.priorityFeeEstimate
-    );
-    return data.result;
+interface PriorityFeeEstimate {
+  priorityFeeEstimate: number;
+}
+
+interface PriorityFeeResponse {
+  result: PriorityFeeEstimate;
+}
+
+export async function getPriorityFeeEstimate(
+  priorityLevel: string,
+  transaction: SerializableTransaction,
+  heliusUrl: string
+): Promise<PriorityFeeEstimate> {
+  const response = await fetch(heliusUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "1",
+      method: "getPriorityFeeEstimate",
+      params: [
+        {
+          transaction: getBase58Decoder().decode(transaction.serialize()),
+          options: { priorityLevel }
+        }
+      ]
+    })
+  });
+  const data = (await response.json()) as PriorityFeeResponse;
+  return data.result;
 }
