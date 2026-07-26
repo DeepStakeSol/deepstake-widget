@@ -1,12 +1,9 @@
 import { createNoopSigner, address } from "@solana/kit";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import {
-  createAssociatedTokenAccountInstruction,
-  getAssociatedTokenAddressSync
-} from "@solana/spl-token";
-import {
-  STAKE_POOL_PROGRAM_ID,
-  StakePoolInstruction
-} from "@solana/spl-stake-pool";
+  findAssociatedTokenPda,
+  TOKEN_PROGRAM_ADDRESS
+} from "@solana-program/token";
 import { PublicKey, type TransactionInstruction } from "@solana/web3.js";
 import { BN, Program } from "@coral-xyz/anchor";
 import { readFileSync } from "node:fs";
@@ -20,6 +17,11 @@ import {
   getWithdrawInstruction
 } from "@solana-program/stake";
 import compatibility from "./fixtures/solana-compatibility.json";
+import {
+  findStakePoolWithdrawAuthority,
+  getCreateAssociatedTokenAccountInstruction,
+  getDepositSolInstruction
+} from "../utils/solana/blaze/stake-pool";
 
 const SYSTEM_ADDRESS = address("11111111111111111111111111111111");
 const STAKE_ADDRESS = address("Stake11111111111111111111111111111111111111");
@@ -72,6 +74,22 @@ function normalizeLegacyInstruction(instruction: TransactionInstruction) {
       isWritable: account.isWritable
     })),
     dataHex: instruction.data.toString("hex")
+  };
+}
+
+function normalizeKitAsLegacyInstruction(instruction: {
+  programAddress: string;
+  accounts?: readonly ({ address: string; role: number } | undefined)[];
+  data?: Uint8Array;
+}) {
+  return {
+    programAddress: instruction.programAddress,
+    accounts: (instruction.accounts ?? []).filter(Boolean).map((account) => ({
+      address: account!.address,
+      isSigner: account!.role >= 2,
+      isWritable: account!.role === 1 || account!.role === 3
+    })),
+    dataHex: Buffer.from(instruction.data ?? []).toString("hex")
   };
 }
 
@@ -133,46 +151,42 @@ describe("Solana SDK migration compatibility", () => {
   });
 
   it("locks Blaze ATA, PDA, and deposit instruction ABIs", async () => {
-    const wallet = new PublicKey("11111111111111111111111111111111");
-    const mint = new PublicKey("bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1");
-    const stakePool = new PublicKey(
-      "stk9ApL5HeVAwPLr3TLhDXdZS8ptVu7zp6ov8HFDuMi"
-    );
-    const reserveStake = new PublicKey(
-      "Stake11111111111111111111111111111111111111"
-    );
-    const managerFee = new PublicKey(
-      "Vote111111111111111111111111111111111111111"
-    );
-    const destination = getAssociatedTokenAddressSync(mint, wallet);
-    const [withdrawAuthority] = await PublicKey.findProgramAddress(
-      [stakePool.toBuffer(), Buffer.from("withdraw")],
-      STAKE_POOL_PROGRAM_ID
-    );
+    const wallet = address("11111111111111111111111111111111");
+    const walletSigner = createNoopSigner(wallet);
+    const mint = address("bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1");
+    const stakePool = address("stk9ApL5HeVAwPLr3TLhDXdZS8ptVu7zp6ov8HFDuMi");
+    const reserveStake = address("Stake11111111111111111111111111111111111111");
+    const managerFee = address("Vote111111111111111111111111111111111111111");
+    const [destination] = await findAssociatedTokenPda({
+      owner: wallet,
+      mint,
+      tokenProgram: TOKEN_PROGRAM_ADDRESS
+    });
+    const withdrawAuthority = await findStakePoolWithdrawAuthority(stakePool);
 
-    const createAta = createAssociatedTokenAccountInstruction(
-      wallet,
-      destination,
-      wallet,
+    const createAta = getCreateAssociatedTokenAccountInstruction({
+      payer: walletSigner,
+      ata: destination,
+      owner: wallet,
       mint
-    );
-    const deposit = StakePoolInstruction.depositSol({
+    });
+    const deposit = getDepositSolInstruction({
       stakePool,
       withdrawAuthority,
       reserveStake,
-      fundingAccount: wallet,
+      fundingAccount: walletSigner,
       destinationPoolAccount: destination,
       managerFeeAccount: managerFee,
       referralPoolAccount: destination,
       poolMint: mint,
-      lamports: 123_456_789
+      lamports: BigInt(123_456_789)
     });
 
     const actual = {
-      destination: destination.toBase58(),
-      withdrawAuthority: withdrawAuthority.toBase58(),
-      createAta: normalizeLegacyInstruction(createAta),
-      deposit: normalizeLegacyInstruction(deposit)
+      destination,
+      withdrawAuthority,
+      createAta: normalizeKitAsLegacyInstruction(createAta),
+      deposit: normalizeKitAsLegacyInstruction(deposit)
     };
     expect(actual).toEqual(compatibility.blaze);
   });

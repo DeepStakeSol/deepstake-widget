@@ -1,13 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const { invalidateWalletDataMock, PublicKeyMock } = vi.hoisted(() => ({
-  invalidateWalletDataMock: vi.fn(),
-  PublicKeyMock: class {
-    constructor(value: string) {
-      if (value === "invalid") throw new Error("bad");
-    }
-  }
+const { addressMock, invalidateWalletDataMock } = vi.hoisted(() => ({
+  addressMock: vi.fn((value: string) => {
+    if (value === "invalid") throw new Error("bad");
+    return value;
+  }),
+  invalidateWalletDataMock: vi.fn()
 }));
-vi.mock("@solana/web3.js", () => ({ PublicKey: PublicKeyMock }));
+vi.mock("@solana/kit", () => ({ address: addressMock }));
 vi.mock("@/utils/walletData/service", () => ({
   invalidateWalletData: invalidateWalletDataMock
 }));

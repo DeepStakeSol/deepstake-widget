@@ -1,14 +1,13 @@
 import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const { getBlazeAppliedStakesMock, PublicKeyMock } = vi.hoisted(() => ({
-  getBlazeAppliedStakesMock: vi.fn(),
-  PublicKeyMock: class {
-    constructor(value: string) {
-      if (value === "invalid") throw new Error("bad");
-    }
-  }
+const { addressMock, getBlazeAppliedStakesMock } = vi.hoisted(() => ({
+  addressMock: vi.fn((value: string) => {
+    if (value === "invalid") throw new Error("bad");
+    return value;
+  }),
+  getBlazeAppliedStakesMock: vi.fn()
 }));
-vi.mock("@solana/web3.js", () => ({ PublicKey: PublicKeyMock }));
+vi.mock("@solana/kit", () => ({ address: addressMock }));
 vi.mock("@/utils/walletData/providers", () => ({
   getBlazeAppliedStakes: getBlazeAppliedStakesMock
 }));

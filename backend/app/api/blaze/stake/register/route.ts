@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PublicKey } from "@solana/web3.js";
+import { address } from "@solana/kit";
 
 import { invalidateWalletData } from "@/utils/walletData/service";
 import { parseWalletNetwork } from "@/utils/walletData/network";
@@ -27,8 +27,8 @@ export async function POST(request: Request) {
       );
     }
     try {
-      new PublicKey(validator);
-      new PublicKey(wallet);
+      address(validator);
+      address(wallet);
     } catch {
       return NextResponse.json(
         { error: "Invalid validator or wallet address" },

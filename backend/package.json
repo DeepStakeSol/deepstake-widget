@@ -28,6 +28,7 @@
     "@solana-program/compute-budget": "^0.7.0",
     "@solana-program/stake": "^0.2.0",
     "@solana-program/system": "^0.7.0",
+    "@solana-program/token": "^0.5.1",
     "@solana/kit": "^2.1.0",
     "@solana/react": "^2.1.0",
     "@solana/spl-stake-pool": "^1.1.8",

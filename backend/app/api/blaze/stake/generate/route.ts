@@ -1,31 +1,87 @@
 import { type NextRequest, NextResponse } from "next/server";
 import {
-  ComputeBudgetProgram,
-  Connection,
-  PublicKey,
-  Transaction,
-  TransactionInstruction,
-  TransactionMessage,
-  VersionedTransaction,
-} from "@solana/web3.js";
+  address,
+  appendTransactionMessageInstructions,
+  assertIsAddress,
+  assertIsTransactionMessageWithBlockhashLifetime,
+  compileTransaction,
+  createNoopSigner,
+  createTransactionMessage,
+  getBase64EncodedWireTransaction,
+  getBase64Encoder,
+  getComputeUnitEstimateForTransactionMessageFactory,
+  pipe,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+  type Address,
+  type Blockhash,
+  type IInstruction
+} from "@solana/kit";
 import {
-  getAssociatedTokenAddressSync,
-  createAssociatedTokenAccountInstruction,
-  getAccount,
-} from "@solana/spl-token";
+  findAssociatedTokenPda,
+  TOKEN_PROGRAM_ADDRESS
+} from "@solana-program/token";
 import {
-  getStakePoolAccount,
-  STAKE_POOL_PROGRAM_ID,
-  StakePoolInstruction,
-  stakePoolInfo,
-} from "@solana/spl-stake-pool";
-import { getRpcEndpoint } from "@/utils/solana/rpc";
+  getSetComputeUnitLimitInstruction,
+  getSetComputeUnitPriceInstruction
+} from "@solana-program/compute-budget";
+
 import { getPriorityFeeEstimate } from "@/utils/priorityFee";
+import { createRpcConnection, getRpcEndpoint } from "@/utils/solana/rpc";
+import {
+  decodeBlazeStakePoolAccount,
+  findStakePoolWithdrawAuthority,
+  getBlazeMemoInstruction,
+  getCreateAssociatedTokenAccountInstruction,
+  getDepositSolInstruction,
+  STAKE_POOL_PROGRAM_ADDRESS
+} from "@/utils/solana/blaze/stake-pool";
 import {
   BSOL_MINT,
   getBlazeStakePoolAddress,
-  getBlazeUpdatePoolUrl,
+  getBlazeUpdatePoolUrl
 } from "@/utils/consts";
+
+interface BlazeMessageParams {
+  wallet: Address;
+  blockhashObject: Readonly<{
+    blockhash: Blockhash;
+    lastValidBlockHeight: bigint;
+  }>;
+  instructions: readonly IInstruction[];
+  computeUnitLimit?: number;
+  priorityFeeMicroLamports?: number;
+}
+
+function getBlazeMessage({
+  wallet,
+  blockhashObject,
+  instructions,
+  computeUnitLimit,
+  priorityFeeMicroLamports
+}: BlazeMessageParams) {
+  const message = pipe(
+    createTransactionMessage({ version: "legacy" }),
+    (msg) => setTransactionMessageFeePayer(wallet, msg),
+    (msg) => setTransactionMessageLifetimeUsingBlockhash(blockhashObject, msg)
+  );
+
+  const allInstructions: IInstruction[] = [];
+  if (computeUnitLimit !== undefined) {
+    allInstructions.push(
+      getSetComputeUnitLimitInstruction({ units: computeUnitLimit })
+    );
+  }
+  if (priorityFeeMicroLamports !== undefined) {
+    allInstructions.push(
+      getSetComputeUnitPriceInstruction({
+        microLamports: priorityFeeMicroLamports
+      })
+    );
+  }
+  allInstructions.push(...instructions);
+  return appendTransactionMessageInstructions(allInstructions, message);
+}
 
 export async function POST(request: NextRequest) {
   const network = request.nextUrl.searchParams.get("network") || "mainnet";
@@ -48,98 +104,131 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const connection = new Connection(rpcUrl);
-    const walletPubkey = new PublicKey(wallet);
-    const stakePoolAddr = new PublicKey(getBlazeStakePoolAddress(network));
-    const bsolMint = new PublicKey(BSOL_MINT);
+    const walletAddress = address(wallet);
+    const stakePoolAddress = address(getBlazeStakePoolAddress(network));
+    const bsolMint = address(BSOL_MINT);
+    assertIsAddress(walletAddress);
+    assertIsAddress(stakePoolAddress);
+    assertIsAddress(bsolMint);
 
-    const info = await stakePoolInfo(connection, stakePoolAddr);
-    if (info.details.updateRequired) {
+    const rpc = createRpcConnection(network);
+    const walletSigner = createNoopSigner(walletAddress);
+    const [bsolAta] = await findAssociatedTokenPda({
+      owner: walletAddress,
+      mint: bsolMint,
+      tokenProgram: TOKEN_PROGRAM_ADDRESS
+    });
+
+    const [
+      { value: stakePoolAccountInfo },
+      epochInfo,
+      { value: ataAccountInfo },
+      { value: latestBlockhash }
+    ] = await Promise.all([
+      rpc
+        .getAccountInfo(stakePoolAddress, {
+          commitment: "confirmed",
+          encoding: "base64"
+        })
+        .send(),
+      rpc.getEpochInfo({ commitment: "confirmed" }).send(),
+      rpc
+        .getAccountInfo(bsolAta, {
+          commitment: "confirmed",
+          encoding: "base64"
+        })
+        .send(),
+      rpc.getLatestBlockhash({ commitment: "finalized" }).send()
+    ]);
+
+    if (!stakePoolAccountInfo) {
+      throw new Error("Invalid stake pool account");
+    }
+    if (stakePoolAccountInfo.owner !== STAKE_POOL_PROGRAM_ADDRESS) {
+      throw new Error("Invalid stake pool account owner");
+    }
+
+    const stakePool = decodeBlazeStakePoolAccount(
+      new Uint8Array(getBase64Encoder().encode(stakePoolAccountInfo.data[0]))
+    );
+    if (stakePool.tokenProgram !== TOKEN_PROGRAM_ADDRESS) {
+      throw new Error("Unsupported stake pool token program");
+    }
+    if (stakePool.lastUpdateEpoch !== epochInfo.epoch) {
       try {
         await fetch(getBlazeUpdatePoolUrl(network));
       } catch {
-        // proceed even if the update call fails
+        // Proceed even if the best-effort update call fails.
       }
     }
 
-    const bsolAta = getAssociatedTokenAddressSync(bsolMint, walletPubkey);
-    let createAtaIx: TransactionInstruction | null = null;
-    try {
-      await getAccount(connection, bsolAta);
-    } catch {
-      createAtaIx = createAssociatedTokenAccountInstruction(
-        walletPubkey,
-        bsolAta,
-        walletPubkey,
-        bsolMint
+    const withdrawAuthority =
+      await findStakePoolWithdrawAuthority(stakePoolAddress);
+    const instructions: IInstruction[] = [];
+    if (!ataAccountInfo) {
+      instructions.push(
+        getCreateAssociatedTokenAccountInstruction({
+          payer: walletSigner,
+          ata: bsolAta,
+          owner: walletAddress,
+          mint: bsolMint
+        })
       );
     }
-
-    const [withdrawAuthority] = await PublicKey.findProgramAddress(
-      [stakePoolAddr.toBuffer(), Buffer.from("withdraw")],
-      STAKE_POOL_PROGRAM_ID,
-    );
-    const stakePoolAccount = await getStakePoolAccount(connection, stakePoolAddr);
-    const stakePool = stakePoolAccount.account.data;
-
-    const { blockhash } = await connection.getLatestBlockhash("finalized");
-
-    const ixs: TransactionInstruction[] = [];
-    if (createAtaIx) ixs.push(createAtaIx);
-    ixs.push(
-      StakePoolInstruction.depositSol({
-        stakePool: stakePoolAddr,
+    instructions.push(
+      getDepositSolInstruction({
+        stakePool: stakePoolAddress,
+        withdrawAuthority,
         reserveStake: stakePool.reserveStake,
-        fundingAccount: walletPubkey,
+        fundingAccount: walletSigner,
         destinationPoolAccount: bsolAta,
         managerFeeAccount: stakePool.managerFeeAccount,
         referralPoolAccount: bsolAta,
         poolMint: stakePool.poolMint,
-        lamports: stakeLamports,
-        withdrawAuthority,
-      }),
+        lamports: BigInt(stakeLamports)
+      })
     );
-
     if (voteIdentity) {
-      const memo = JSON.stringify({
-        type: "cls/validator_stake/lamports",
-        value: { validator: voteIdentity },
-      });
-      ixs.push(
-        new TransactionInstruction({
-          keys: [{ pubkey: walletPubkey, isSigner: true, isWritable: true }],
-          programId: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
-          data: Buffer.from(new TextEncoder().encode(memo)),
+      instructions.push(
+        getBlazeMemoInstruction({
+          wallet: walletSigner,
+          validator: voteIdentity
         })
       );
     }
 
-    const testMessage = new TransactionMessage({
-      recentBlockhash: blockhash,
-      instructions: ixs,
-      payerKey: walletPubkey,
-    }).compileToV0Message();
-    const testTx = new VersionedTransaction(testMessage);
-
-    const { priorityFeeEstimate: microLamports } = await getPriorityFeeEstimate("Medium", testTx, rpcUrl);
-    const sim = await connection.simulateTransaction(testTx);
-    const units = (sim.value.unitsConsumed ?? 200_000) + 3000;
-
-    ixs.unshift(ComputeBudgetProgram.setComputeUnitPrice({ microLamports }));
-    ixs.unshift(ComputeBudgetProgram.setComputeUnitLimit({ units }));
-
-    const transaction = new Transaction();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = walletPubkey;
-    transaction.add(...ixs);
-
-    const serialized = transaction.serialize({
-      verifySignatures: false,
-      requireAllSignatures: false,
+    const sampleMessage = getBlazeMessage({
+      wallet: walletAddress,
+      blockhashObject: latestBlockhash,
+      instructions
     });
+    assertIsTransactionMessageWithBlockhashLifetime(sampleMessage);
+
+    const sampleTransaction = compileTransaction(sampleMessage);
+    const sampleWireTransaction =
+      getBase64EncodedWireTransaction(sampleTransaction);
+    const priorityTransaction = {
+      serialize: () => getBase64Encoder().encode(sampleWireTransaction)
+    };
+    const [{ priorityFeeEstimate: microLamports }, estimatedComputeUnits] =
+      await Promise.all([
+        getPriorityFeeEstimate("Medium", priorityTransaction, rpcUrl),
+        getComputeUnitEstimateForTransactionMessageFactory({ rpc })(
+          sampleMessage
+        )
+      ]);
+
+    const message = getBlazeMessage({
+      wallet: walletAddress,
+      blockhashObject: latestBlockhash,
+      instructions,
+      computeUnitLimit: estimatedComputeUnits + 3_000,
+      priorityFeeMicroLamports: microLamports
+    });
+    assertIsTransactionMessageWithBlockhashLifetime(message);
 
     return NextResponse.json({
-      transaction: Buffer.from(serialized).toString("base64"),
+      transaction: getBase64EncodedWireTransaction(compileTransaction(message))
     });
   } catch (error) {
     console.error("Blaze stake generate error:", error);
@@ -148,7 +237,7 @@ export async function POST(request: NextRequest) {
         error:
           error instanceof Error
             ? error.message
-            : "Failed to generate Blaze stake transaction",
+            : "Failed to generate Blaze stake transaction"
       },
       { status: 500 }
     );
