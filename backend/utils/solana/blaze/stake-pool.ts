@@ -30,6 +30,8 @@ const STAKE_POOL_RESERVE_STAKE_OFFSET = 130;
 const STAKE_POOL_MINT_OFFSET = 162;
 const STAKE_POOL_MANAGER_FEE_OFFSET = 194;
 const STAKE_POOL_TOKEN_PROGRAM_OFFSET = 226;
+const STAKE_POOL_TOTAL_LAMPORTS_OFFSET = 258;
+const STAKE_POOL_TOKEN_SUPPLY_OFFSET = 266;
 const STAKE_POOL_LAST_UPDATE_EPOCH_OFFSET = 274;
 const DEPOSIT_SOL_DISCRIMINATOR = 14;
 
@@ -47,13 +49,16 @@ export interface BlazeStakePoolAccount {
   lastUpdateEpoch: bigint;
 }
 
+export interface StakePoolAccount extends BlazeStakePoolAccount {
+  totalLamports: bigint;
+  poolTokenSupply: bigint;
+}
+
 function decodeAddress(bytes: Uint8Array, offset: number): Address {
   return getAddressDecoder().decode(bytes.slice(offset, offset + 32));
 }
 
-export function decodeBlazeStakePoolAccount(
-  bytes: Uint8Array
-): BlazeStakePoolAccount {
+export function decodeStakePoolAccount(bytes: Uint8Array): StakePoolAccount {
   if (bytes.length < STAKE_POOL_LAST_UPDATE_EPOCH_OFFSET + 8) {
     throw new Error("Invalid stake pool account data");
   }
@@ -66,12 +71,33 @@ export function decodeBlazeStakePoolAccount(
     poolMint: decodeAddress(bytes, STAKE_POOL_MINT_OFFSET),
     managerFeeAccount: decodeAddress(bytes, STAKE_POOL_MANAGER_FEE_OFFSET),
     tokenProgram: decodeAddress(bytes, STAKE_POOL_TOKEN_PROGRAM_OFFSET),
+    totalLamports: new DataView(
+      bytes.buffer,
+      bytes.byteOffset + STAKE_POOL_TOTAL_LAMPORTS_OFFSET,
+      8
+    ).getBigUint64(0, true),
+    poolTokenSupply: new DataView(
+      bytes.buffer,
+      bytes.byteOffset + STAKE_POOL_TOKEN_SUPPLY_OFFSET,
+      8
+    ).getBigUint64(0, true),
     lastUpdateEpoch: new DataView(
       bytes.buffer,
       bytes.byteOffset + STAKE_POOL_LAST_UPDATE_EPOCH_OFFSET,
       8
     ).getBigUint64(0, true)
   };
+}
+
+export function decodeBlazeStakePoolAccount(
+  bytes: Uint8Array
+): BlazeStakePoolAccount {
+  const {
+    totalLamports: _totalLamports,
+    poolTokenSupply: _poolTokenSupply,
+    ...stakePool
+  } = decodeStakePoolAccount(bytes);
+  return stakePool;
 }
 
 export async function findStakePoolWithdrawAuthority(

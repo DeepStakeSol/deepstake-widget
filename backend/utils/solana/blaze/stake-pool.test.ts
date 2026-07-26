@@ -1,7 +1,10 @@
 import { address, getAddressEncoder } from "@solana/kit";
 import { describe, expect, it } from "vitest";
 
-import { decodeBlazeStakePoolAccount } from "./stake-pool";
+import {
+  decodeBlazeStakePoolAccount,
+  decodeStakePoolAccount
+} from "./stake-pool";
 
 const RESERVE_STAKE = address("Stake11111111111111111111111111111111111111");
 const POOL_MINT = address("bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1");
@@ -16,6 +19,8 @@ function stakePoolAccountBytes() {
   bytes.set(addressEncoder.encode(POOL_MINT), 162);
   bytes.set(addressEncoder.encode(MANAGER_FEE), 194);
   bytes.set(addressEncoder.encode(TOKEN_PROGRAM), 226);
+  new DataView(bytes.buffer).setBigUint64(258, BigInt(1_000), true);
+  new DataView(bytes.buffer).setBigUint64(266, BigInt(500), true);
   new DataView(bytes.buffer).setBigUint64(274, BigInt(42), true);
   return bytes;
 }
@@ -28,6 +33,13 @@ describe("Blaze stake pool account decoder", () => {
       managerFeeAccount: MANAGER_FEE,
       tokenProgram: TOKEN_PROGRAM,
       lastUpdateEpoch: BigInt(42)
+    });
+  });
+
+  it("decodes pool balances needed for Vault conversion", () => {
+    expect(decodeStakePoolAccount(stakePoolAccountBytes())).toMatchObject({
+      totalLamports: BigInt(1_000),
+      poolTokenSupply: BigInt(500)
     });
   });
 

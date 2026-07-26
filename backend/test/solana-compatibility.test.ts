@@ -1,13 +1,8 @@
 import { createNoopSigner, address } from "@solana/kit";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import {
   findAssociatedTokenPda,
   TOKEN_PROGRAM_ADDRESS
 } from "@solana-program/token";
-import { PublicKey, type TransactionInstruction } from "@solana/web3.js";
-import { BN, Program } from "@coral-xyz/anchor";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -22,6 +17,13 @@ import {
   getCreateAssociatedTokenAccountInstruction,
   getDepositSolInstruction
 } from "../utils/solana/blaze/stake-pool";
+import {
+  findDirectorAddress,
+  findDstInfoAddress,
+  getInitDirectorInstruction,
+  getMintDstInstruction,
+  getSetStakeTargetInstruction
+} from "../utils/solana/vault/instructions";
 
 const SYSTEM_ADDRESS = address("11111111111111111111111111111111");
 const STAKE_ADDRESS = address("Stake11111111111111111111111111111111111111");
@@ -34,22 +36,6 @@ const STAKE_HISTORY_ADDRESS = address(
 const STAKE_CONFIG_ADDRESS = address(
   "StakeConfig11111111111111111111111111111111"
 );
-const directedStakeIdl = JSON.parse(
-  readFileSync(
-    path.join(
-      process.cwd(),
-      "node_modules/@thevault/directed-stake/src/idlRaw.json"
-    ),
-    "utf8"
-  )
-);
-const dstIdl = JSON.parse(
-  readFileSync(
-    path.join(process.cwd(), "node_modules/@thevault/dst/src/idlRaw.json"),
-    "utf8"
-  )
-);
-
 function normalizeKitInstruction(instruction: {
   programAddress: string;
   accounts?: readonly ({ address: string; role: number } | undefined)[];
@@ -62,18 +48,6 @@ function normalizeKitInstruction(instruction: {
       role: account!.role
     })),
     dataHex: Buffer.from(instruction.data ?? []).toString("hex")
-  };
-}
-
-function normalizeLegacyInstruction(instruction: TransactionInstruction) {
-  return {
-    programAddress: instruction.programId.toBase58(),
-    accounts: instruction.keys.map((account) => ({
-      address: account.pubkey.toBase58(),
-      isSigner: account.isSigner,
-      isWritable: account.isWritable
-    })),
-    dataHex: instruction.data.toString("hex")
   };
 }
 
@@ -192,53 +166,41 @@ describe("Solana SDK migration compatibility", () => {
   });
 
   it("locks Vault director and DST mint instruction ABIs", async () => {
-    const owner = new PublicKey("11111111111111111111111111111111");
-    const target = new PublicKey("Vote111111111111111111111111111111111111111");
-    const mint = new PublicKey("vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7");
-    const sourceVsolAccount = getAssociatedTokenAddressSync(mint, owner, true);
-    const provider = { connection: {}, wallet: { publicKey: owner } } as never;
-    const directedProgram = new Program(directedStakeIdl, provider);
-    const [director] = PublicKey.findProgramAddressSync(
-      [Buffer.from("director"), owner.toBuffer()],
-      new PublicKey(directedStakeIdl.address)
-    );
+    const owner = address("11111111111111111111111111111111");
+    const ownerSigner = createNoopSigner(owner);
+    const target = address("Vote111111111111111111111111111111111111111");
+    const mint = address("vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7");
+    const [sourceVsolAccount] = await findAssociatedTokenPda({
+      owner,
+      mint,
+      tokenProgram: TOKEN_PROGRAM_ADDRESS
+    });
+    const director = await findDirectorAddress(owner);
     const directorInstructions = [
-      await directedProgram.methods
-        .initDirector()
-        .accounts({ authority: owner, payer: owner })
-        .instruction(),
-      await directedProgram.methods
-        .setStakeTarget()
-        .accounts({ authority: owner, stakeTarget: target })
-        .instruction()
-    ];
-
-    const [dst] = PublicKey.findProgramAddressSync(
-      [Buffer.from("dst"), mint.toBuffer()],
-      new PublicKey(dstIdl.address)
-    );
-    const dstProgram = new Program(dstIdl, provider);
-    const mintInstruction = await dstProgram.methods
-      .mintDst(new BN(123_456_789))
-      .accountsStrict({
-        dst,
-        vsolReserves: sourceVsolAccount,
-        sourceVsolAccount,
-        owner,
-        dstTokenAccount: sourceVsolAccount,
-        tokenMint: mint,
-        tokenProgram: new PublicKey(
-          "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        )
+      getInitDirectorInstruction({ authority: ownerSigner, director }),
+      getSetStakeTargetInstruction({
+        authority: ownerSigner,
+        director,
+        stakeTarget: target
       })
-      .instruction();
+    ];
+    const dst = await findDstInfoAddress(mint);
+    const mintInstruction = getMintDstInstruction({
+      dst,
+      vsolReserves: sourceVsolAccount,
+      sourceVsolAccount,
+      owner: ownerSigner,
+      dstTokenAccount: sourceVsolAccount,
+      tokenMint: mint,
+      amount: BigInt(123_456_789)
+    });
 
     const actual = {
-      directorAddress: director.toBase58(),
-      dst: dst.toBase58(),
-      sourceVsolAccount: sourceVsolAccount.toBase58(),
-      director: directorInstructions.map(normalizeLegacyInstruction),
-      mint: normalizeLegacyInstruction(mintInstruction)
+      directorAddress: director,
+      dst,
+      sourceVsolAccount,
+      director: directorInstructions.map(normalizeKitAsLegacyInstruction),
+      mint: normalizeKitAsLegacyInstruction(mintInstruction)
     };
     expect(actual).toEqual(compatibility.vault);
   });
