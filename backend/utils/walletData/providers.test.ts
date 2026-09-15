@@ -45,11 +45,14 @@ describe("fetchVaultManage", () => {
     });
   });
 
-  it("preserves the ready Vault management response", async () => {
+  it("uses stakebot data as the source of truth even below 1 vSOL", async () => {
+    mocks.getTokenAccountBalanceSend.mockResolvedValue({
+      value: { amount: "80000000" }
+    });
     await expect(fetchVaultManage("mainnet", WALLET)).resolves.toEqual({
       wallet: WALLET,
       binding: { hasBinding: true, validatorVoteKey: "validator" },
-      balance: { vsol: "2000000000" },
+      balance: { vsol: "80000000" },
       stakebot: {
         found: true,
         generatedStake: "2.5",
@@ -63,6 +66,28 @@ describe("fetchVaultManage", () => {
     expect(mocks.findAssociatedTokenPda).toHaveBeenCalledWith(
       expect.objectContaining({ owner: WALLET, tokenProgram: "token-program" })
     );
+  });
+
+  it("reports updating when the stakebot has no data but the balance is eligible", async () => {
+    mocks.getStakebotStake.mockResolvedValue({ found: false, epoch: 100 });
+    const result = await fetchVaultManage("mainnet", WALLET);
+    expect(result.uiStatus).toBe("updating");
+  });
+
+  it("reports low balance only when the stakebot has no data", async () => {
+    mocks.getStakebotStake.mockResolvedValue({ found: false, epoch: 100 });
+    mocks.getTokenAccountBalanceSend.mockResolvedValue({
+      value: { amount: "80000000" }
+    });
+    const result = await fetchVaultManage("mainnet", WALLET);
+    expect(result.uiStatus).toBe("low_balance");
+  });
+
+  it("stays ready when token balance lookup fails but stakebot data exists", async () => {
+    mocks.getTokenAccountBalanceSend.mockRejectedValue(new Error("missing"));
+    const result = await fetchVaultManage("mainnet", WALLET);
+    expect(result.balance).toEqual({ vsol: "0" });
+    expect(result.uiStatus).toBe("ready");
   });
 
   it("falls back to zero balance and no-binding status", async () => {

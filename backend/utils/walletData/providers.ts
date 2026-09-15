@@ -131,11 +131,11 @@ export async function fetchVaultManage(
   const vsolUi = Number(vsolRaw) / 1e9;
   const uiStatus = !binding.hasBinding
     ? "no_binding"
-    : vsolUi < 1
-      ? "low_balance"
-      : stakebot.found
-        ? "ready"
-        : "updating";
+    : stakebot.found
+      ? "ready"
+      : vsolUi >= 1
+        ? "updating"
+        : "low_balance";
 
   return {
     wallet,
