@@ -43,9 +43,13 @@ export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
 
   if (!data) return null
 
-  const { uiStatus, binding, balance } = data
+  const { uiStatus, binding, balance, stakebot } = data
 
   const vsolFormatted = (Number(balance.vsol) / 1e9).toFixed(6) + ' vSOL'
+  const generatedStake = Number(stakebot.generatedStake)
+  const generatedStakeFormatted = Number.isFinite(generatedStake)
+    ? generatedStake.toFixed(6) + ' SOL'
+    : null
 
   let validatorDisplay: string | null = null
   if (binding.hasBinding && binding.validatorVoteKey) {
@@ -93,14 +97,15 @@ export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
             ) : uiStatus === 'low_balance' ? (
               <span className="vb-msg-warn">
                 This wallet has stake strength of less than 1 vSOL. You still get rewards from
-                holding vSOL, but you don't help the validator because it don't get stake from you.
+                holding vSOL, but you don't help the validator because it doesn't get stake from
+                you.
               </span>
-            ) : (
+            ) : uiStatus === 'ready' && generatedStakeFormatted ? (
               <span className="vb-stake-amount">
-                {vsolFormatted}
+                {generatedStakeFormatted}
                 <span className="q-mark-icon" data-tooltip="Including all possible strategies." />
               </span>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
