@@ -70,7 +70,11 @@ vi.mock("./components/stake/ValidatorInfo", () => ({
 }));
 vi.mock("./components/stake/StakeForm", () => ({ StakeForm: () => <div>Native form</div> }));
 vi.mock("./components/stake/StakeFormBlaze", () => ({ StakeFormBlaze: () => <div>Blaze form</div> }));
-vi.mock("./components/stake/StakeFormVault2", () => ({ StakeFormVault2: () => <div>Vault form</div> }));
+vi.mock("./components/stake/StakeFormVault2", () => ({
+  StakeFormVault2: ({ voteAccount }: { voteAccount: string }) => (
+    <div data-vote-account={voteAccount}>Vault form</div>
+  ),
+}));
 vi.mock("./context/NetworkContext", () => ({ useNetwork: useNetworkMock }));
 vi.mock("./options", () => ({ useOptions: useOptionsMock }));
 vi.mock("./utils/solana/validator", () => ({
@@ -168,7 +172,7 @@ describe("App", () => {
     expect(screen.queryByRole("tab", { name: /Native/ })).not.toBeInTheDocument();
     expect(screen.getByText("Blaze form")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: /Vault/ }));
-    expect(screen.getByText("Vault form")).toBeInTheDocument();
+    expect(screen.getByText("Vault form")).toHaveAttribute("data-vote-account", "vote-address");
   });
 
   it("prefetches Manage data when a connected user shows tab intent", () => {

@@ -1,11 +1,18 @@
 import { VaultManageResponse } from '../../utils/api'
-import { ValidatorProfile } from '../../utils/solana/validator'
+import {
+  fetchValidatorProfile,
+  type ValidatorProfile,
+} from '../../utils/solana/validator'
 import { cssImageUrl } from '../../utils/imageUrl'
+import { useEffect, useState } from 'react'
+import type { NetworkType } from '../../utils/config'
 
 interface Props {
   data: VaultManageResponse | null
   isLoading: boolean
+  network: NetworkType
   validatorInfo?: ValidatorProfile | null
+  widgetVoteAccount: string
 }
 
 function truncateAddress(address: string, chars = 6): string {
@@ -13,7 +20,52 @@ function truncateAddress(address: string, chars = 6): string {
   return `${address.slice(0, chars)}...${address.slice(-chars)}`
 }
 
-export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
+type BoundValidatorNameState = {
+  key: string
+  name: string | null
+}
+
+export function VaultBindingBlock({
+  data,
+  isLoading,
+  network,
+  validatorInfo,
+  widgetVoteAccount,
+}: Props) {
+  const boundValidatorVoteKey = data?.binding.validatorVoteKey
+  const isOtherValidator = Boolean(
+    data?.binding.hasBinding &&
+      boundValidatorVoteKey &&
+      boundValidatorVoteKey !== widgetVoteAccount,
+  )
+  const lookupKey =
+    isOtherValidator && boundValidatorVoteKey
+      ? `${network}:${boundValidatorVoteKey}`
+      : null
+  const [boundValidatorNameState, setBoundValidatorNameState] =
+    useState<BoundValidatorNameState | null>(null)
+
+  useEffect(() => {
+    if (!lookupKey || !boundValidatorVoteKey) return
+
+    let cancelled = false
+    fetchValidatorProfile(boundValidatorVoteKey, network)
+      .then((profile) => {
+        if (!cancelled) {
+          setBoundValidatorNameState({ key: lookupKey, name: profile.name })
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBoundValidatorNameState({ key: lookupKey, name: null })
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [boundValidatorVoteKey, lookupKey, network])
+
   if (isLoading) {
     return (
       <>
@@ -51,13 +103,15 @@ export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
     ? generatedStake.toFixed(6) + ' SOL'
     : null
 
+  const resolvedBoundValidatorName =
+    boundValidatorNameState?.key === lookupKey ? boundValidatorNameState.name : null
+  const widgetValidatorDisplay =
+    validatorInfo?.name || truncateAddress(widgetVoteAccount)
   let validatorDisplay: string | null = null
   if (binding.hasBinding && binding.validatorVoteKey) {
-    if (validatorInfo?.voteAccount === binding.validatorVoteKey && validatorInfo?.name) {
-      validatorDisplay = validatorInfo.name
-    } else {
-      validatorDisplay = truncateAddress(binding.validatorVoteKey)
-    }
+    validatorDisplay = isOtherValidator
+      ? resolvedBoundValidatorName || truncateAddress(binding.validatorVoteKey)
+      : validatorInfo?.name || truncateAddress(binding.validatorVoteKey)
   }
 
   return (
@@ -71,9 +125,22 @@ export function VaultBindingBlock({ data, isLoading, validatorInfo }: Props) {
           <div className="vb-cell-left">
             <div className="vb-cell-top">
               {validatorDisplay ? (
-                <span className="vb-validator" title={binding.validatorVoteKey}>
-                  {validatorDisplay}
-                </span>
+                <div className="vb-validator-block">
+                  <span
+                    className={`vb-validator ${
+                      isOtherValidator ? 'vb-validator-warning' : 'vb-validator-success'
+                    }`}
+                    title={binding.validatorVoteKey}
+                  >
+                    {validatorDisplay}
+                  </span>
+                  {isOtherValidator && (
+                    <span className="vb-rebind-warning">
+                      Your Vault direct stake currently goes to another validator. Staking here will
+                      re-bind it to {widgetValidatorDisplay}.
+                    </span>
+                  )}
+                </div>
               ) : (
                 <span className="vb-not-staked">NOT DIRECT STAKED TO ANY VALIDATOR</span>
               )}
@@ -182,6 +249,14 @@ function VbStyles() {
       }
 
       /* Validator name */
+      .vb-validator-block {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        min-width: 0;
+      }
+
       .vb-validator {
         font-size: 13px;
         font-weight: 600;
@@ -194,6 +269,31 @@ function VbStyles() {
 
       [data-widget="deepstake"][data-theme='dark'] .vb-validator {
         color: #fff;
+      }
+
+      .vb-validator-success {
+        color: #18864b;
+      }
+
+      [data-widget="deepstake"][data-theme='dark'] .vb-validator-success {
+        color: #5fd38d;
+      }
+
+      .vb-validator-warning {
+        color: #a76100;
+      }
+
+      [data-widget="deepstake"][data-theme='dark'] .vb-validator-warning,
+      [data-widget="deepstake"][data-theme='dark'] .vb-rebind-warning {
+        color: #f4b860;
+      }
+
+      .vb-rebind-warning {
+        color: #a76100;
+        font-size: 11px;
+        font-weight: 400;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
       }
 
       /* NOT DIRECT STAKED label */

@@ -358,6 +358,7 @@ function App() {
                 {tab.id === "vault" && (
                   <StakeFormVault2
                     validatorInfo={validatorInfo}
+                    voteAccount={voteAccount}
                     secondsRemainToEpochEnd={secondsRemainToEpochEnd}
                   />
                 )}

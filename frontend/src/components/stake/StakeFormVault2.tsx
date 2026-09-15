@@ -19,10 +19,11 @@ install()
 
 interface Props {
   validatorInfo: ValidatorProfile | null
+  voteAccount: string
   secondsRemainToEpochEnd: number
 }
 
-export function StakeFormVault2({ validatorInfo, secondsRemainToEpochEnd }: Props) {
+export function StakeFormVault2({ validatorInfo, voteAccount, secondsRemainToEpochEnd }: Props) {
   const {
     selectedWalletAccount,
     network,
@@ -218,7 +219,13 @@ export function StakeFormVault2({ validatorInfo, secondsRemainToEpochEnd }: Prop
                 />
               </div>
             )}
-            <VaultBindingBlock data={vaultManage} isLoading={false} validatorInfo={validatorInfo} />
+            <VaultBindingBlock
+              data={vaultManage}
+              isLoading={false}
+              network={network}
+              validatorInfo={validatorInfo}
+              widgetVoteAccount={voteAccount}
+            />
             <div className="unstake-info">
               <p>To unstake it, sell them through your wallet or DEX.</p>
               <a
