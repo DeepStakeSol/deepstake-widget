@@ -225,8 +225,8 @@ async function gotoHost(page: Page, path: string, options: GotoOptions = {}) {
   await installNetworkMocks(page, options.mock);
   const response = await page.goto(path, { waitUntil: "networkidle" });
   expect(response?.ok()).toBe(true);
-  await expect(page.locator('[data-widget="deepstake"]')).toBeVisible();
-  await expect(page.locator('[data-widget="deepstake"] .sw-container')).toBeVisible();
+  await expect(page.locator('[data-widget="deepstake"]').first()).toBeVisible();
+  await expect(page.locator('[data-widget="deepstake"] .sw-container').first()).toBeVisible();
 
   return consoleErrors;
 }
@@ -245,6 +245,19 @@ test("embedded widget loads from backend static route", async ({ page }) => {
   await expect(page.getByRole("tab", { name: /Native/ })).toHaveAttribute("data-state", "active");
   await expect(page.getByText("Not Connected").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Wallet" })).toBeVisible();
+  expect(consoleErrors).toEqual([]);
+});
+
+test("an invalid config does not prevent later widgets from mounting", async ({ page }) => {
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-multiple.html", {
+    allowedConsoleErrors: [/^\[DeepStake widget\] invalid config/],
+  });
+
+  await expect(page.getByRole("alert")).toHaveText(
+    "DeepStake widget: invalid configuration, check data-options",
+  );
+  await expect(page.getByRole("tab", { name: /Native/ })).toHaveCount(2);
+  await expect(page.locator("#root")).toHaveAttribute("data-widget", "deepstake");
   expect(consoleErrors).toEqual([]);
 });
 

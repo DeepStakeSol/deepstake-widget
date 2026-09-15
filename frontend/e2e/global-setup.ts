@@ -25,6 +25,27 @@ function html(options: Record<string, unknown>) {
 </html>`;
 }
 
+function multiWidgetHtml() {
+  const validOptions = JSON.stringify({
+    vote_account: voteAccount,
+    network: "devnet",
+    tabs: ["native"],
+  }).replace(/"/g, "&quot;");
+
+  return `<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><title>DeepStake multi-widget E2E Host</title></head>
+  <body>
+    <main>
+      <div id="broken" data-widget="deepstake" data-options="{&quot;vote_account&quot;:&quot;${voteAccount}&quot;,}"></div>
+      <div id="following" data-widget="deepstake" data-options="${validOptions}"></div>
+      <div id="root" data-options="${validOptions}"></div>
+    </main>
+    <script src="/api/w/widget.iife.js"></script>
+  </body>
+</html>`;
+}
+
 export default async function globalSetup() {
   execFileSync("npm", ["run", "build"], {
     cwd: frontendDir,
@@ -62,5 +83,9 @@ export default async function globalSetup() {
       validator_description: "Identity supplied by the host page.",
       validator_logo_url: "/images/sol_logo.png",
     })
+  );
+  fs.writeFileSync(
+    path.join(distDir, "e2e-host-multiple.html"),
+    multiWidgetHtml()
   );
 }

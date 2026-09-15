@@ -3,8 +3,13 @@ import { createRoot } from 'react-dom/client'
 import { NetworkProvider } from "./context/NetworkContext";
 import './globals.css'
 import App from './App.tsx'
-import { OptionsContext, Options } from "./options.tsx";
+import { OptionsContext } from "./options.tsx";
 import isolationCSS from './isolation.css?inline';
+import { parseWidgetOptions } from './utils/widgetOptions.ts';
+import {
+  WidgetErrorBoundary,
+  WidgetFallback,
+} from './components/WidgetErrorBoundary.tsx';
 
 // Inject isolation rules immediately so host-page element selectors
 // (section {}, button {}, h1 {}, etc.) cannot override widget internals.
@@ -15,7 +20,7 @@ import isolationCSS from './isolation.css?inline';
   document.head.appendChild(style);
 })();
 
-document.addEventListener("DOMContentLoaded", () => {
+export function mountDeepStakeWidgets() {
   const elements = new Set<HTMLElement>();
 
   // Primary: attribute-based discovery (supports multiple instances)
@@ -29,18 +34,30 @@ document.addEventListener("DOMContentLoaded", () => {
   elements.forEach((el) => {
     // Normalize so CSS scoping via [data-widget="deepstake"] always works
     el.dataset.widget = 'deepstake';
+    el.dataset.theme = 'light';
 
-    const options: Options = JSON.parse(el.dataset.options || "{}");
-    el.dataset.theme = options?.theme || "light";
+    try {
+      const options = parseWidgetOptions(el.dataset.options);
+      el.dataset.theme = options.theme || 'light';
 
-    createRoot(el).render(
-      <StrictMode>
-        <OptionsContext.Provider value={options}>
-          <NetworkProvider>
-            <App />
-          </NetworkProvider>
-        </OptionsContext.Provider>
-      </StrictMode>,
-    );
+      createRoot(el).render(
+        <StrictMode>
+          <WidgetErrorBoundary mountElement={el}>
+            <OptionsContext.Provider value={options}>
+              <NetworkProvider>
+                <App />
+              </NetworkProvider>
+            </OptionsContext.Provider>
+          </WidgetErrorBoundary>
+        </StrictMode>,
+      );
+    } catch (error) {
+      console.error("[DeepStake widget] invalid config", el, error);
+      createRoot(el).render(
+        <WidgetFallback message="DeepStake widget: invalid configuration, check data-options" />,
+      );
+    }
   });
-});
+}
+
+document.addEventListener("DOMContentLoaded", mountDeepStakeWidgets);

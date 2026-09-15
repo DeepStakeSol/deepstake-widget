@@ -65,6 +65,30 @@
   font: inherit;
 }
 
+[data-widget="deepstake"] .sw-widget-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(640px, 100%);
+  min-height: 160px;
+  padding: 24px;
+  border: 2px solid #ceced380;
+  border-radius: 15px;
+  background: #f2f1f1;
+  color: #b42318;
+  font-family: Outfit, Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+}
+
+[data-widget="deepstake"][data-theme="dark"] .sw-widget-error {
+  border-color: #9f9fac40;
+  background: #0d1625;
+  color: #ff8a8a;
+}
+
 /* Respect reduced-motion preference for widget animations only */
 @media (prefers-reduced-motion: reduce) {
   [data-widget="deepstake"] *,
