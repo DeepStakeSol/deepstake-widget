@@ -14,6 +14,7 @@ import { getCurrentChain, getValidatorAddress } from '../utils/config'
 import { useOptions } from '../options'
 import { createRpcConnection } from '../utils/solana/rpc'
 import { LAMPORTS_PER_SOL } from '../utils/constants'
+import { formatLamportsAsSol } from '../utils/backendRequest'
 import { GetStakeAccountResponse } from '../utils/solana/stake/get-stake-accounts'
 import {
   generateStakeTransaction,
@@ -27,6 +28,8 @@ export interface UseStakeTransactionOptions {
   account: UiWalletAccount
   stakeAmount: string
   inSufficientBalance: boolean
+  minimumStakeLamports?: number
+  isMinimumLoading?: boolean
   onSuccess: () => void
   onDataLoaded: (stakeAccounts: GetStakeAccountResponse[]) => void
 }
@@ -47,6 +50,8 @@ export function useStakeTransaction({
   account,
   stakeAmount,
   inSufficientBalance,
+  minimumStakeLamports,
+  isMinimumLoading = false,
   onSuccess,
   onDataLoaded,
 }: UseStakeTransactionOptions) {
@@ -60,10 +65,19 @@ export function useStakeTransaction({
 
   const [error, setError] = useState<unknown | undefined>(undefined)
 
+  const stakeAmountNumber = parseFloat(stakeAmount) || 0
+  const stakeAmountLamports = Math.floor(stakeAmountNumber * LAMPORTS_PER_SOL)
+  const isZeroStake = stakeAmountNumber <= 0
+  const isBelowMinimum =
+    typeof minimumStakeLamports === 'number' &&
+    Number.isSafeInteger(minimumStakeLamports) &&
+    stakeAmountLamports > 0 &&
+    stakeAmountLamports < minimumStakeLamports
+
   const handleSubmit = useCallback(
     async (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault()
-      if (!stakeAmount || !walletSigner) return
+      if (!stakeAmount || !walletSigner || isMinimumLoading || isBelowMinimum) return
 
       setError(undefined)
       setIsSendingTransaction(true)
@@ -119,7 +133,16 @@ export function useStakeTransaction({
         setIsSendingTransaction(false)
       }
     },
-    [account, stakeAmount, walletSigner, network, onDataLoaded, options]
+    [
+      account,
+      stakeAmount,
+      walletSigner,
+      network,
+      onDataLoaded,
+      options,
+      isMinimumLoading,
+      isBelowMinimum,
+    ]
   )
 
   const handleCloseModal = useCallback(() => {
@@ -128,16 +151,23 @@ export function useStakeTransaction({
     onSuccess()
   }, [onSuccess])
 
-  const stakeAmountNumber = parseFloat(stakeAmount) || 0
-  const isZeroStake = stakeAmountNumber <= 0
-  const disableStakeButton = isSendingTransaction || inSufficientBalance || isZeroStake
+  const disableStakeButton =
+    isSendingTransaction ||
+    isMinimumLoading ||
+    inSufficientBalance ||
+    isZeroStake ||
+    isBelowMinimum
   const buttonLabel = isSendingTransaction
     ? 'Confirming Transaction'
-    : inSufficientBalance
-      ? 'Insufficient Balance'
+    : isMinimumLoading
+      ? 'Loading minimum'
       : isZeroStake
         ? 'Enter stake amount'
-        : 'Stake'
+        : isBelowMinimum && minimumStakeLamports !== undefined
+          ? 'Minimum ' + formatLamportsAsSol(minimumStakeLamports) + ' SOL'
+          : inSufficientBalance
+            ? 'Insufficient Balance'
+            : 'Stake'
 
   return {
     isSendingTransaction,

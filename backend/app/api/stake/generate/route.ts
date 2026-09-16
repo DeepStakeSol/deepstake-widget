@@ -37,6 +37,7 @@ import {
   getSetComputeUnitLimitInstruction,
   getSetComputeUnitPriceInstruction
 } from "@solana-program/compute-budget";
+import { getStakeMinimum } from "@/utils/solana/stake/minimum";
 
 interface StakeMessageParams {
   authority: Address;
@@ -93,24 +94,14 @@ async function validateStakeRequest({
   stakeLamports: number;
   voteAccount: Address;
 }) {
-  const [
-    { value: voteAccountInfo },
-    rentExemptReserve,
-    { value: minimumDelegation }
-  ] = await Promise.all([
+  const [{ value: voteAccountInfo }, minimum] = await Promise.all([
     rpc
       .getAccountInfo(voteAccount, {
         commitment: "confirmed",
         encoding: "base64"
       })
       .send(),
-    rpc
-      .getMinimumBalanceForRentExemption(
-        BigInt(STAKE_PROGRAM.STAKE_ACCOUNT_SPACE),
-        { commitment: "confirmed" }
-      )
-      .send(),
-    rpc.getStakeMinimumDelegation({ commitment: "confirmed" }).send()
+    getStakeMinimum(network || "devnet", rpc)
   ]);
 
   if (!voteAccountInfo) {
@@ -142,19 +133,13 @@ async function validateStakeRequest({
     );
   }
 
-  const minimumStakeLamports = rentExemptReserve + minimumDelegation;
-
-  if (BigInt(stakeLamports) < minimumStakeLamports) {
+  if (stakeLamports < minimum.minimumStakeLamports) {
     return NextResponse.json(
       {
         error: "Stake amount is below the selected network minimum",
         details: {
-          network: network || "devnet",
           stakeLamports,
-          rentExemptReserve: Number(rentExemptReserve),
-          minimumDelegation: Number(minimumDelegation),
-          minimumStakeLamports: Number(minimumStakeLamports),
-          minimumStakeSol: Number(minimumStakeLamports) / 1_000_000_000
+          ...minimum
         }
       },
       { status: 400 }

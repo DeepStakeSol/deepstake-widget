@@ -10,7 +10,7 @@ import { getCurrentChain } from '../../utils/config'
 import { createRpcConnection } from '../../utils/solana/rpc'
 import { StakeButtonBase } from './StakeButtonBase'
 import { useStakingModal } from '../../context/StakingModalContext'
-import { getBackendUrl } from '../../utils/backendUrl'
+import { fetchBackendJson } from '../../utils/backendRequest'
 
 import { LAMPORTS_PER_SOL } from '../../utils/constants'
 
@@ -81,13 +81,33 @@ export function StakeButtonVault2({
           const target = voteIdentity
           const useExternalApi = import.meta.env.VITE_VAULT_USE_EXTERNAL_API === 'true'
 
-          const url = useExternalApi
-            ? import.meta.env.VITE_VAULT_TX_URL +
-              `?address=${account?.address}&mint=${mint}&amount=${stakeLamportsAmount}&balance=${balanceLamports}${target ? `&target=${target}` : ''}`
-            : getBackendUrl(
-                `/vstake?address=${account?.address}&mint=${mint}&amount=${stakeLamportsAmount}&balance=${balanceLamports}&network=${network}${target ? `&target=${target}` : ''}`
-              )
+          if (!useExternalApi) {
+            return fetchBackendJson(
+              '/vstake?address=' +
+                account.address +
+                '&mint=' +
+                mint +
+                '&amount=' +
+                stakeLamportsAmount +
+                '&balance=' +
+                balanceLamports +
+                '&network=' +
+                network +
+                (target ? '&target=' + target : ''),
+            )
+          }
 
+          const url =
+            import.meta.env.VITE_VAULT_TX_URL +
+            '?address=' +
+            account.address +
+            '&mint=' +
+            mint +
+            '&amount=' +
+            stakeLamportsAmount +
+            '&balance=' +
+            balanceLamports +
+            (target ? '&target=' + target : '')
           const result = await fetch(url)
           return await result.json()
         }

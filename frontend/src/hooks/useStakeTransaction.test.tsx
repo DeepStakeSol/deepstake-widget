@@ -122,6 +122,18 @@ describe('useStakeTransaction', () => {
       'Insufficient Balance'
     )
     expect(renderStakeTransaction().result.current.buttonLabel).toBe('Stake')
+
+    const loading = renderStakeTransaction({ isMinimumLoading: true })
+    expect(loading.result.current.buttonLabel).toBe('Loading minimum')
+    expect(loading.result.current.disableStakeButton).toBe(true)
+
+    const belowMinimum = renderStakeTransaction({ minimumStakeLamports: 2_000_000_000 })
+    expect(belowMinimum.result.current.buttonLabel).toBe('Minimum 2 SOL')
+    expect(belowMinimum.result.current.disableStakeButton).toBe(true)
+
+    expect(
+      renderStakeTransaction({ minimumStakeLamports: 1_500_000_000 }).result.current.buttonLabel
+    ).toBe('Stake')
   })
 
   it('does nothing when amount or signer is missing', async () => {
@@ -133,6 +145,9 @@ describe('useStakeTransaction', () => {
     )
     const noSigner = renderStakeTransaction()
     await act(async () => noSigner.result.current.handleSubmit(clickEvent()))
+
+    const belowMinimum = renderStakeTransaction({ minimumStakeLamports: 2_000_000_000 })
+    await act(async () => belowMinimum.result.current.handleSubmit(clickEvent()))
 
     expect(generateStakeTransactionMock).not.toHaveBeenCalled()
   })

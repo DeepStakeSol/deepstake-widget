@@ -1,33 +1,23 @@
 // Centralized API helpers for backend endpoints
 import { GetStakeAccountResponse } from './solana/stake/get-stake-accounts'
 import { Base64EncodedWireTransaction } from '@solana/kit'
-import { getBackendUrl } from './backendUrl'
+import { fetchBackendJson } from './backendRequest'
 import { cachedRequest, deduplicatedRequest, invalidateRequestCacheByPrefix } from './requestCache'
 
 const SHORT_WALLET_CACHE_TTL_MS = 30_000
 
 async function getJson<T>(path: string): Promise<T> {
-  const url = getBackendUrl(path)
-  const res = await fetch(url)
-  if (!res.ok) {
-    throw new Error(`HTTP error ${res.status} when fetching ${url}`)
-  }
-  return (await res.json()) as T
+  return fetchBackendJson<T>(path)
 }
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
-  const url = getBackendUrl(path)
-  const res = await fetch(url, {
+  return fetchBackendJson<T>(path, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
   })
-  if (!res.ok) {
-    throw new Error(`HTTP error ${res.status} when posting ${url}`)
-  }
-  return (await res.json()) as T
 }
 
 // stake accounts (Redis-cached by the backend; in-flight only in the browser)
@@ -73,6 +63,27 @@ export interface PerfSamplesResponse {
 
 export async function fetchPerfSamples(network: string): Promise<PerfSamplesResponse> {
   return await getJson<PerfSamplesResponse>(`/stake/get-perf-samples?network=${network}`)
+}
+
+export interface StakeMinimumResponse {
+  network: string
+  minimumDelegation: number
+  rentExemptReserve: number
+  minimumStakeLamports: number
+  minimumStakeSol: number
+}
+
+const STAKE_MINIMUM_CACHE_TTL_MS = 15 * 60 * 1_000
+
+export async function fetchStakeMinimum(network: string): Promise<StakeMinimumResponse> {
+  return cachedRequest(
+    'stakeMinimum:' + network,
+    STAKE_MINIMUM_CACHE_TTL_MS,
+    () =>
+      getJson<StakeMinimumResponse>(
+        '/stake/minimum?network=' + encodeURIComponent(network),
+      ),
+  )
 }
 
 // transaction generation helpers

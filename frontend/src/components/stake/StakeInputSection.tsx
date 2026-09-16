@@ -8,6 +8,7 @@ import { WalletInfo } from "./WalletInfo";
 import { WalletBalance } from "./WalletBalance";
 import { ValidatorProfile } from "../../utils/solana/validator";
 import { getImageUrl } from "../../utils/imageUrl";
+import { formatLamportsAsSol } from "../../utils/backendRequest";
 
 interface StakeInputSectionProps {
   isConnected: boolean;
@@ -20,6 +21,8 @@ interface StakeInputSectionProps {
   validatorInfo: ValidatorProfile | null;
   secondsRemainToEpochEnd: number;
   stakeMode?: "default" | "vault" | "blaze";
+  minimumStakeLamports?: number;
+  isMinimumLoading?: boolean;
 }
 
 export function StakeInputSection({
@@ -33,6 +36,8 @@ export function StakeInputSection({
   validatorInfo,
   secondsRemainToEpochEnd,
   stakeMode = "default",
+  minimumStakeLamports,
+  isMinimumLoading = false,
 }: StakeInputSectionProps) {
   const styles = {
     widget: {
@@ -109,6 +114,15 @@ export function StakeInputSection({
         </FormField>
       </Form>
 
+      {stakeMode === "default" &&
+        (isMinimumLoading || minimumStakeLamports !== undefined) && (
+          <div className="stake-minimum" role="status">
+            {isMinimumLoading
+              ? "Min: loading..."
+              : "Min: " + formatLamportsAsSol(minimumStakeLamports as number) + " SOL"}
+          </div>
+        )}
+
       <Flex align="center" justify="between">
         <WalletBalance
           balance={balance}
@@ -119,6 +133,16 @@ export function StakeInputSection({
       </Flex>
 
       <style>{`
+        [data-widget="deepstake"] .stake-minimum {
+          margin: -14px 30px 12px;
+          color: #777;
+          font-size: 12px;
+        }
+
+        [data-widget="deepstake"][data-theme="dark"] .stake-minimum {
+          color: #9F9FAC;
+        }
+
         [data-widget="deepstake"] .sw-input-container,
         [data-widget="deepstake"] .sw-input-container > input {
           background: #F5F5F5;

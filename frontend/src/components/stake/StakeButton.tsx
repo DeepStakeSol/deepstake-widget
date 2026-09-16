@@ -10,6 +10,8 @@ interface StakeButtonProps {
   account: UiWalletAccount;
   stakeAmount: string;
   inSufficientBalance: boolean;
+  minimumStakeLamports?: number;
+  isMinimumLoading?: boolean;
   onSuccess: () => void;
   onDataLoaded: (stakeAccounts: GetStakeAccountResponse[]) => void;
 }
@@ -20,6 +22,8 @@ export function StakeButton({
   account,
   stakeAmount,
   inSufficientBalance,
+  minimumStakeLamports,
+  isMinimumLoading,
   onSuccess,
   onDataLoaded,
 }: StakeButtonProps) {
@@ -27,7 +31,6 @@ export function StakeButton({
   const {
     isSendingTransaction,
     lastSignature,
-    lastStakeAccount,
     error,
     disableStakeButton,
     buttonLabel,
@@ -38,6 +41,8 @@ export function StakeButton({
     account,
     stakeAmount,
     inSufficientBalance,
+    minimumStakeLamports,
+    isMinimumLoading,
     onSuccess,
     onDataLoaded,
   });

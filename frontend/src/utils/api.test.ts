@@ -165,11 +165,63 @@ describe('API helpers', () => {
 
   it('throws on non-OK responses', async () => {
     const fetchMock = vi.mocked(fetch)
-    fetchMock.mockReturnValue(mockJsonResponse({}, { ok: false, status: 500 }))
+    fetchMock.mockReturnValue(
+      mockJsonResponse({ error: 'Failed to fetch balance' }, { ok: false, status: 500 })
+    )
     const { fetchSolBalance } = await loadApi()
 
     await expect(fetchSolBalance('wallet', 'devnet')).rejects.toThrow(
-      'HTTP error 500 when fetching https://backend.example/api/balance?address=wallet&network=devnet'
+      'Failed to fetch balance'
+    )
+  })
+
+  it('formats stake minimum details from backend errors', async () => {
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockReturnValue(
+      mockJsonResponse(
+        {
+          error: 'Stake amount is below the selected network minimum',
+          details: {
+            network: 'mainnet',
+            minimumStakeLamports: 1_002_282_880,
+          },
+        },
+        { ok: false, status: 400 },
+      ),
+    )
+    const { generateStakeTransaction } = await loadApi()
+
+    await expect(
+      generateStakeTransaction('mainnet', {
+        newAccountAddress: 'new-account',
+        stakeLamports: 500_000_000,
+        stakerAddress: 'staker',
+        voteAccount: 'vote',
+      }),
+    ).rejects.toThrow(
+      'Stake amount is below the selected network minimum. Minimum stake on mainnet is 1.00228288 SOL.',
+    )
+  })
+
+  it('caches stake minimum responses by network', async () => {
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockReturnValue(
+      mockJsonResponse({
+        network: 'mainnet',
+        minimumDelegation: 1_000_000_000,
+        rentExemptReserve: 2_282_880,
+        minimumStakeLamports: 1_002_282_880,
+        minimumStakeSol: 1.00228288,
+      }),
+    )
+    const { fetchStakeMinimum } = await loadApi()
+
+    await fetchStakeMinimum('mainnet')
+    await fetchStakeMinimum('mainnet')
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://backend.example/api/stake/minimum?network=mainnet',
     )
   })
 })

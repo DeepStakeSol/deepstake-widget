@@ -131,12 +131,12 @@ describe("validator profile client", () => {
 
   it("rejects failed, mismatched, and malformed backend profiles", async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(response({}, 503))
+      .mockResolvedValueOnce(response({ error: "Validator service unavailable" }, 503))
       .mockResolvedValueOnce(response(backendProfile({ voteAccount: "other" })))
       .mockResolvedValueOnce(response(backendProfile({ commissionPercent: "0" })));
 
     await expect(fetchValidatorProfile("vote", "mainnet")).rejects.toThrow(
-      "HTTP error 503"
+      "Validator service unavailable"
     );
     await expect(fetchValidatorProfile("vote", "mainnet")).rejects.toThrow(
       "does not match"

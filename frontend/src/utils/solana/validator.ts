@@ -1,5 +1,5 @@
 import type { Options } from "../../options";
-import { getBackendUrl } from "../backendUrl";
+import { fetchBackendJson } from "../backendRequest";
 import type { NetworkType } from "../config";
 
 const VALIDATOR_INFO_URL = "https://api.stakewiz.com/validator";
@@ -246,15 +246,9 @@ async function fetchLegacyValidatorInfo(
 }
 
 async function fetchLegacyValidatorLogo(voteAccount: string): Promise<string | null> {
-  const url = new URL(
-    getBackendUrl("/trillium/rewards"),
-    window.location.origin
+  const data = await fetchBackendJson<TrilliumRewardItem[]>(
+    "/trillium/rewards?validatorIdentity=" + encodeURIComponent(voteAccount)
   );
-  url.searchParams.append("validatorIdentity", voteAccount);
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-  const data = (await response.json()) as TrilliumRewardItem[];
   if (!Array.isArray(data)) return null;
   const match = data.find((item) => item.vote_account_pubkey === voteAccount);
   return nullableString(match?.icon_url, "icon_url");
@@ -297,12 +291,10 @@ export async function fetchValidatorProfile(
   }
 
   const query = new URLSearchParams({ network, voteAccount });
-  const url = `${getBackendUrl("/validator/profile")}?${query.toString()}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`HTTP error ${response.status} when fetching ${url}`);
-  }
-  return parseBackendProfile(await response.json(), voteAccount, network);
+  const data = await fetchBackendJson<unknown>(
+    "/validator/profile?" + query.toString()
+  );
+  return parseBackendProfile(data, voteAccount, network);
 }
 
 export async function fetchValidatorLogo(
@@ -310,12 +302,10 @@ export async function fetchValidatorLogo(
   network: NetworkType
 ): Promise<ValidatorLogo> {
   const query = new URLSearchParams({ network, voteAccount });
-  const url = `${getBackendUrl("/validator/logo")}?${query.toString()}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`HTTP error ${response.status} when fetching ${url}`);
-  }
-  return parseBackendLogo(await response.json(), voteAccount, network);
+  const data = await fetchBackendJson<unknown>(
+    "/validator/logo?" + query.toString()
+  );
+  return parseBackendLogo(data, voteAccount, network);
 }
 
 export function applyValidatorLogo(

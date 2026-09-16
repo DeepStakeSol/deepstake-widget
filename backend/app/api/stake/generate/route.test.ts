@@ -99,6 +99,7 @@ vi.mock("@/utils/solana/rpc", () => ({
   createRpcConnection: createRpcConnectionMock
 }));
 
+import { clearStakeMinimumCache } from "@/utils/solana/stake/minimum";
 import { POST } from "./route";
 
 function request(
@@ -117,6 +118,7 @@ const validBody = {
 
 describe("POST /api/stake/generate", () => {
   beforeEach(() => {
+    clearStakeMinimumCache();
     getAccountInfoMock.mockReset();
     getMinimumBalanceForRentExemptionMock.mockReset();
     getStakeMinimumDelegationMock.mockReset();

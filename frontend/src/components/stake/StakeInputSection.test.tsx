@@ -62,4 +62,32 @@ describe("StakeInputSection", () => {
 
     expect(onInputChange).toHaveBeenCalled();
   });
+
+  it("shows the Native network minimum and loading state", () => {
+    const props = {
+      isConnected: false,
+      balance: 0,
+      formattedStakeAmount: "",
+      onInputChange: vi.fn(),
+      onSetStakeAmount: vi.fn(),
+      onSetFormattedStakeAmount: vi.fn(),
+      validatorInfo: null,
+      secondsRemainToEpochEnd: 10,
+    };
+    const { rerender } = render(
+      <StakeInputSection {...props} isMinimumLoading />
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Min: loading...");
+
+    rerender(
+      <StakeInputSection
+        {...props}
+        minimumStakeLamports={1_002_282_880}
+      />
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Min: 1.00228288 SOL"
+    );
+  });
 });

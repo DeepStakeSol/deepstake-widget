@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { install } from "@solana/webcrypto-ed25519-polyfill";
 import { WalletConnectButton } from "../WalletConnectButton";
 import { StakeAccountsTable } from "./StakeAccountsTable";
@@ -11,7 +11,11 @@ import { NoWalletTable } from "./NoWalletTable";
 import { NoAccountsTable } from "./NoAccountsTable";
 import { ValidatorProfile } from "../../utils/solana/validator";
 import { useStakeForm } from "../../hooks/useStakeForm";
-import { fetchStakeAccounts } from "../../utils/api";
+import {
+  fetchStakeAccounts,
+  fetchStakeMinimum,
+  type StakeMinimumResponse,
+} from "../../utils/api";
 
 install();
 
@@ -44,6 +48,39 @@ export function StakeForm({
     inSufficientBalance,
   } = useStakeForm();
 
+  const [minimumState, setMinimumState] = useState<{
+    network: string;
+    minimum: StakeMinimumResponse | null;
+    isLoading: boolean;
+  }>({ network, minimum: null, isLoading: true });
+
+  useEffect(() => {
+    let cancelled = false;
+    setMinimumState({ network, minimum: null, isLoading: true });
+
+    fetchStakeMinimum(network)
+      .then((minimum) => {
+        if (!cancelled) {
+          setMinimumState({ network, minimum, isLoading: false });
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to fetch stake minimum:", error);
+        if (!cancelled) {
+          setMinimumState({ network, minimum: null, isLoading: false });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [network]);
+
+  const activeMinimum =
+    minimumState.network === network ? minimumState.minimum : null;
+  const isMinimumLoading =
+    minimumState.network !== network || minimumState.isLoading;
+
   const handleManageOpen = useCallback(() => {
     if (!selectedWalletAccount) return;
 
@@ -70,6 +107,8 @@ export function StakeForm({
             validatorInfo={validatorInfo}
             secondsRemainToEpochEnd={secondsRemainToEpochEnd}
             stakeMode="default"
+            minimumStakeLamports={activeMinimum?.minimumStakeLamports}
+            isMinimumLoading={isMinimumLoading}
           />
           {isConnected && selectedWalletAccount ? (
             <StakeButton
@@ -78,6 +117,8 @@ export function StakeForm({
               stakeAmount={stakeAmount}
               onSuccess={resetFormAndRefreshBalance}
               inSufficientBalance={inSufficientBalance}
+              minimumStakeLamports={activeMinimum?.minimumStakeLamports}
+              isMinimumLoading={isMinimumLoading}
               onDataLoaded={setStakeAccounts}
             />
           ) : (

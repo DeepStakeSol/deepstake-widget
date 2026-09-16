@@ -1,7 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { useStakeFormMock } = vi.hoisted(() => ({
+const { fetchStakeAccountsMock, fetchStakeMinimumMock, useStakeFormMock } = vi.hoisted(() => ({
+  fetchStakeAccountsMock: vi.fn(),
+  fetchStakeMinimumMock: vi.fn(),
   useStakeFormMock: vi.fn(),
 }));
 
@@ -11,6 +13,11 @@ vi.mock("@solana/webcrypto-ed25519-polyfill", () => ({
 
 vi.mock("../../hooks/useStakeForm", () => ({
   useStakeForm: useStakeFormMock,
+}));
+
+vi.mock("../../utils/api", () => ({
+  fetchStakeAccounts: fetchStakeAccountsMock,
+  fetchStakeMinimum: fetchStakeMinimumMock,
 }));
 
 vi.mock("../WalletConnectButton", () => ({
@@ -27,13 +34,27 @@ vi.mock("./StakeLayout", () => ({
 }));
 
 vi.mock("./StakeInputSection", () => ({
-  StakeInputSection: ({ selectedWalletAddress }: { selectedWalletAddress?: string }) => (
-    <div data-testid="stake-input">{selectedWalletAddress ?? "no-wallet"}</div>
+  StakeInputSection: ({ selectedWalletAddress, minimumStakeLamports, isMinimumLoading }: { selectedWalletAddress?: string; minimumStakeLamports?: number; isMinimumLoading?: boolean }) => (
+    <div
+      data-testid="stake-input"
+      data-minimum={minimumStakeLamports}
+      data-loading={String(Boolean(isMinimumLoading))}
+    >
+      {selectedWalletAddress ?? "no-wallet"}
+    </div>
   ),
 }));
 
 vi.mock("./StakeButton", () => ({
-  StakeButton: () => <button type="button">Stake Button</button>,
+  StakeButton: ({ minimumStakeLamports, isMinimumLoading }: { minimumStakeLamports?: number; isMinimumLoading?: boolean }) => (
+    <button
+      type="button"
+      data-minimum={minimumStakeLamports}
+      data-loading={String(Boolean(isMinimumLoading))}
+    >
+      Stake Button
+    </button>
+  ),
 }));
 
 vi.mock("./StakeAccountsTable", () => ({
@@ -74,6 +95,14 @@ function mockStakeForm(overrides = {}) {
 describe("StakeForm", () => {
   beforeEach(() => {
     useStakeFormMock.mockReset();
+    fetchStakeAccountsMock.mockReset();
+    fetchStakeMinimumMock.mockReset().mockResolvedValue({
+      network: "devnet",
+      minimumStakeLamports: 1_002_282_880,
+      minimumStakeSol: 1.00228288,
+      minimumDelegation: 1_000_000_000,
+      rentExemptReserve: 2_282_880,
+    });
   });
 
   it("renders disconnected wallet state", () => {
@@ -86,7 +115,7 @@ describe("StakeForm", () => {
     expect(screen.getByText("No Wallet Table")).toBeInTheDocument();
   });
 
-  it("renders no accounts state for a connected wallet without stake accounts", () => {
+  it("renders no accounts state for a connected wallet without stake accounts", async () => {
     mockStakeForm({
       selectedWalletAccount: { address: "wallet-address" },
       isConnected: true,
@@ -96,6 +125,16 @@ describe("StakeForm", () => {
 
     expect(screen.getByText("Stake Button")).toBeInTheDocument();
     expect(screen.getByText("No Accounts Table")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByTestId("stake-input")).toHaveAttribute(
+        "data-minimum",
+        "1002282880"
+      )
+    );
+    expect(screen.getByRole("button", { name: "Stake Button" })).toHaveAttribute(
+      "data-minimum",
+      "1002282880"
+    );
   });
 
   it("renders stake accounts table for a connected wallet with accounts", () => {
