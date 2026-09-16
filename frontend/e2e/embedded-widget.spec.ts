@@ -507,3 +507,22 @@ test("Blaze and Vault Manage keep the widget centered and width-stable", async (
 
   expect(consoleErrors).toEqual([]);
 });
+
+test("validator information remains left-aligned inside the centered widget", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 1000 });
+
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-mainnet-centered.html");
+  const validatorCard = page.locator(".vi-validator-card");
+  const validatorContent = page.locator(".vi-content");
+
+  await expect(validatorCard).toBeVisible();
+  await expect(validatorContent).toHaveCSS("text-align", "start");
+
+  const cardBox = await validatorCard.boundingBox();
+  const contentBox = await validatorContent.boundingBox();
+  expect(cardBox).not.toBeNull();
+  expect(contentBox).not.toBeNull();
+  expect(contentBox!.x).toBeGreaterThan(cardBox!.x);
+
+  expect(consoleErrors).toEqual([]);
+});
