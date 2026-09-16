@@ -57,9 +57,18 @@ export function StakeLayout({ stakeChildren, manageChildren, onManageOpen }: Sta
         }
 
         [data-widget="deepstake"] .stake-tab-content {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
           height: 315px;
           overflow-x: hidden;
           overflow-y: auto;
+        }
+
+        [data-widget="deepstake"] .stake-tab-content .manage-wrap {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
         }
 
         [data-widget="deepstake"] .tabs-level2 {

@@ -8,6 +8,7 @@ type MockScenario = {
   epochStatus?: number;
   perfStatus?: number;
   validatorStatus?: number;
+  balanceNetwork?: "mainnet" | "devnet";
 };
 
 type GotoOptions = {
@@ -56,13 +57,59 @@ async function installNetworkMocks(page: Page, scenario: MockScenario = {}) {
 
       if (parsed.pathname === "/api/balance") {
         await fulfillJson(route, 200, {
-          solBalance: parsed.searchParams.get("network") === "devnet" ? 4.25 : 0,
+          solBalance:
+            parsed.searchParams.get("network") === (scenario.balanceNetwork ?? "devnet") ? 4.25 : 0,
         });
         return;
       }
 
       if (parsed.pathname === "/api/stake/fetch") {
         await fulfillJson(route, 200, { stakeAccounts: [] });
+        return;
+      }
+      if (parsed.pathname === "/api/stake/minimum") {
+        await fulfillJson(route, 200, {
+          network: parsed.searchParams.get("network"),
+          minimumStakeLamports: 1_002_282_880,
+          minimumStakeSol: 1.00228288,
+          minimumDelegation: 1_000_000_000,
+          rentExemptReserve: 2_282_880,
+        });
+        return;
+      }
+
+      if (parsed.pathname === "/api/vbalance") {
+        await fulfillJson(route, 200, { lst: "255806200913" });
+        return;
+      }
+
+      if (parsed.pathname === "/api/blaze/manage/applied-stakes") {
+        await fulfillJson(route, 200, {
+          appliedStakes: [
+            {
+              voteAcc: "Vote111111111111111111111111111111111111111",
+              amount: 218.49,
+            },
+          ],
+        });
+        return;
+      }
+
+      if (parsed.pathname === "/api/blaze/manage/vault") {
+        await fulfillJson(route, 200, {
+          wallet: e2eWalletAddress,
+          binding: {
+            hasBinding: true,
+            validatorVoteKey: "Vote111111111111111111111111111111111111111",
+          },
+          balance: { vsol: "80000000" },
+          stakebot: {
+            found: true,
+            generatedStake: "255806200913.43082",
+            epoch: 42,
+          },
+          uiStatus: "ready",
+        });
         return;
       }
 
@@ -385,5 +432,78 @@ test("disconnects a mocked wallet back to disconnected empty state", async ({ pa
   await expect(page.getByText("Not Connected").first()).toBeVisible();
   await page.getByRole("tab", { name: "Manage" }).click();
   await expect(page.getByText("Wallet not connected")).toBeVisible();
+  expect(consoleErrors).toEqual([]);
+});
+
+test("Blaze and Vault Manage keep the widget centered and width-stable", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 1000 });
+
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-mainnet-centered.html", {
+    wallet: true,
+    mock: { balanceNetwork: "mainnet" },
+  });
+
+  await page.getByRole("button", { name: "Connect Wallet" }).first().click();
+  await page.getByRole("button", { name: "Connect with E2E Wallet" }).click();
+  await expect(page.getByText("So11...1112")).toBeVisible();
+
+  const widget = page.locator('[data-widget="deepstake"]');
+  const measure = () =>
+    widget.evaluate((root) => {
+      const container = root.querySelector<HTMLElement>(".sw-container");
+      if (!container) throw new Error("Widget container not found");
+
+      const rootBox = root.getBoundingClientRect();
+      const containerBox = container.getBoundingClientRect();
+      return {
+        root: {
+          x: rootBox.x,
+          width: rootBox.width,
+          clientWidth: root.clientWidth,
+          scrollWidth: root.scrollWidth,
+        },
+        container: {
+          x: containerBox.x,
+          width: containerBox.width,
+          clientWidth: container.clientWidth,
+          scrollWidth: container.scrollWidth,
+        },
+      };
+    });
+
+  const expectStableGeometry = (
+    before: Awaited<ReturnType<typeof measure>>,
+    after: Awaited<ReturnType<typeof measure>>,
+  ) => {
+    expect(before.root.width).toBeCloseTo(640, 0);
+    expect(Math.abs(after.root.x - before.root.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(after.root.width - before.root.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(after.container.x - before.container.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(after.container.width - before.container.width)).toBeLessThanOrEqual(1);
+    expect(after.root.scrollWidth).toBe(after.root.clientWidth);
+    expect(after.container.scrollWidth).toBe(after.container.clientWidth);
+  };
+
+  for (const provider of [/BlazeStake/, /Vault/]) {
+    const providerTab = page.getByRole("tab", { name: provider });
+    await providerTab.click();
+    await expect(providerTab).toHaveAttribute("data-state", "active");
+
+    await page.locator('[role="tab"]:visible').filter({ hasText: "Your stake" }).click();
+    const before = await measure();
+
+    await page.locator('[role="tab"]:visible').filter({ hasText: "Manage" }).click();
+    await expect(page.locator(".manage-wrap:visible")).toBeVisible();
+    const after = await measure();
+    expectStableGeometry(before, after);
+
+    if (provider.source === "Vault") {
+      const tooltipTrigger = page.locator(".q-mark-icon:visible");
+      await expect(tooltipTrigger).toBeVisible();
+      await tooltipTrigger.hover();
+      expectStableGeometry(before, await measure());
+    }
+  }
+
   expect(consoleErrors).toEqual([]);
 });

@@ -25,6 +25,27 @@ function html(options: Record<string, unknown>) {
 </html>`;
 }
 
+function centeredHtml(options: Record<string, unknown>) {
+  const escapedOptions = JSON.stringify(options).replace(/'/g, "&apos;");
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>DeepStake centered E2E Host</title>
+    <style>
+      html, body { margin: 0; width: 100%; }
+      main { display: flex; justify-content: center; width: 100%; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div id="root" data-widget="deepstake" data-options='${escapedOptions}'></div>
+    </main>
+    <script src="/api/w/widget.iife.js"></script>
+  </body>
+</html>`;
+}
+
 function multiWidgetHtml() {
   const validOptions = JSON.stringify({
     vote_account: voteAccount,
@@ -72,6 +93,16 @@ export default async function globalSetup() {
     path.join(distDir, "e2e-host-dark.html"),
     html({ vote_account: voteAccount, theme: "dark", network: "devnet", tabs: ["native", "blaze", "vault"] })
   );
+  fs.writeFileSync(
+    path.join(distDir, "e2e-host-mainnet-centered.html"),
+    centeredHtml({
+      vote_account: voteAccount,
+      theme: "light",
+      network: "mainnet",
+      tabs: ["blaze", "vault"],
+    })
+  );
+
   fs.writeFileSync(
     path.join(distDir, "e2e-host-overrides.html"),
     html({
