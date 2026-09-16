@@ -20,6 +20,9 @@ interface StakeAccountsTableProps {
 }
 
 const ROWS_PER_PAGE = 3
+const U64_MAX = 18446744073709551615n
+
+type EpochStatus = 'activating' | 'active' | 'deactivating' | 'deactivated'
 
 export function StakeAccountsTable({
   stakeAccounts,
@@ -59,26 +62,29 @@ export function StakeAccountsTable({
     .slice(startIndex, endIndex)
 
   const normalizedEpoch = (ep: number) => {
-    return ep >= 1844600n ? 0 : ep
+    return BigInt(ep) >= U64_MAX ? 0 : ep
   }
 
-  const epochStatus = (deactivatedEpoch: number, activatedEpoch: number) => {
+  const epochStatus = (deactivatedEpoch: number, activatedEpoch: number): EpochStatus => {
     deactivatedEpoch = normalizedEpoch(deactivatedEpoch)
     if (deactivatedEpoch === 0) {
       return activatedEpoch === currentEpoch ? 'activating' : 'active'
     }
-    if (deactivatedEpoch > 0 && deactivatedEpoch === currentEpoch) {
-      return 'pending deactivation'
+    if (deactivatedEpoch <= activatedEpoch) {
+      return 'deactivated'
+    }
+    if (deactivatedEpoch === currentEpoch) {
+      return 'deactivating'
     }
     return 'deactivated'
   }
 
-  const canUnstake = (epochStatus: string) => {
-    return epochStatus === 'active'
+  const canUnstake = (status: EpochStatus) => {
+    return status === 'active' || status === 'activating'
   }
 
-  const canWithdraw = (epochStatus: string) => {
-    return epochStatus === 'deactivated'
+  const canWithdraw = (status: EpochStatus) => {
+    return status === 'deactivated'
   }
 
   return (
@@ -180,7 +186,7 @@ export function StakeAccountsTable({
                 }}
                 onClick={() => onSelectRow(account)}
                 className={`table-row cursor-pointer ${
-                  selectedRow?.address === account.address ? 'bg-blue-100' : ''
+                  selectedRow?.address === account.address ? 'table-row-selected' : ''
                 }`}
               >
                 <Table.Cell style={{ textAlign: 'center', padding: '4px 6px' }}>
@@ -189,6 +195,8 @@ export function StakeAccountsTable({
                     name="stake-row"
                     checked={selectedRow?.address === account.address}
                     onChange={() => onSelectRow(account)}
+                    className="stake-row-radio"
+                    aria-label={`Select stake account ${account.address}`}
                   />
                 </Table.Cell>
 
@@ -228,18 +236,7 @@ export function StakeAccountsTable({
                   }}
                 >
                   {account.activationEpoch}
-                  <div
-                    style={{
-                      display: 'inline-block',
-                      width: '70px',
-                      textAlign: 'center',
-                      padding: '2px 6px',
-                      borderRadius: '10px',
-                      marginLeft: '5px',
-                      fontSize: '10px',
-                    }}
-                    className="epoch-status"
-                  >
+                  <div className="epoch-status">
                     {epochStatus(account.deactivationEpoch, account.activationEpoch)}
                   </div>
                 </Table.Cell>
@@ -338,7 +335,7 @@ export function StakeAccountsTable({
         }
 
         [data-widget="deepstake"] .stake-table {
-          backgroud-color: #fff;
+          background-color: #fff;
         }
 
         [data-widget="deepstake"] .table-header {
@@ -346,7 +343,47 @@ export function StakeAccountsTable({
         }
 
         [data-widget="deepstake"] .epoch-status {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          box-sizing: border-box;
+          min-width: 80px;
+          margin-left: 5px;
+          padding: 2px 6px;
+          border-radius: 10px;
           background-color: #E5E4E4;
+          font-size: 10px;
+          line-height: 1.2;
+          text-align: center;
+          white-space: nowrap;
+        }
+
+        [data-widget="deepstake"] .table-row-selected > td {
+          background-color: #DFE7F3;
+        }
+
+        [data-widget="deepstake"] .stake-row-radio {
+          appearance: none;
+          display: inline-block;
+          box-sizing: border-box;
+          width: 14px;
+          height: 14px;
+          margin: 0;
+          border: 1.5px solid #5A5A62;
+          border-radius: 50%;
+          background-color: #FFF;
+          cursor: pointer;
+          vertical-align: middle;
+        }
+
+        [data-widget="deepstake"] .stake-row-radio:checked {
+          background-color: #5A5A62;
+          box-shadow: inset 0 0 0 3px #FFF;
+        }
+
+        [data-widget="deepstake"] .stake-row-radio:focus-visible {
+          outline: 2px solid #46658C;
+          outline-offset: 2px;
         }
 
         [data-widget="deepstake"] .stake-header {
@@ -361,7 +398,7 @@ export function StakeAccountsTable({
           height: 24px;
           opacity: 0.7;
           background-size: contain;
-          background-image: ${cssImageUrl("/images/coins.png")};
+          background-image: ${cssImageUrl('/images/coins.png')};
         }
 
         [data-widget="deepstake"] .stake-title {
@@ -379,7 +416,7 @@ export function StakeAccountsTable({
           width: 14px;
           height: 14px;
           background-size: contain;
-          background-image: ${cssImageUrl("/images/icon-copy.png")};
+          background-image: ${cssImageUrl('/images/icon-copy.png')};
         }
 
         [data-widget="deepstake"] .pg-button {
@@ -395,12 +432,30 @@ export function StakeAccountsTable({
           color: #9F9FAC;
         }
 
+        [data-widget="deepstake"][data-theme="dark"] .table-row-selected > td {
+          background-color: #454A59;
+        }
+
+        [data-widget="deepstake"][data-theme="dark"] .stake-row-radio {
+          border-color: #D9D9D9;
+          background-color: #0D1625;
+        }
+
+        [data-widget="deepstake"][data-theme="dark"] .stake-row-radio:checked {
+          background-color: #D9D9D9;
+          box-shadow: inset 0 0 0 3px #0D1625;
+        }
+
+        [data-widget="deepstake"][data-theme="dark"] .stake-row-radio:focus-visible {
+          outline-color: #AFCBEE;
+        }
+
         [data-widget="deepstake"][data-theme="dark"] .table-header {
           color: #fff;
         }
 
         [data-widget="deepstake"][data-theme="dark"] .stake-table {
-          backgroud-color: #313846;
+          background-color: #313846;
         }
 
         [data-widget="deepstake"][data-theme="dark"] .stake-title {
@@ -409,12 +464,12 @@ export function StakeAccountsTable({
 
         [data-widget="deepstake"][data-theme="dark"] .stake-icon .img {
           background-size: contain;
-          background-image: ${cssImageUrl("/images/coins_dk.png")};
+          background-image: ${cssImageUrl('/images/coins_dk.png')};
         }
 
         [data-widget="deepstake"][data-theme="dark"] .vi-copy-btn {
           background-size: contain;
-          background-image: ${cssImageUrl("/images/icon-copy_dk.png")};
+          background-image: ${cssImageUrl('/images/icon-copy_dk.png')};
         }
 
         [data-widget="deepstake"][data-theme="dark"] .pg-button {
