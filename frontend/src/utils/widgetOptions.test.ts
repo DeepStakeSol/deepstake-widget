@@ -42,7 +42,7 @@ describe('parseWidgetOptions', () => {
     ).toEqual({
       vote_account: VOTE_ACCOUNT,
       network: 'mainnet',
-      theme: 'light',
+      theme: 'dark',
       tabs: ['vault', 'native'],
       validator_name: 'Validator',
       validator_description: 'Description',
@@ -53,11 +53,11 @@ describe('parseWidgetOptions', () => {
   it('leaves network absent for the existing environment precedence', () => {
     expect(parseWidgetOptions(JSON.stringify({ vote_account: VOTE_ACCOUNT }))).toEqual({
       vote_account: VOTE_ACCOUNT,
-      theme: 'light',
+      theme: 'dark',
     })
   })
 
-  it('ignores malformed tabs collections and accepts dark theme', () => {
+  it('ignores malformed tabs collections and accepts explicit themes', () => {
     expect(
       parseWidgetOptions(
         JSON.stringify({
@@ -69,6 +69,12 @@ describe('parseWidgetOptions', () => {
     ).toEqual({
       vote_account: VOTE_ACCOUNT,
       theme: 'dark',
+    })
+    expect(
+      parseWidgetOptions(JSON.stringify({ vote_account: VOTE_ACCOUNT, theme: 'light' }))
+    ).toEqual({
+      vote_account: VOTE_ACCOUNT,
+      theme: 'light',
     })
   })
 })

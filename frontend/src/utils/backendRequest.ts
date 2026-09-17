@@ -6,12 +6,6 @@ type BackendErrorPayload = {
   details?: unknown
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null
-}
-
 export function formatLamportsAsSol(lamports: number): string {
   if (!Number.isSafeInteger(lamports) || lamports < 0) {
     return String(lamports / 1_000_000_000)
@@ -22,39 +16,6 @@ export function formatLamportsAsSol(lamports: number): string {
     .padStart(9, '0')
     .replace(/0+$/, '')
   return fraction ? whole + '.' + fraction : String(whole)
-}
-
-function formatMinimumDetails(details: unknown): string | null {
-  const value = asRecord(details)
-  if (!value || typeof value.network !== 'string') return null
-
-  if (
-    typeof value.minimumStakeLamports === 'number' &&
-    Number.isFinite(value.minimumStakeLamports)
-  ) {
-    return (
-      'Minimum stake on ' +
-      value.network +
-      ' is ' +
-      formatLamportsAsSol(value.minimumStakeLamports) +
-      ' SOL'
-    )
-  }
-
-  if (
-    typeof value.minimumStakeSol === 'number' &&
-    Number.isFinite(value.minimumStakeSol)
-  ) {
-    return (
-      'Minimum stake on ' +
-      value.network +
-      ' is ' +
-      String(value.minimumStakeSol) +
-      ' SOL'
-    )
-  }
-
-  return null
 }
 
 export class BackendRequestError extends Error {
@@ -84,14 +45,10 @@ async function backendError(response: Response): Promise<BackendRequestError> {
 
   const bodyMessage =
     typeof payload?.error === 'string' && payload.error.trim()
-      ? payload.error.trim()
+      ? payload.error
       : 'The server could not complete the request'
-  const minimumDetails = formatMinimumDetails(payload?.details)
-  const message = minimumDetails
-    ? bodyMessage.replace(/[.\s]+$/, '') + '. ' + minimumDetails + '.'
-    : bodyMessage
 
-  return new BackendRequestError(message, {
+  return new BackendRequestError(bodyMessage, {
     status: response.status,
     code: typeof payload?.code === 'string' ? payload.code : undefined,
     details: payload?.details,

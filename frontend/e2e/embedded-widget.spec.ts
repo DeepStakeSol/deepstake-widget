@@ -288,7 +288,7 @@ test("embedded widget loads from backend static route", async ({ page }) => {
 
   await expect(page.getByRole("tab", { name: /Native/ })).toBeVisible();
   await expect(page.getByRole("tab", { name: /BlazeStake/ })).toBeVisible();
-  await expect(page.getByRole("tab", { name: /Vault/ })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /Vault/ })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: /Native/ })).toHaveAttribute("data-state", "active");
   await expect(page.getByText("Not Connected").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Wallet" })).toBeVisible();
@@ -308,16 +308,13 @@ test("an invalid config does not prevent later widgets from mounting", async ({ 
   expect(consoleErrors).toEqual([]);
 });
 
-test("tab switching works in embedded widget", async ({ page }) => {
+test("tab switching works in an embedded devnet widget", async ({ page }) => {
   const consoleErrors = await gotoHost(page, "/api/w/e2e-host-all.html");
 
   await page.getByRole("tab", { name: /BlazeStake/ }).click();
   await expect(page.getByRole("tab", { name: /BlazeStake/ })).toHaveAttribute("data-state", "active");
+  await expect(page.getByRole("tab", { name: /Vault/ })).toHaveCount(0);
   await expect(page.getByText("Not Connected").first()).toBeVisible();
-
-  await page.getByRole("tab", { name: /Vault/ }).click();
-  await expect(page.getByRole("tab", { name: /Vault/ })).toHaveAttribute("data-state", "active");
-  await expect(page.getByText("The Vault only works in the mainnet cluster")).toBeVisible();
   expect(consoleErrors).toEqual([]);
 });
 
@@ -327,10 +324,29 @@ test("widget options filter tabs", async ({ page }) => {
   await expect(page.getByRole("tab", { name: /Native/ })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: /BlazeStake/ })).toBeVisible();
   await expect(page.getByRole("tab", { name: /BlazeStake/ })).toHaveAttribute("data-state", "active");
-
-  await page.getByRole("tab", { name: /Vault/ }).click();
-  await expect(page.getByText("The Vault only works in the mainnet cluster")).toBeVisible();
+  await expect(page.getByRole("tab", { name: /Vault/ })).toHaveCount(0);
   expect(consoleErrors).toEqual([]);
+});
+
+test("missing theme defaults to dark", async ({ page }) => {
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-default-theme.html");
+
+  await expect(page.locator('[data-widget="deepstake"]')).toHaveAttribute("data-theme", "dark");
+  await expect(page.getByRole("tab", { name: /Native/ })).toBeVisible();
+  expect(consoleErrors).toEqual([]);
+});
+
+test("a Vault-only devnet config shows a configuration error", async ({ page }) => {
+  await installNetworkMocks(page);
+  const response = await page.goto("/api/w/e2e-host-vault-only.html", {
+    waitUntil: "networkidle",
+  });
+
+  expect(response?.ok()).toBe(true);
+  await expect(page.getByRole("alert")).toHaveText(
+    "DeepStake widget: Vault is unavailable on devnet; configure at least one supported tab",
+  );
+  await expect(page.getByRole("tab")).toHaveCount(0);
 });
 
 test("validator identity options override backend profile data", async ({ page }) => {

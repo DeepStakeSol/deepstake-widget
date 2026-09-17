@@ -44,7 +44,7 @@ export function parseWidgetOptions(rawOptions: string | undefined): Options {
 
   const options: Options = {
     vote_account: parsed.vote_account,
-    theme: parsed.theme === 'dark' ? 'dark' : 'light',
+    theme: parsed.theme === 'light' ? 'light' : 'dark',
   }
 
   if (parsed.network === 'mainnet' || parsed.network === 'devnet') {

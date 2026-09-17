@@ -44,7 +44,7 @@ describe('mountDeepStakeWidgets', () => {
 
     const broken = document.getElementById('broken')
     const legacy = document.getElementById('root')
-    expect(broken).toHaveAttribute('data-theme', 'light')
+    expect(broken).toHaveAttribute('data-theme', 'dark')
     expect(legacy).toHaveAttribute('data-widget', 'deepstake')
     expect(
       consoleError.mock.calls.some(

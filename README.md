@@ -129,12 +129,14 @@ For production, replace the script URL with your public backend URL:
 | Field | Required | Values | Description |
 | --- | --- | --- | --- |
 | `vote_account` | Yes | Solana vote account address | Validator vote account that native staking targets. |
-| `theme` | No | `light`, `dark` | Widget theme. Defaults to `light`. |
+| `theme` | No | `light`, `dark` | Widget theme. Defaults to `dark`. Unknown values also fall back to `dark`. |
 | `network` | No | `mainnet`, `devnet` | Solana cluster used by API calls, wallet chain checks, and explorer links. Overrides `VITE_NEXT_PUBLIC_NETWORK_ENV`. |
-| `tabs` | No | `native`, `blaze`, `vault` | Top-level staking tabs to show. Defaults to all tabs. |
+| `tabs` | No | `native`, `blaze`, `vault` | Top-level staking tabs to show. Defaults to all tabs supported by the selected network. |
 | `validator_name` | No | String | Overrides the validator name returned by the backend profile. |
 | `validator_description` | No | String | Overrides the validator description returned by the backend profile. |
 | `validator_logo_url` | No | HTTPS or local image URL | Overrides the validator logo returned by the backend profile. |
+
+Vault is mainnet-only. On devnet, the widget hides Vault and logs a warning. A devnet configuration that explicitly enables only Vault is rejected as invalid.
 
 Example:
 

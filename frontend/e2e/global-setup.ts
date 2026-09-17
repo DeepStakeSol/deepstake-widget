@@ -94,6 +94,14 @@ export default async function globalSetup() {
     html({ vote_account: voteAccount, theme: "dark", network: "devnet", tabs: ["native", "blaze", "vault"] })
   );
   fs.writeFileSync(
+    path.join(distDir, "e2e-host-default-theme.html"),
+    html({ vote_account: voteAccount, network: "devnet", tabs: ["native"] })
+  );
+  fs.writeFileSync(
+    path.join(distDir, "e2e-host-vault-only.html"),
+    html({ vote_account: voteAccount, network: "devnet", tabs: ["vault"] })
+  );
+  fs.writeFileSync(
     path.join(distDir, "e2e-host-mainnet-centered.html"),
     centeredHtml({
       vote_account: voteAccount,

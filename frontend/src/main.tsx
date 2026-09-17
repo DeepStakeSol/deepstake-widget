@@ -34,11 +34,11 @@ export function mountDeepStakeWidgets() {
   elements.forEach((el) => {
     // Normalize so CSS scoping via [data-widget="deepstake"] always works
     el.dataset.widget = 'deepstake';
-    el.dataset.theme = 'light';
+    el.dataset.theme = 'dark';
 
     try {
       const options = parseWidgetOptions(el.dataset.options);
-      el.dataset.theme = options.theme || 'light';
+      el.dataset.theme = options.theme || 'dark';
 
       createRoot(el).render(
         <StrictMode>

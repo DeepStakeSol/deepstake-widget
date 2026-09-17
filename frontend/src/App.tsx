@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useContext, useEffect, useState, ReactNode } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Card, Flex } from "@radix-ui/themes";
 import * as Tabs from "@radix-ui/react-tabs";
 import { StakeForm } from "./components/stake/StakeForm";
@@ -25,6 +25,7 @@ import { cssImageUrl } from "./utils/imageUrl";
 import { useOptions, WidgetTab } from "./options";
 import { SelectedWalletAccountContext } from "./context/SelectedWalletAccountContext";
 import { prefetchManageData } from "./utils/managePrefetch";
+import { WidgetFallback } from "./components/WidgetErrorBoundary";
 
 type TabConfig = {
   id: WidgetTab;
@@ -75,16 +76,61 @@ function isWidgetTab(value: unknown): value is WidgetTab {
   return typeof value === "string" && VALID_TAB_IDS.has(value as WidgetTab);
 }
 
-function getEnabledTabs(tabs?: WidgetTab[]): TabConfig[] {
-  if (!Array.isArray(tabs)) return ALL_TABS;
+type EnabledTabs = {
+  tabs: TabConfig[];
+  vaultHidden: boolean;
+  invalidConfiguration: boolean;
+};
 
-  const enabledTabIds = new Set(tabs.filter(isWidgetTab));
-  if (enabledTabIds.size === 0) return ALL_TABS;
+function getEnabledTabs(
+  tabs: WidgetTab[] | undefined,
+  network: string
+): EnabledTabs {
+  const hasExplicitTabs = Array.isArray(tabs);
+  const enabledTabIds = new Set(hasExplicitTabs ? tabs.filter(isWidgetTab) : []);
+  const requestedTabs =
+    !hasExplicitTabs || enabledTabIds.size === 0
+      ? ALL_TABS
+      : ALL_TABS.filter((tab) => enabledTabIds.has(tab.id));
+  const vaultHidden =
+    network === "devnet" && requestedTabs.some((tab) => tab.id === "vault");
+  const enabledTabs = vaultHidden
+    ? requestedTabs.filter((tab) => tab.id !== "vault")
+    : requestedTabs;
 
-  return ALL_TABS.filter((tab) => enabledTabIds.has(tab.id));
+  return {
+    tabs: enabledTabs,
+    vaultHidden,
+    invalidConfiguration:
+      network === "devnet" &&
+      hasExplicitTabs &&
+      enabledTabIds.size > 0 &&
+      enabledTabs.length === 0,
+  };
 }
 
 function App() {
+  const { network } = useNetwork();
+  const options = useOptions();
+  const enabled = getEnabledTabs(options?.tabs, network);
+  const warnedAboutVault = useRef(false);
+
+  useEffect(() => {
+    if (!enabled.vaultHidden || warnedAboutVault.current) return;
+    warnedAboutVault.current = true;
+    console.warn("[DeepStake widget] Vault is unavailable on devnet and was hidden");
+  }, [enabled.vaultHidden]);
+
+  if (enabled.invalidConfiguration) {
+    return (
+      <WidgetFallback message="DeepStake widget: Vault is unavailable on devnet; configure at least one supported tab" />
+    );
+  }
+
+  return <StakingApp enabledTabs={enabled.tabs} />;
+}
+
+function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
   const [currentEpoch, setCurrentEpoch] = useState<number>(0);
   const [currentProgress, setCurrentProgress] = useState<number>(0);
   const [secondsRemainToEpochEnd, setSecondsRemainToEpochEnd] = useState<number>(0);
@@ -99,7 +145,6 @@ function App() {
   const { network } = useNetwork();
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
   const options = useOptions();
-  const enabledTabs = getEnabledTabs(options?.tabs);
   const [selectedTabId, setSelectedTabId] = useState<WidgetTab>(
     enabledTabs[0].id
   );

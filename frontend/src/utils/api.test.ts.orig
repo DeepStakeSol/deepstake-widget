@@ -208,7 +208,7 @@ describe('API helpers', () => {
     fetchMock.mockReturnValue(
       mockJsonResponse(
         {
-          error: '  Backend rejected the request  ',
+          error: 'Backend rejected the request',
           code: 'REQUEST_REJECTED',
           details: { reason: 'test' },
         },
@@ -218,7 +218,7 @@ describe('API helpers', () => {
     const { fetchSolBalance } = await loadApi()
 
     await expect(fetchSolBalance('wallet', 'devnet')).rejects.toMatchObject({
-      message: '  Backend rejected the request  ',
+      message: 'Backend rejected the request',
       status: 422,
       code: 'REQUEST_REJECTED',
       details: { reason: 'test' },

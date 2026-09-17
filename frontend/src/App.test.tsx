@@ -110,6 +110,7 @@ describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
     useNetworkMock.mockReturnValue({ network: "devnet" });
     useOptionsMock.mockReturnValue({ vote_account: "vote-address" });
     fetchValidatorProfileMock.mockResolvedValue(profile);
@@ -129,12 +130,18 @@ describe("App", () => {
     prefetchManageDataMock.mockResolvedValue(undefined);
   });
 
-  it("renders all tabs and fetches one validator profile", async () => {
+  it("renders only supported devnet tabs, warns, and fetches one validator profile", async () => {
     render(<App />);
     expect(screen.getByRole("tab", { name: /Native/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /BlazeStake/ })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Vault/ })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /Vault/ })).not.toBeInTheDocument();
 
+    await waitFor(() =>
+      expect(console.warn).toHaveBeenCalledWith(
+        "[DeepStake widget] Vault is unavailable on devnet and was hidden"
+      )
+    );
+    expect(console.warn).toHaveBeenCalledTimes(1);
     await waitFor(() =>
       expect(fetchValidatorProfileMock).toHaveBeenCalledWith("vote-address", "devnet")
     );
@@ -163,7 +170,8 @@ describe("App", () => {
     expect(fetchValidatorLogoMock).toHaveBeenCalledTimes(1);
   });
 
-  it("filters tabs and switches between enabled tabs", async () => {
+  it("filters and switches between enabled mainnet tabs", async () => {
+    useNetworkMock.mockReturnValue({ network: "mainnet" });
     useOptionsMock.mockReturnValue({
       vote_account: "vote-address",
       tabs: ["blaze", "vault"],
@@ -173,6 +181,51 @@ describe("App", () => {
     expect(screen.getByText("Blaze form")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: /Vault/ }));
     expect(screen.getByText("Vault form")).toHaveAttribute("data-vote-account", "vote-address");
+    expect(console.warn).not.toHaveBeenCalled();
+  });
+
+  it("hides and never prefetches a requested Vault tab on devnet", () => {
+    useOptionsMock.mockReturnValue({
+      vote_account: "vote-address",
+      tabs: ["blaze", "vault"],
+    });
+    const account = { address: "wallet-address" } as never;
+
+    render(
+      <SelectedWalletAccountContext.Provider value={[account, vi.fn()]}>
+        <App />
+      </SelectedWalletAccountContext.Provider>
+    );
+
+    expect(screen.getByRole("tab", { name: /BlazeStake/ })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /Vault/ })).not.toBeInTheDocument();
+    fireEvent.pointerEnter(screen.getByRole("tab", { name: /BlazeStake/ }));
+    expect(prefetchManageDataMock).toHaveBeenCalledWith(
+      "blaze",
+      "wallet-address",
+      "devnet"
+    );
+    expect(prefetchManageDataMock).not.toHaveBeenCalledWith(
+      "vault",
+      "wallet-address",
+      "devnet"
+    );
+  });
+
+  it("shows a configuration error for a Vault-only devnet widget", async () => {
+    useOptionsMock.mockReturnValue({
+      vote_account: "vote-address",
+      tabs: ["vault"],
+    });
+
+    render(<App />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "DeepStake widget: Vault is unavailable on devnet; configure at least one supported tab"
+    );
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    expect(fetchValidatorProfileMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(console.warn).toHaveBeenCalledTimes(1));
   });
 
   it("prefetches Manage data when a connected user shows tab intent", () => {
