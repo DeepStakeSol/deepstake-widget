@@ -54,3 +54,12 @@
 [data-widget="deepstake"] select {
   font: inherit;
 }
+
+/*
+ * Buttons stay otherwise untouched so Radix Themes can style them, but their
+ * font must be set directly: a host-page `button { font-family: ... }` rule
+ * overrides the font inherited from the widget root.
+ */
+[data-widget="deepstake"] button {
+  font-family: 'Outfit', Arial, Helvetica, sans-serif;
+}

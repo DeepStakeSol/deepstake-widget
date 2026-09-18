@@ -308,6 +308,35 @@ test("embedded widget loads from backend static route", async ({ page }) => {
   expect(consoleErrors).toEqual([]);
 });
 
+test("host button styles do not override widget fonts", async ({ page }) => {
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-conflicting-css.html", {
+    wallet: true,
+  });
+
+  const widgetButtons = [
+    page.getByRole("tab", { name: /Native/ }),
+    page.locator('[role="tab"]:visible').filter({ hasText: "Your stake" }),
+    page.locator('[role="tab"]:visible').filter({ hasText: "Manage" }),
+    page.getByRole("button", { name: "Connect Wallet" }).first(),
+  ];
+
+  for (const button of widgetButtons) {
+    await expect(button).toBeVisible();
+    await expect(button).toHaveCSS(
+      "font-family",
+      /Outfit.*Arial.*Helvetica.*sans-serif/,
+    );
+  }
+
+  await page.getByRole("button", { name: "Connect Wallet" }).first().click();
+  const walletProvider = page.getByRole("button", { name: "Connect with E2E Wallet" });
+  await expect(walletProvider).toHaveCSS(
+    "font-family",
+    /Outfit.*Arial.*Helvetica.*sans-serif/,
+  );
+  expect(consoleErrors).toEqual([]);
+});
+
 test("a successful mount sends one normalized telemetry event", async ({ page }) => {
   const telemetryPayloads: unknown[] = [];
   const consoleErrors = await gotoHost(page, "/api/w/e2e-host-telemetry.html", {

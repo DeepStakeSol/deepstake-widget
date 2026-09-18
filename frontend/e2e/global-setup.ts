@@ -7,7 +7,7 @@ const frontendDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 const distDir = path.join(frontendDir, "dist");
 const voteAccount = "Vote111111111111111111111111111111111111111";
 
-function html(options: Record<string, unknown>) {
+function html(options: Record<string, unknown>, hostCss = "") {
   const escapedOptions = JSON.stringify({ telemetry: false, ...options })
     .replace(/'/g, "&apos;");
   return `<!doctype html>
@@ -15,6 +15,7 @@ function html(options: Record<string, unknown>) {
   <head>
     <meta charset="utf-8" />
     <title>DeepStake E2E Host</title>
+    ${hostCss ? `<style id="conflicting-css">${hostCss}</style>` : ""}
   </head>
   <body>
     <main>
@@ -138,6 +139,24 @@ export default async function globalSetup() {
       validator_logo_url: "/images/sol_logo.png",
     })
   );
+  fs.writeFileSync(
+    path.join(distDir, "e2e-host-conflicting-css.html"),
+    html(
+      {
+        vote_account: voteAccount,
+        theme: "light",
+        network: "devnet",
+        tabs: ["native", "blaze"],
+      },
+      `
+        section { background: #ffffff; padding: 24px; border: 1px solid #dddddd; border-radius: 8px; }
+        button { font-family: "Comic Sans MS", cursive; }
+        h1, h2, h3 { color: hotpink; }
+        input { border: 2px dashed red; }
+      `,
+    )
+  );
+
   fs.writeFileSync(
     path.join(distDir, "e2e-host-multiple.html"),
     multiWidgetHtml()
