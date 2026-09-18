@@ -136,6 +136,29 @@ export function StakingModal() {
             aria-labelledby="success-dialog-title"
             aria-describedby="success-dialog-description"
           >
+            <button
+              type="button"
+              aria-label="Close success dialog"
+              className="success-close-btn"
+              onClick={handleSuccessClose}
+              style={{
+                position: "absolute",
+                top: "15px",
+                right: "15px",
+                background: "transparent",
+                border: "none",
+                color: "#000",
+                fontSize: "28px",
+                fontWeight: 100,
+                cursor: "pointer",
+                lineHeight: 1,
+                padding: "4px 8px",
+                borderRadius: "4px",
+              }}
+            >
+              ✕
+            </button>
+
             <Flex direction="column" align="center" style={{ position: "relative", height: "100%" }}>
               <div style={{ width: "300px", margin: "70px auto 0" }}>
                 <Flex
@@ -229,28 +252,6 @@ export function StakingModal() {
                     </a>
                   </Flex>
                 )}
-
-                <button
-                  type="button"
-                  className="success-close-btn"
-                  onClick={handleSuccessClose}
-                  style={{
-                    position: "absolute",
-                    top: "15px",
-                    right: "15px",
-                    background: "transparent",
-                    border: "none",
-                    color: "#000",
-                    fontSize: "28px",
-                    fontWeight: 100,
-                    cursor: "pointer",
-                    lineHeight: 1,
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                  }}
-                >
-                  ✕
-                </button>
               </div>
             </Flex>
           </div>
