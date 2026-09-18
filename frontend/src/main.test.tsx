@@ -23,6 +23,7 @@ describe('mountDeepStakeWidgets', () => {
     const validOptions = JSON.stringify({
       vote_account: VOTE_ACCOUNT,
       network: 'devnet',
+      telemetry: false,
     })
 
     document.body.innerHTML = `

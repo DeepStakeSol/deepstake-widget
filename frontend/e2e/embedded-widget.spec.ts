@@ -16,6 +16,7 @@ type GotoOptions = {
   wallet?: boolean;
   allowedConsoleErrors?: RegExp[];
   allowedFailedResponses?: RegExp[];
+  telemetryPayloads?: unknown[];
 };
 
 function isAllowed(value: string, patterns: RegExp[] = []) {
@@ -30,11 +31,23 @@ async function fulfillJson(route: Parameters<Parameters<Page["route"]>[1]>[0], s
   });
 }
 
-async function installNetworkMocks(page: Page, scenario: MockScenario = {}) {
+async function installNetworkMocks(
+  page: Page,
+  scenario: MockScenario = {},
+  telemetryPayloads?: unknown[]
+) {
   await page.route("**/*", async (route) => {
     const request = route.request();
     const url = request.url();
     const parsed = new URL(url);
+    if (url === "https://deepstake.info/api/telemetry") {
+      if (!telemetryPayloads) {
+        throw new Error("Unexpected telemetry request");
+      }
+      telemetryPayloads.push(JSON.parse(request.postData() || "null"));
+      await route.fulfill({ status: 204, body: "" });
+      return;
+    }
 
     if (localHostPattern.test(url)) {
       if (parsed.pathname === "/api/stake/get-epoch-info") {
@@ -269,7 +282,7 @@ async function gotoHost(page: Page, path: string, options: GotoOptions = {}) {
   });
 
   if (options.wallet) await installE2EWallet(page);
-  await installNetworkMocks(page, options.mock);
+  await installNetworkMocks(page, options.mock, options.telemetryPayloads);
   const response = await page.goto(path, { waitUntil: "networkidle" });
   expect(response?.ok()).toBe(true);
   await expect(page.locator('[data-widget="deepstake"]').first()).toBeVisible();
@@ -295,7 +308,26 @@ test("embedded widget loads from backend static route", async ({ page }) => {
   expect(consoleErrors).toEqual([]);
 });
 
+test("a successful mount sends one normalized telemetry event", async ({ page }) => {
+  const telemetryPayloads: unknown[] = [];
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-telemetry.html", {
+    telemetryPayloads,
+  });
+
+  await expect.poll(() => telemetryPayloads.length).toBe(1);
+  expect(telemetryPayloads[0]).toEqual({
+    event: "widget_mount",
+    hostname: "127.0.0.1",
+    vote_account: "Vote111111111111111111111111111111111111111",
+    network: "devnet",
+    tabs: ["native", "blaze"],
+    theme: "light",
+    version: "0.0.0",
+  });
+  expect(consoleErrors).toEqual([]);
+});
 test("an invalid config does not prevent later widgets from mounting", async ({ page }) => {
+
   const consoleErrors = await gotoHost(page, "/api/w/e2e-host-multiple.html", {
     allowedConsoleErrors: [/^\[DeepStake widget\] invalid config/],
   });

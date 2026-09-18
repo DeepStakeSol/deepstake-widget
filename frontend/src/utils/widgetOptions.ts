@@ -55,6 +55,10 @@ export function parseWidgetOptions(rawOptions: string | undefined): Options {
     options.tabs = parsed.tabs.filter(isWidgetTab)
   }
 
+  if (typeof parsed.telemetry === 'boolean') {
+    options.telemetry = parsed.telemetry
+  }
+
   const validatorName = optionalString(parsed.validator_name)
   const validatorDescription = optionalString(parsed.validator_description)
   const validatorLogoUrl = optionalString(parsed.validator_logo_url)

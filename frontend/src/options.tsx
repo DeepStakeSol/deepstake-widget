@@ -7,6 +7,7 @@ export interface Options {
   network?: "mainnet" | "devnet";
   theme?: "light" | "dark";
   tabs?: WidgetTab[];
+  telemetry?: boolean;
   validator_name?: string;
   validator_description?: string;
   validator_logo_url?: string;

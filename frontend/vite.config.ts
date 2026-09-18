@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
+import packageJson from './package.json';
 
 // https://vite.dev/config/
 // export default defineConfig({
@@ -56,7 +57,10 @@ export default defineConfig(({ mode }) => {
     ],
     define: {
       //"process.env.NODE_ENV": JSON.stringify("production"), // 👈 фикс
-      'process.env': {}
+      'process.env': {},
+      'import.meta.env.VITE_WIDGET_VERSION': JSON.stringify(
+        env.VITE_WIDGET_VERSION?.trim() || packageJson.version
+      ),
     },
     build: {
       lib: {

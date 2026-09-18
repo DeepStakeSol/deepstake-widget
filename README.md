@@ -132,6 +132,7 @@ For production, replace the script URL with your public backend URL:
 | `theme` | No | `light`, `dark` | Widget theme. Defaults to `dark`. Unknown values also fall back to `dark`. |
 | `network` | No | `mainnet`, `devnet` | Solana cluster used by API calls, wallet chain checks, and explorer links. Overrides `VITE_NEXT_PUBLIC_NETWORK_ENV`. |
 | `tabs` | No | `native`, `blaze`, `vault` | Top-level staking tabs to show. Defaults to all tabs supported by the selected network. |
+| `telemetry` | No | `true`, `false` | Mount telemetry is enabled by default. Set to `false` to opt out. |
 | `validator_name` | No | String | Overrides the validator name returned by the backend profile. |
 | `validator_description` | No | String | Overrides the validator description returned by the backend profile. |
 | `validator_logo_url` | No | HTTPS or local image URL | Overrides the validator logo returned by the backend profile. |
@@ -154,6 +155,25 @@ Example:
   }'
 ></div>
 ```
+
+### Widget Mount Telemetry
+
+After a valid widget instance commits, it sends one best-effort
+`widget_mount` event to `https://deepstake.info/api/telemetry`. The event
+contains the host page's `location.hostname`, validator vote account, resolved
+network, effective visible tabs, normalized theme, and widget build version.
+It does not contain a wallet address. The application does not store the
+request IP address, user agent, Referer, or other request headers.
+
+Redis deduplicates mounts by hostname and vote account for each UTC day, so
+mount totals are daily-deduplicated pairs rather than raw browser attempts.
+Only the first normalized event for a pair is recorded each day. Daily event,
+host, and vote-account records expire after 32 days. Set `"telemetry": false`
+in `data-options` to disable the event for a widget instance.
+
+Rolling 1-, 7-, and 30-day counts are available from the protected
+`GET /api/telemetry/stats` endpoint. It requires a separate
+`TELEMETRY_STATS_TOKEN` bearer token and is never cacheable.
 
 ## Validator Profile Request
 
@@ -275,6 +295,9 @@ Used by Docker Compose for frontend and backend container configuration.
 | `IMAGE_URL_PREFIX` | `https://your-domain.example/api/images` | Optional prefix for local `/images/...` widget assets loaded from the backend image file server. Leave empty for same-origin assets. |
 | `VITE_USE_LEGACY_VALIDATOR_PROFILE` | `false` | Emergency rollback flag. When true, the widget uses the legacy browser Stakewiz and Trillium requests instead of `/api/validator/profile`. |
 | `METRICS_BEARER_TOKEN` | Random secret | Passed to the backend container to protect `/api/metrics`. |
+| `VITE_TELEMETRY_ENDPOINT` | `https://deepstake.info/api/telemetry` | Absolute telemetry collector URL embedded into the widget build. Defaults to the listed production URL. |
+| `VITE_WIDGET_VERSION` | Widget package version | Optional build identifier included in telemetry; local builds fall back to `frontend/package.json`. |
+| `TELEMETRY_STATS_TOKEN` | Separate random secret | Passed to the backend container to protect `/api/telemetry/stats`. |
 
 Default local setup:
 
@@ -282,6 +305,8 @@ Default local setup:
 VITE_BACKEND_URL=http://localhost:3000
 DISABLE_BACKEND_PREFIX=false
 IMAGE_URL_PREFIX=
+VITE_TELEMETRY_ENDPOINT=https://deepstake.info/api/telemetry
+VITE_WIDGET_VERSION=
 ```
 
 Production setup when nginx maps public `/api/` to backend port `3000`:
@@ -291,7 +316,10 @@ VITE_BACKEND_URL=https://your-domain.example/api
 DISABLE_BACKEND_PREFIX=true
 IMAGE_URL_PREFIX=https://your-domain.example/api/images
 VITE_USE_LEGACY_VALIDATOR_PROFILE=false
+VITE_TELEMETRY_ENDPOINT=https://deepstake.info/api/telemetry
 METRICS_BEARER_TOKEN=replace-with-a-long-random-token
+VITE_WIDGET_VERSION=1.0.0
+TELEMETRY_STATS_TOKEN=replace-with-a-separate-long-random-token
 ```
 
 With that production setup, frontend calls become:
@@ -331,6 +359,7 @@ Used by the Next.js backend.
 | `METRICS_BEARER_TOKEN` | Production | Bearer token required to scrape `/api/metrics`. Production returns 503 when it is unset. |
 | `APP_URL` | Recommended in production | Allowed CORS origin for `/api/*`; defaults to `http://localhost:8080`. |
 | `SHARED_FILES_DIR` | No | Filesystem path served by `/api/w/`; Docker sets this to `/shared`. |
+| `TELEMETRY_STATS_TOKEN` | Yes for telemetry statistics | Separate bearer token required by `/api/telemetry/stats`; the endpoint returns 503 when unset. |
 | `IMAGES_DIR` | No | Filesystem path served by `/api/images/`; Docker sets this to `/images`. |
 
 ## Observability
@@ -344,6 +373,9 @@ Prometheus/Grafana are managed outside this repository. Alert rules are in
 `ops/prometheus/validator-profile-alerts.yml`; scrape configuration, failure
 drills, rollback steps, and the 30-day legacy exit gate are documented in
 `ops/validator-profile-runbook.md`.
+
+Widget-adoption telemetry is intentionally separate from Prometheus backend
+health metrics. This iteration does not add nginx Referer logging or Plausible forwarding.
 
 ## Network Selection
 

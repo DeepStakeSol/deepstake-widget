@@ -8,7 +8,8 @@ const distDir = path.join(frontendDir, "dist");
 const voteAccount = "Vote111111111111111111111111111111111111111";
 
 function html(options: Record<string, unknown>) {
-  const escapedOptions = JSON.stringify(options).replace(/'/g, "&apos;");
+  const escapedOptions = JSON.stringify({ telemetry: false, ...options })
+    .replace(/'/g, "&apos;");
   return `<!doctype html>
 <html>
   <head>
@@ -26,7 +27,8 @@ function html(options: Record<string, unknown>) {
 }
 
 function centeredHtml(options: Record<string, unknown>) {
-  const escapedOptions = JSON.stringify(options).replace(/'/g, "&apos;");
+  const escapedOptions = JSON.stringify({ telemetry: false, ...options })
+    .replace(/'/g, "&apos;");
   return `<!doctype html>
 <html>
   <head>
@@ -51,6 +53,7 @@ function multiWidgetHtml() {
     vote_account: voteAccount,
     network: "devnet",
     tabs: ["native"],
+    telemetry: false,
   }).replace(/"/g, "&quot;");
 
   return `<!doctype html>
@@ -77,6 +80,7 @@ export default async function globalSetup() {
       DISABLE_BACKEND_PREFIX: "false",
       IMAGE_URL_PREFIX: "",
       VITE_NEXT_PUBLIC_NETWORK_ENV: "devnet",
+      VITE_TELEMETRY_ENDPOINT: "https://deepstake.info/api/telemetry",
       VITE_USE_LEGACY_VALIDATOR_PROFILE: "false",
     },
   });
@@ -101,6 +105,17 @@ export default async function globalSetup() {
     path.join(distDir, "e2e-host-vault-only.html"),
     html({ vote_account: voteAccount, network: "devnet", tabs: ["vault"] })
   );
+  fs.writeFileSync(
+    path.join(distDir, "e2e-host-telemetry.html"),
+    html({
+      vote_account: voteAccount,
+      theme: "light",
+      network: "devnet",
+      tabs: ["native", "blaze", "vault"],
+      telemetry: true,
+    })
+  );
+
   fs.writeFileSync(
     path.join(distDir, "e2e-host-mainnet-centered.html"),
     centeredHtml({

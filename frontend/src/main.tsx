@@ -10,6 +10,9 @@ import {
   WidgetErrorBoundary,
   WidgetFallback,
 } from './components/WidgetErrorBoundary.tsx';
+import { WidgetTelemetry } from './components/WidgetTelemetry.tsx';
+import { getConfiguredNetwork } from './utils/config.ts';
+import { getEffectiveTabs } from './utils/effectiveTabs.ts';
 
 // Inject isolation rules immediately so host-page element selectors
 // (section {}, button {}, h1 {}, etc.) cannot override widget internals.
@@ -39,6 +42,8 @@ export function mountDeepStakeWidgets() {
     try {
       const options = parseWidgetOptions(el.dataset.options);
       el.dataset.theme = options.theme || 'dark';
+      const network = getConfiguredNetwork(options);
+      const effectiveTabs = getEffectiveTabs(options.tabs, network);
 
       createRoot(el).render(
         <StrictMode>
@@ -46,6 +51,11 @@ export function mountDeepStakeWidgets() {
             <OptionsContext.Provider value={options}>
               <NetworkProvider>
                 <App />
+                <WidgetTelemetry
+                  options={options}
+                  network={network}
+                  tabs={effectiveTabs.tabs}
+                />
               </NetworkProvider>
             </OptionsContext.Provider>
           </WidgetErrorBoundary>

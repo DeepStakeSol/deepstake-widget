@@ -18,6 +18,8 @@ services:
       - DISABLE_BACKEND_PREFIX=${DISABLE_BACKEND_PREFIX:-false}
       - IMAGE_URL_PREFIX=${IMAGE_URL_PREFIX:-}
       - VITE_USE_LEGACY_VALIDATOR_PROFILE=${VITE_USE_LEGACY_VALIDATOR_PROFILE:-false}
+      - VITE_TELEMETRY_ENDPOINT=${VITE_TELEMETRY_ENDPOINT:-https://deepstake.info/api/telemetry}
+      - VITE_WIDGET_VERSION=${VITE_WIDGET_VERSION:-}
     depends_on:
       backend:
         condition: service_healthy
@@ -40,6 +42,7 @@ services:
       - IMAGES_DIR=/images
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - METRICS_BEARER_TOKEN=${METRICS_BEARER_TOKEN:-}
+      - TELEMETRY_STATS_TOKEN=${TELEMETRY_STATS_TOKEN:-}
     depends_on:
       redis:
         condition: service_healthy

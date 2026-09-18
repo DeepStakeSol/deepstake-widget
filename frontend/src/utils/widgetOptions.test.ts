@@ -77,4 +77,19 @@ describe('parseWidgetOptions', () => {
       theme: 'light',
     })
   })
+
+  it('only disables telemetry for an explicit false option', () => {
+    expect(
+      parseWidgetOptions(JSON.stringify({ vote_account: VOTE_ACCOUNT, telemetry: false }))
+    ).toMatchObject({ telemetry: false })
+    expect(
+      parseWidgetOptions(JSON.stringify({ vote_account: VOTE_ACCOUNT, telemetry: true }))
+    ).toMatchObject({ telemetry: true })
+    expect(
+      parseWidgetOptions(JSON.stringify({ vote_account: VOTE_ACCOUNT, telemetry: 'false' }))
+    ).not.toHaveProperty('telemetry')
+    expect(
+      parseWidgetOptions(JSON.stringify({ vote_account: VOTE_ACCOUNT }))
+    ).not.toHaveProperty('telemetry')
+  })
 })

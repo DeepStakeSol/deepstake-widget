@@ -26,6 +26,7 @@ import { useOptions, WidgetTab } from "./options";
 import { SelectedWalletAccountContext } from "./context/SelectedWalletAccountContext";
 import { prefetchManageData } from "./utils/managePrefetch";
 import { WidgetFallback } from "./components/WidgetErrorBoundary";
+import { getEffectiveTabs } from "./utils/effectiveTabs";
 
 type TabConfig = {
   id: WidgetTab;
@@ -70,12 +71,6 @@ const ALL_TABS: TabConfig[] = [
   }
 ];
 
-const VALID_TAB_IDS = new Set<WidgetTab>(ALL_TABS.map((tab) => tab.id));
-
-function isWidgetTab(value: unknown): value is WidgetTab {
-  return typeof value === "string" && VALID_TAB_IDS.has(value as WidgetTab);
-}
-
 type EnabledTabs = {
   tabs: TabConfig[];
   vaultHidden: boolean;
@@ -86,26 +81,15 @@ function getEnabledTabs(
   tabs: WidgetTab[] | undefined,
   network: string
 ): EnabledTabs {
-  const hasExplicitTabs = Array.isArray(tabs);
-  const enabledTabIds = new Set(hasExplicitTabs ? tabs.filter(isWidgetTab) : []);
-  const requestedTabs =
-    !hasExplicitTabs || enabledTabIds.size === 0
-      ? ALL_TABS
-      : ALL_TABS.filter((tab) => enabledTabIds.has(tab.id));
-  const vaultHidden =
-    network === "devnet" && requestedTabs.some((tab) => tab.id === "vault");
-  const enabledTabs = vaultHidden
-    ? requestedTabs.filter((tab) => tab.id !== "vault")
-    : requestedTabs;
+  const effective = getEffectiveTabs(
+    tabs,
+    network === "mainnet" ? "mainnet" : "devnet",
+  );
 
   return {
-    tabs: enabledTabs,
-    vaultHidden,
-    invalidConfiguration:
-      network === "devnet" &&
-      hasExplicitTabs &&
-      enabledTabIds.size > 0 &&
-      enabledTabs.length === 0,
+    tabs: ALL_TABS.filter((tab) => effective.tabs.includes(tab.id)),
+    vaultHidden: effective.vaultHidden,
+    invalidConfiguration: effective.invalidConfiguration,
   };
 }
 
