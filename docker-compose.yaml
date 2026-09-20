@@ -7,7 +7,7 @@ services:
       args:
         BUILDKIT_INLINE_CACHE: 0
     ports:
-      - "4173:4173"
+      - "127.0.0.1:4173:4173"
     volumes:
       - ./frontend:/app
       - ./shared:/app/dist
@@ -30,7 +30,7 @@ services:
       args:
         BUILDKIT_INLINE_CACHE: 0
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - ./backend:/app
       - ./shared:/shared:ro

@@ -457,6 +457,26 @@ curl -k -i --resolve your-domain.example:443:127.0.0.1 https://your-domain.examp
 curl -i "https://your-domain.example/api/w/widget.iife.js?v=1"
 ```
 
+Docker Compose binds the backend and frontend preview ports to the VPS
+loopback interface. Do not change these bindings to `0.0.0.0`: public traffic
+must reach the backend through nginx, and the preview server is not a
+production entry point.
+
+Docker Compose automatically merges `docker-compose.override.yml` when that
+file exists. Before deploying, remove any public `ports` entries from the
+override or run Compose with `-f docker-compose.yaml` so an old local override
+cannot publish the services again.
+
+For temporary access to both services from a local machine, use an SSH tunnel:
+
+```bash
+ssh -L 4173:127.0.0.1:4173 -L 3000:127.0.0.1:3000 <user>@<VPS_IP>
+```
+
+The tunneled services are then available locally on ports `4173` and `3000`.
+Keep `METRICS_BEARER_TOKEN` and `TELEMETRY_STATS_TOKEN` in the private VPS
+environment; do not commit them or share them in group chats.
+
 ## Local Development Without Docker
 
 Install dependencies:
