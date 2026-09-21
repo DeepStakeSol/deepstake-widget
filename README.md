@@ -197,8 +197,15 @@ host, and vote-account records expire after 32 days. Set `"telemetry": false`
 in `data-options` to disable the event for a widget instance.
 
 Rolling 1-, 7-, and 30-day counts are available from the protected
-`GET /api/telemetry/stats` endpoint. It requires a separate
-`TELEMETRY_STATS_TOKEN` bearer token and is never cacheable.
+`GET /api/telemetry/stats` endpoint. The opt-in `?detail=1` response adds
+external host counts for each window and up to 1,000 host/vote-account entries,
+sorted by last-seen date and identity. The persistent registry stores the first
+and latest UTC day and latest normalized event for each pair; it begins when
+this version is deployed and does not reconstruct earlier first-seen dates.
+The endpoint requires a separate `TELEMETRY_STATS_TOKEN` bearer token and is
+never cacheable. `TELEMETRY_OWN_HOSTS` classifies configured domains and their
+subdomains as development/own hosts at read time; it defaults to
+`deepstake.info` and is set in the root Compose `.env`.
 
 ## Validator Profile Request
 
@@ -323,6 +330,7 @@ Used by Docker Compose for frontend and backend container configuration.
 | `VITE_TELEMETRY_ENDPOINT` | `https://deepstake.info/api/telemetry` | Absolute telemetry collector URL embedded into the widget build. Defaults to the listed production URL. |
 | `VITE_WIDGET_VERSION` | Widget package version | Optional build identifier included in telemetry; local builds fall back to `frontend/package.json`. |
 | `TELEMETRY_STATS_TOKEN` | Separate random secret | Passed to the backend container to protect `/api/telemetry/stats`. |
+| `TELEMETRY_OWN_HOSTS` | `deepstake.info` | Comma-separated own hostnames, including their subdomains, for detailed telemetry classification. |
 
 Default local setup:
 
@@ -385,6 +393,7 @@ Used by the Next.js backend.
 | `APP_URL` | Recommended in production | Allowed CORS origin for `/api/*`; defaults to `http://localhost:8080`. |
 | `SHARED_FILES_DIR` | No | Filesystem path served by `/api/w/`; Docker sets this to `/shared`. |
 | `TELEMETRY_STATS_TOKEN` | Yes for telemetry statistics | Separate bearer token required by `/api/telemetry/stats`; the endpoint returns 503 when unset. |
+| `TELEMETRY_OWN_HOSTS` | No | Comma-separated own hostnames; defaults to `deepstake.info`. Compose reads it from the root `.env`. |
 | `IMAGES_DIR` | No | Filesystem path served by `/api/images/`; Docker sets this to `/images`. |
 
 ## Observability

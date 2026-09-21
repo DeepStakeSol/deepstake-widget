@@ -104,13 +104,17 @@ describe("telemetry Redis aggregation", () => {
     expect(options.keys).toEqual([
       "telemetry:v1:2026-09-18:events",
       "telemetry:v1:2026-09-18:hosts",
-      "telemetry:v1:2026-09-18:vote-accounts"
+      "telemetry:v1:2026-09-18:vote-accounts",
+      "telemetry:v1:registry:first_seen",
+      "telemetry:v1:registry:last_seen",
+      "telemetry:v1:registry:last_event"
     ]);
     expect(JSON.parse(options.arguments[1])).toEqual(event);
     expect(options.arguments.slice(2, 4)).toEqual([
       event.hostname,
       event.vote_account
     ]);
+    expect(options.arguments[5]).toBe("2026-09-18");
     expect(Number(options.arguments[4])).toBe(
       Date.parse("2026-10-20T00:00:00.000Z") / 1000
     );

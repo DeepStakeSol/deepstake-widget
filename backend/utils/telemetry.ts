@@ -45,6 +45,21 @@ export type TelemetryStats = {
   };
 };
 
+export type TelemetryHost = Omit<WidgetMountEvent, "event"> & {
+  first_seen: string;
+  last_seen: string;
+  is_dev: boolean;
+};
+
+export type DetailedTelemetryStats = {
+  windows: {
+    "1d": TelemetryWindow & { unique_hosts_external: number };
+    "7d": TelemetryWindow & { unique_hosts_external: number };
+    "30d": TelemetryWindow & { unique_hosts_external: number };
+  };
+  hosts: TelemetryHost[];
+};
+
 export interface TelemetryRedisClient {
   eval(
     script: string,
@@ -224,6 +239,12 @@ function dayKeys(day: string) {
   };
 }
 
+export const TELEMETRY_REGISTRY_KEYS = [
+  "telemetry:v1:registry:first_seen",
+  "telemetry:v1:registry:last_seen",
+  "telemetry:v1:registry:last_event"
+];
+
 export const TELEMETRY_RECORD_SCRIPT = `
 local inserted = redis.call('HSETNX', KEYS[1], ARGV[1], ARGV[2])
 if inserted == 1 then
@@ -232,6 +253,9 @@ if inserted == 1 then
   redis.call('EXPIREAT', KEYS[1], ARGV[5])
   redis.call('EXPIREAT', KEYS[2], ARGV[5])
   redis.call('EXPIREAT', KEYS[3], ARGV[5])
+  redis.call('HSETNX', KEYS[4], ARGV[1], ARGV[6])
+  redis.call('HSET', KEYS[5], ARGV[1], ARGV[6])
+  redis.call('HSET', KEYS[6], ARGV[1], ARGV[2])
 end
 return inserted
 `;
@@ -258,13 +282,19 @@ export async function recordWidgetMount(
   );
 
   const result = await client.eval(TELEMETRY_RECORD_SCRIPT, {
-    keys: [keys.events, keys.hosts, keys.voteAccounts],
+    keys: [
+      keys.events,
+      keys.hosts,
+      keys.voteAccounts,
+      ...TELEMETRY_REGISTRY_KEYS
+    ],
     arguments: [
       deduplicationKey,
       JSON.stringify(event),
       event.hostname,
       event.vote_account,
-      String(expiresAt)
+      String(expiresAt),
+      day
     ]
   });
   return Number(result) === 1;

@@ -31,6 +31,7 @@ services:
       - IMAGES_DIR=/images
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - METRICS_BEARER_TOKEN=${METRICS_BEARER_TOKEN:?Set METRICS_BEARER_TOKEN in the root .env}
+      - TELEMETRY_OWN_HOSTS=${TELEMETRY_OWN_HOSTS:-deepstake.info}
       - TELEMETRY_STATS_TOKEN=${TELEMETRY_STATS_TOKEN:?Set TELEMETRY_STATS_TOKEN in the root .env}
     volumes:
       - ./shared:/shared:ro

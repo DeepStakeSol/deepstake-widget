@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { getRedisClient } from "@/utils/redis";
+import { getDetailedTelemetryStats } from "@/utils/telemetryDetail";
 import {
   getTelemetryStats,
   type TelemetryRedisClient
@@ -46,7 +47,10 @@ export async function GET(request: Request) {
 
   try {
     const client = (await getRedisClient()) as TelemetryRedisClient;
-    const stats = await getTelemetryStats(client);
+    const stats =
+      new URL(request.url).searchParams.get("detail") === "1"
+        ? await getDetailedTelemetryStats(client)
+        : await getTelemetryStats(client);
     return NextResponse.json(stats, { headers: NO_STORE_HEADERS });
   } catch {
     return NextResponse.json(
