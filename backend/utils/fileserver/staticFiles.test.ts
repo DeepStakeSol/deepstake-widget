@@ -9,15 +9,23 @@ async function makeRoot() {
   return mkdtemp(path.join(os.tmpdir(), "deepstake-static-"));
 }
 
+function routeContext(requestedPath: string[]) {
+  return {
+    params: Promise.resolve({ path: requestedPath })
+  };
+}
+
 describe("static file helpers", () => {
   it("serves files with content headers", async () => {
     const root = await makeRoot();
     await writeFile(path.join(root, "widget.js"), "console.log('ok');");
 
-    const response = await serveStaticFile({ params: { path: ["widget.js"] } }, root);
+    const response = await serveStaticFile(routeContext(["widget.js"]), root);
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe("text/javascript; charset=utf-8");
+    expect(response.headers.get("Content-Type")).toBe(
+      "text/javascript; charset=utf-8"
+    );
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 
@@ -25,7 +33,10 @@ describe("static file helpers", () => {
     const root = await makeRoot();
     await writeFile(path.join(root, "image.png"), "png");
 
-    const response = await serveStaticFileHead({ params: { path: ["image.png"] } }, root);
+    const response = await serveStaticFileHead(
+      routeContext(["image.png"]),
+      root
+    );
 
     expect(response.status).toBe(200);
     expect(response.body).toBeNull();
@@ -36,10 +47,16 @@ describe("static file helpers", () => {
     const root = await makeRoot();
     await mkdir(path.join(root, "dir"));
 
-    expect((await serveStaticFile({ params: { path: [] } }, root)).status).toBe(404);
-    expect((await serveStaticFile({ params: { path: ["dir"] } }, root)).status).toBe(404);
-    expect((await serveStaticFile({ params: { path: [""] } }, root)).status).toBe(400);
-    expect((await serveStaticFile({ params: { path: ["..", "secret.txt"] } }, root)).status).toBe(403);
-    expect((await serveStaticFile({ params: { path: ["missing.txt"] } }, root)).status).toBe(404);
+    expect((await serveStaticFile(routeContext([]), root)).status).toBe(404);
+    expect((await serveStaticFile(routeContext(["dir"]), root)).status).toBe(
+      404
+    );
+    expect((await serveStaticFile(routeContext([""]), root)).status).toBe(400);
+    expect(
+      (await serveStaticFile(routeContext(["..", "secret.txt"]), root)).status
+    ).toBe(403);
+    expect(
+      (await serveStaticFile(routeContext(["missing.txt"]), root)).status
+    ).toBe(404);
   });
 });

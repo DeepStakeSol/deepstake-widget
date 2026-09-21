@@ -1,0 +1,68 @@
+services:
+  frontend-builder:
+    build:
+      context: ./frontend
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+    command: ["npm", "run", "build"]
+    volumes:
+      - ./shared:/app/dist
+    environment:
+      - VITE_BACKEND_URL=${VITE_BACKEND_URL:?Set VITE_BACKEND_URL in the root .env}
+      - DISABLE_BACKEND_PREFIX=${DISABLE_BACKEND_PREFIX:-false}
+      - IMAGE_URL_PREFIX=${IMAGE_URL_PREFIX:-}
+      - VITE_USE_LEGACY_VALIDATOR_PROFILE=${VITE_USE_LEGACY_VALIDATOR_PROFILE:-false}
+      - VITE_TELEMETRY_ENDPOINT=${VITE_TELEMETRY_ENDPOINT:-https://deepstake.info/api/telemetry}
+      - VITE_WIDGET_VERSION=${VITE_WIDGET_VERSION:-}
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=production
+      - SHARED_FILES_DIR=/shared
+      - IMAGES_DIR=/images
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - METRICS_BEARER_TOKEN=${METRICS_BEARER_TOKEN:?Set METRICS_BEARER_TOKEN in the root .env}
+      - TELEMETRY_STATS_TOKEN=${TELEMETRY_STATS_TOKEN:?Set TELEMETRY_STATS_TOKEN in the root .env}
+    volumes:
+      - ./shared:/shared:ro
+      - ./images:/images:ro
+    depends_on:
+      frontend-builder:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  redis-data:

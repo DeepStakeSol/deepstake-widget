@@ -4,7 +4,7 @@ import path from "path";
 import { Readable } from "stream";
 
 export type StaticFileRouteContext = {
-  params: Promise<{ path?: string[] }> | { path?: string[] };
+  params: Promise<{ path?: string[] }>;
 };
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -25,21 +25,29 @@ const CONTENT_TYPES: Record<string, string> = {
   ".webp": "image/webp",
   ".woff": "font/woff",
   ".woff2": "font/woff2",
-  ".xml": "application/xml; charset=utf-8",
+  ".xml": "application/xml; charset=utf-8"
 };
 
 function isInsideRoot(root: string, target: string): boolean {
   const relative = path.relative(root, target);
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
 }
 
-async function getRequestedFile(context: StaticFileRouteContext, configuredRoot: string) {
-  const { path: requestedPath = [] } = await Promise.resolve(context.params);
+async function getRequestedFile(
+  context: StaticFileRouteContext,
+  configuredRoot: string
+) {
+  const { path: requestedPath = [] } = await context.params;
   if (requestedPath.length === 0) {
     return { error: new Response("Not found", { status: 404 }) };
   }
 
-  if (requestedPath.some((segment) => segment === "" || segment.includes("\0"))) {
+  if (
+    requestedPath.some((segment) => segment === "" || segment.includes("\0"))
+  ) {
     return { error: new Response("Bad request", { status: 400 }) };
   }
 
@@ -56,7 +64,10 @@ async function getRequestedFile(context: StaticFileRouteContext, configuredRoot:
       return { error: new Response("Not found", { status: 404 }) };
     }
 
-    const [realRoot, realTarget] = await Promise.all([realpath(root), realpath(target)]);
+    const [realRoot, realTarget] = await Promise.all([
+      realpath(root),
+      realpath(target)
+    ]);
     if (!isInsideRoot(realRoot, realTarget)) {
       return { error: new Response("Forbidden", { status: 403 }) };
     }
@@ -65,11 +76,14 @@ async function getRequestedFile(context: StaticFileRouteContext, configuredRoot:
       file: {
         path: target,
         size: fileStat.size,
-        contentType: CONTENT_TYPES[path.extname(target).toLowerCase()] || "application/octet-stream",
-      },
+        contentType:
+          CONTENT_TYPES[path.extname(target).toLowerCase()] ||
+          "application/octet-stream"
+      }
     };
   } catch (error) {
-    const code = error instanceof Error && "code" in error ? error.code : undefined;
+    const code =
+      error instanceof Error && "code" in error ? error.code : undefined;
     if (code === "ENOENT" || code === "ENOTDIR") {
       return { error: new Response("Not found", { status: 404 }) };
     }
@@ -86,25 +100,31 @@ function fileHeaders(file: { size: number; contentType: string }) {
     "Cache-Control": "no-store",
     "Content-Length": file.size.toString(),
     "Content-Type": file.contentType,
-    "X-Content-Type-Options": "nosniff",
+    "X-Content-Type-Options": "nosniff"
   };
 }
 
-export async function serveStaticFile(context: StaticFileRouteContext, root: string) {
+export async function serveStaticFile(
+  context: StaticFileRouteContext,
+  root: string
+) {
   const result = await getRequestedFile(context, root);
   if (result.error) return result.error;
 
   const stream = Readable.toWeb(createReadStream(result.file.path));
   return new Response(stream as ReadableStream, {
-    headers: fileHeaders(result.file),
+    headers: fileHeaders(result.file)
   });
 }
 
-export async function serveStaticFileHead(context: StaticFileRouteContext, root: string) {
+export async function serveStaticFileHead(
+  context: StaticFileRouteContext,
+  root: string
+) {
   const result = await getRequestedFile(context, root);
   if (result.error) return result.error;
 
   return new Response(null, {
-    headers: fileHeaders(result.file),
+    headers: fileHeaders(result.file)
   });
 }

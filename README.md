@@ -418,6 +418,32 @@ A common deployment is:
 - nginx proxies `/api/` to the backend on `127.0.0.1:3000`.
 - The widget script is loaded from `/api/w/widget.iife.js`.
 
+Create the private environment files described above, then build and start the
+production stack:
+
+```bash
+git pull && docker compose -f docker-compose.prod.yaml up -d --build --remove-orphans
+```
+
+The production Compose file:
+
+- builds the widget into `./shared` with a one-shot `frontend-builder` service;
+- starts the backend with `next start` and no source-code bind mount;
+- serves `./shared` and `./images` through read-only mounts;
+- publishes only the backend on `127.0.0.1:3000`;
+- requires separate metrics and telemetry-statistics bearer tokens.
+
+Frontend build variables and the two bearer tokens come from the root `.env`.
+Backend RPC endpoints, the validator address, and the optional Validators.app
+token come from `backend/.env`. The `frontend-builder` container exiting with
+status `0` is expected after it writes the bundle.
+
+Check the deployment with:
+
+```bash
+docker compose -f docker-compose.prod.yaml ps --all
+```
+
 Use an nginx prefix location that is not overridden by static `.js` regex locations:
 
 ```nginx
@@ -457,7 +483,7 @@ curl -k -i --resolve your-domain.example:443:127.0.0.1 https://your-domain.examp
 curl -i "https://your-domain.example/api/w/widget.iife.js?v=1"
 ```
 
-Docker Compose binds the backend and frontend preview ports to the VPS
+The development Docker Compose binds the backend and frontend preview ports to the VPS
 loopback interface. Do not change these bindings to `0.0.0.0`: public traffic
 must reach the backend through nginx, and the preview server is not a
 production entry point.
@@ -502,6 +528,21 @@ Run the frontend dev server in another terminal:
 cd frontend
 npm run dev
 ```
+
+HTTPS preview is optional. When both certificate files exist, Vite uses them
+automatically. One way to create a local self-signed certificate is:
+
+```bash
+mkdir -p frontend/.cert
+openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+  -keyout frontend/.cert/server.key \
+  -out frontend/.cert/server.crt \
+  -subj "/CN=localhost" \
+  -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+```
+
+Without both files, `npm run build` and `npm run preview` use the normal HTTP
+configuration and require no certificate setup.
 
 For local non-Docker development, remember that the frontend dev server does not automatically populate the backend shared folder. For the embeddable bundle flow, build the frontend:
 

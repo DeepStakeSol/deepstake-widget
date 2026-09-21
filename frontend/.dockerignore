@@ -1,3 +1,13 @@
 .next
 node_modules
 dist
+coverage
+.cert
+.env
+.env.*
+.git
+.gitignore
+npm-debug.log*
+*.tsbuildinfo
+test-results
+*.orig
