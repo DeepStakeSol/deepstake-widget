@@ -10,3 +10,14 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+interface Window {
+  DeepStakeWidget: {
+    mount: () => void;
+    unmount: (element: HTMLElement) => void;
+    version: string;
+  };
+  MyWidget: {
+    mountDeepStakeWidgets: () => void;
+  };
+}

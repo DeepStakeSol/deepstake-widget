@@ -80,7 +80,7 @@ export default async function globalSetup() {
       VITE_BACKEND_URL: "",
       DISABLE_BACKEND_PREFIX: "false",
       IMAGE_URL_PREFIX: "",
-      VITE_NEXT_PUBLIC_NETWORK_ENV: "devnet",
+      VITE_NEXT_PUBLIC_NETWORK_ENV: "",
       VITE_TELEMETRY_ENDPOINT: "https://deepstake.info/api/telemetry",
       VITE_USE_LEGACY_VALIDATOR_PROFILE: "false",
     },
@@ -154,6 +154,19 @@ export default async function globalSetup() {
         h1, h2, h3 { color: hotpink; }
         input { border: 2px dashed red; }
       `,
+    )
+  );
+
+  fs.writeFileSync(
+    path.join(distDir, "e2e-host-default-network.html"),
+    html({ vote_account: voteAccount, theme: "light", tabs: ["native"], telemetry: true })
+  );
+
+  fs.writeFileSync(
+    path.join(distDir, "e2e-host-conflicting-css-dark.html"),
+    html(
+      { vote_account: voteAccount, theme: "dark", network: "devnet", tabs: ["native"] },
+      `input { border: 2px dashed red; appearance: none; width: 120px; height: 80px; }`,
     )
   );
 

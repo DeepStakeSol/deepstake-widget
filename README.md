@@ -122,6 +122,31 @@ For production, replace the script URL with your public backend URL:
 <script src="https://your-domain.example/api/w/widget.iife.js"></script>
 ```
 
+For a page that adds the widget after load (including React and Next.js), add the element first and then load the script. The bundle mounts it when the script finishes:
+
+```jsx
+import { useEffect, useRef } from "react";
+
+function StakeWidget() {
+  const element = useRef(null);
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://your-domain.example/api/w/widget.iife.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      script.remove();
+      if (element.current) window.DeepStakeWidget?.unmount(element.current);
+    };
+  }, []);
+
+  return <div ref={element} data-widget="deepstake"
+    data-options={JSON.stringify({ vote_account: "YOUR_VALIDATOR_VOTE_ACCOUNT" })} />;
+}
+```
+
+`window.DeepStakeWidget.mount()` scans for newly inserted elements, and repeated calls leave mounted elements alone. `window.DeepStakeWidget.unmount(element)` removes one widget so it can be mounted again. `window.DeepStakeWidget.version` exposes the bundle version. Existing `window.MyWidget.mountDeepStakeWidgets()` calls continue to work.
+
 ### Widget Options
 
 `data-options` is JSON. Currently supported fields:
@@ -383,7 +408,7 @@ The widget network is resolved in this order:
 
 1. `data-options.network`
 2. `VITE_NEXT_PUBLIC_NETWORK_ENV`
-3. frontend default fallback
+3. `mainnet` default fallback
 
 Use the widget option when one hosted bundle must support different validator pages or clusters:
 
@@ -397,11 +422,7 @@ Use the widget option when one hosted bundle must support different validator pa
 ></div>
 ```
 
-If `network` is omitted, the frontend uses:
-
-```env
-VITE_NEXT_PUBLIC_NETWORK_ENV=devnet
-```
+If `network` is omitted, the frontend uses `VITE_NEXT_PUBLIC_NETWORK_ENV` when set; otherwise it uses `mainnet`. Set `network: "devnet"` explicitly for a devnet embed.
 
 Make sure the backend has the matching RPC endpoint configured:
 
@@ -615,6 +636,10 @@ DISABLE_BACKEND_PREFIX=true
 ### Wrong network
 
 Check `data-options.network` first. It has priority over `VITE_NEXT_PUBLIC_NETWORK_ENV`. Also make sure backend `NEXT_PUBLIC_NETWORK_ENV` and the RPC endpoint variables support the selected network.
+
+### Restore the other-network balance warning
+
+The “Don't show this again” choice is stored by the embedding site in `localStorage` under `deepstake:hide-other-network-alert`. To restore the warning, remove that key in the browser's site storage.
 
 ### CORS errors
 

@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
     build: {
       lib: {
         entry: 'src/main.tsx',
-        name: 'MyWidget',
+        name: 'DeepStakeWidget',
         fileName: 'widget',
         formats: ['iife'], // один JS-файл для вставки <script>
       },

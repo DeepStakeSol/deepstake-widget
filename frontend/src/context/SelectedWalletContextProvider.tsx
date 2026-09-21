@@ -10,12 +10,12 @@ import {
 } from "@wallet-standard/react";
 import { useEffect, useMemo, useState } from "react";
 
+import { readWalletSelection, saveWalletSelection } from "./walletSelectionStorage";
+
 import {
   SelectedWalletAccountContext,
   SelectedWalletAccountState
 } from "./SelectedWalletAccountContext";
-
-const STORAGE_KEY = "qn-solana-staking:selected-wallet-and-address";
 
 let wasSetterInvoked = false;
 function getSavedWalletAccount(
@@ -30,7 +30,7 @@ function getSavedWalletAccount(
   }
 
   try {
-    const savedWalletNameAndAddress = localStorage.getItem(STORAGE_KEY);
+    const savedWalletNameAndAddress = readWalletSelection();
     if (
       !savedWalletNameAndAddress ||
       typeof savedWalletNameAndAddress !== "string"
@@ -86,11 +86,7 @@ export function SelectedWalletContextProvider({
           const accountKey = nextWalletAccount
             ? getUiWalletAccountStorageKey(nextWalletAccount)
             : undefined;
-          if (accountKey) {
-            localStorage.setItem(STORAGE_KEY, accountKey);
-          } else {
-            localStorage.removeItem(STORAGE_KEY);
-          }
+          saveWalletSelection(accountKey);
         } catch (error) {
           console.warn("Failed to access localStorage:", error);
         }

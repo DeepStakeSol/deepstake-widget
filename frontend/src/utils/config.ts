@@ -24,7 +24,7 @@ const networks: Record<NetworkType, NetworkConfig> = {
   }
 };
 
-const DEFAULT_NETWORK: NetworkType = "devnet";
+const DEFAULT_NETWORK: NetworkType = "mainnet";
 const warnedInvalidNetworks = new Set<string>();
 
 function isValidNetwork(network: string): network is NetworkType {

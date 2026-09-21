@@ -1,24 +1,44 @@
 "use client";
 
-import { useEffect, useContext, useState } from "react";
-import { Flex, Text, Button } from "@radix-ui/themes";
+import { useCallback, useEffect, useContext, useState } from "react";
+import { Flex, Button } from "@radix-ui/themes";
 import { checkOtherNetworkBalances, NetworkBalanceInfo } from "../utils/solana/balance";
 import { useNetwork } from "../context/NetworkContext";
 import { SelectedWalletAccountContext } from "../context/SelectedWalletAccountContext";
 import { useBalanceCheck } from "../context/BalanceCheckContext";
+import { hideOtherNetworkAlert, isOtherNetworkAlertHidden } from "../utils/networkAlertPreference";
 
 export function NetworkBalanceAlert() {
   const { network } = useNetwork();
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
   const { triggerCheck, setTriggerCheck } = useBalanceCheck();
   const [showAlert, setShowAlert] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
   const [networkBalanceInfo, setNetworkBalanceInfo] = useState<NetworkBalanceInfo | null>(null);
+
+  const dismissAlert = useCallback(() => {
+    if (dontShowAgain) hideOtherNetworkAlert();
+    setShowAlert(false);
+  }, [dontShowAgain]);
+
+  useEffect(() => {
+    if (!showAlert) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") dismissAlert();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showAlert, dismissAlert]);
 
   useEffect(() => {
     let isCancelled = false;
 
     const checkBalance = async () => {
       if (!selectedWalletAccount || !triggerCheck) return;
+      if (isOtherNetworkAlertHidden()) {
+        setTriggerCheck(false);
+        return;
+      }
 
       try {
         const otherBalance = await checkOtherNetworkBalances(
@@ -72,7 +92,8 @@ export function NetworkBalanceAlert() {
           top: 50%;
           transform: translate(-50%, -50%);
           width: 400px;
-          height: 320px;
+          min-height: 320px;
+          padding-bottom: 20px;
           background-color: #fff;
           border: 0;
           border-radius: 20px;
@@ -92,6 +113,29 @@ export function NetworkBalanceAlert() {
           line-height: 1;
           padding: 4px 8px;
           border-radius: 4px;
+        }
+        [data-widget="deepstake"] .alert-preference {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 18px;
+          color: inherit;
+          font-size: 13px;
+          cursor: pointer;
+        }
+        [data-widget="deepstake"] .alert-preference input[type="checkbox"] {
+          appearance: auto !important;
+          display: inline-block !important;
+          width: 16px !important;
+          height: 16px !important;
+          min-width: 16px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          opacity: 1 !important;
+          border: 1px solid #646772 !important;
+          border-radius: 3px !important;
+          accent-color: #5a5a62;
+          cursor: pointer;
         }
         [data-widget="deepstake"][data-theme="dark"] .alert-overlay {
           background-color: #0d1625db;
@@ -120,10 +164,7 @@ export function NetworkBalanceAlert() {
         <>
           <div
             className="alert-overlay"
-            onClick={() => setShowAlert(false)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setShowAlert(false);
-            }}
+            onClick={dismissAlert}
             role="presentation"
             aria-hidden="true"
           />
@@ -138,7 +179,7 @@ export function NetworkBalanceAlert() {
               type="button"
               aria-label="Close"
               className="alert-close-btn"
-              onClick={() => setShowAlert(false)}
+              onClick={dismissAlert}
             >
               ✕
             </button>
@@ -164,10 +205,19 @@ export function NetworkBalanceAlert() {
                   You&apos;re currently connected to {network}, but you have funds on {networkBalanceInfo.network}.
                 </Flex>
 
+                <label className="alert-preference">
+                  <input
+                    type="checkbox"
+                    checked={dontShowAgain}
+                    onChange={(event) => setDontShowAgain(event.target.checked)}
+                  />
+                  Don't show this again
+                </label>
+
                 <Button
                   size="3"
                   aria-label="Dismiss balance alert"
-                  onClick={() => setShowAlert(false)}
+                  onClick={dismissAlert}
                   className="button-close2"
                   style={{
                     display: "block",
@@ -175,7 +225,7 @@ export function NetworkBalanceAlert() {
                     height: "40px",
                     marginLeft: "auto",
                     marginRight: "auto",
-                    marginTop: "30px",
+                    marginTop: "20px",
                     background: "rgb(90 90 98)",
                     color: "white",
                     border: "none",

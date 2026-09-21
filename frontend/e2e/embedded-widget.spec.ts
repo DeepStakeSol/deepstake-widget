@@ -291,6 +291,92 @@ async function gotoHost(page: Page, path: string, options: GotoOptions = {}) {
   return consoleErrors;
 }
 
+
+test("delayed and duplicate scripts share mounted roots and expose the browser API", async ({ page }) => {
+  const telemetryPayloads: unknown[] = [];
+  await installNetworkMocks(page, {}, telemetryPayloads);
+  await page.goto("/health");
+  const options = JSON.stringify({
+    vote_account: "Vote111111111111111111111111111111111111111",
+    network: "devnet",
+    tabs: ["native"],
+    telemetry: true,
+  });
+  await page.setContent(`<div id="first" data-widget="deepstake" data-options='${options}'></div>`);
+  const consoleErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
+
+  await page.addScriptTag({ url: "/api/w/widget.iife.js" });
+  await expect(page.locator(".sw-container")).toHaveCount(1);
+  await expect.poll(() => telemetryPayloads.length).toBe(1);
+
+  await page.evaluate(() => {
+    window.DeepStakeWidget.mount();
+    window.DeepStakeWidget.mount();
+    window.MyWidget.mountDeepStakeWidgets();
+  });
+  await expect(page.locator(".sw-container")).toHaveCount(1);
+  expect(telemetryPayloads).toHaveLength(1);
+
+  await page.evaluate((dataOptions) => {
+    const second = document.createElement("div");
+    second.id = "second";
+    second.dataset.widget = "deepstake";
+    second.dataset.options = dataOptions;
+    document.body.append(second);
+  }, options);
+  await page.addScriptTag({ url: "/api/w/widget.iife.js" });
+  await expect(page.locator(".sw-container")).toHaveCount(2);
+  await expect.poll(() => telemetryPayloads.length).toBe(2);
+
+  await page.evaluate(() => window.DeepStakeWidget.unmount(document.getElementById("first")!));
+  await expect(page.locator("#first .sw-container")).toHaveCount(0);
+  await page.evaluate(() => window.DeepStakeWidget.mount());
+  await expect(page.locator(".sw-container")).toHaveCount(2);
+  await expect.poll(() => telemetryPayloads.length).toBe(3);
+  expect(await page.evaluate(() => window.DeepStakeWidget.version)).toBe("0.0.0");
+  expect(consoleErrors).toEqual([]);
+});
+
+test("missing network uses mainnet in a built embed", async ({ page }) => {
+  const telemetryPayloads: unknown[] = [];
+  await gotoHost(page, "/api/w/e2e-host-default-network.html", { telemetryPayloads });
+  await expect.poll(() => telemetryPayloads.length).toBe(1);
+  expect(telemetryPayloads[0]).toMatchObject({ network: "mainnet" });
+  await expect(page.getByRole("tab", { name: /Native/ })).toBeVisible();
+  await expect(page.getByText("Devnet", { exact: true })).toHaveCount(0);
+});
+
+test("other-network alert opt-out avoids later balance requests", async ({ page }) => {
+  await installE2EWallet(page);
+  await installNetworkMocks(page, { balanceNetwork: "mainnet" });
+  const otherNetworkRequests: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === "/api/balance" && url.searchParams.get("network") === "mainnet") {
+      otherNetworkRequests.push(request.url());
+    }
+  });
+  await page.goto("/api/w/e2e-host-all.html");
+  await page.getByRole("button", { name: "Connect Wallet" }).first().click();
+  await page.getByRole("button", { name: "Connect with E2E Wallet" }).click();
+  await expect(page.getByRole("alertdialog", { name: "Balance Found on Another Network" })).toBeVisible();
+  await page.getByRole("checkbox", { name: "Don't show this again" }).check();
+  await page.getByRole("button", { name: "Dismiss balance alert" }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  expect(otherNetworkRequests).toHaveLength(1);
+  expect(await page.evaluate(() => localStorage.getItem("deepstake:hide-other-network-alert"))).toBe("1");
+
+  await page.locator(".disconnect-logo").click();
+  await page.getByRole("button", { name: "Connect Wallet" }).first().click();
+  await page.getByRole("button", { name: "Connect with E2E Wallet" }).click();
+  await expect(page.getByText("So11...1112")).toBeVisible();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  expect(otherNetworkRequests).toHaveLength(1);
+});
+
 test("embedded widget loads from backend static route", async ({ page }) => {
   const scriptResponse = page.waitForResponse((response) =>
     response.url().endsWith("/api/w/widget.iife.js") && response.ok()
@@ -334,6 +420,24 @@ test("host button styles do not override widget fonts", async ({ page }) => {
     "font-family",
     /Outfit.*Arial.*Helvetica.*sans-serif/,
   );
+  expect(consoleErrors).toEqual([]);
+});
+
+test("alert checkbox remains usable under hostile host input styles", async ({ page }) => {
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-conflicting-css-dark.html", {
+    wallet: true,
+    mock: { balanceNetwork: "mainnet" },
+  });
+  await page.getByRole("button", { name: "Connect Wallet" }).first().click();
+  await page.getByRole("button", { name: "Connect with E2E Wallet" }).click();
+  const checkbox = page.getByRole("checkbox", { name: "Don't show this again" });
+  await expect(checkbox).toBeVisible();
+  await expect(checkbox).toHaveCSS("width", "16px");
+  await expect(checkbox).toHaveCSS("height", "16px");
+  await expect(checkbox).toHaveCSS("appearance", "auto");
+  await checkbox.check();
+  await page.getByRole("button", { name: "Dismiss balance alert" }).click();
+  expect(await page.evaluate(() => localStorage.getItem("deepstake:hide-other-network-alert"))).toBe("1");
   expect(consoleErrors).toEqual([]);
 });
 

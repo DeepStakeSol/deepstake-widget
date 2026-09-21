@@ -15,6 +15,7 @@ import Image from "next/image";
 import { useBalanceCheck } from "../context/BalanceCheckContext";
 import { useStakingModal } from "../context/StakingModalContext";
 import { createStyleInjector } from "../utils/styleInjector";
+import { isOtherNetworkAlertHidden } from "../utils/networkAlertPreference";
 
 /** Utility function to compare wallet accounts */
 function uiWalletAccountsAreSame(
@@ -40,8 +41,9 @@ export function WalletModal() {
       setSelectedWalletAccount(account);
       hideWalletModal();
 
-      // Trigger balance check on other networks
-      setTriggerCheck(true);
+      if (!isOtherNetworkAlertHidden()) {
+        setTriggerCheck(true);
+      }
     }
   };
 
