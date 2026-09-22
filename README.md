@@ -6,17 +6,43 @@ DeepStake Widget is a JavaScript widget that can be embedded on a validator webs
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## Hosted widget quick start
+## Quick start for validators
 
-A production embedding page needs a public domain with HTTPS. Replace the vote account below with your validator vote account:
+There are two ways to put the widget on your site.
+
+### Variant A: use the hosted backend (fastest)
+
+DeepStake hosts the backend and widget bundle. You only add a snippet to your page.
+
+1. Paste this snippet where the widget should appear:
 
 ```html
-<div data-widget="deepstake"
-     data-options='{"vote_account":"YOUR_VALIDATOR_VOTE_ACCOUNT"}'></div>
+<div data-widget="deepstake" data-options='{
+  "vote_account": "YOUR_VALIDATOR_VOTE_ACCOUNT",
+  "theme": "dark",
+  "network": "mainnet",
+  "tabs": ["native", "blaze", "vault"]
+}'></div>
 <script src="https://deepstake.info/api/w/widget.iife.js"></script>
 ```
 
-The network defaults to `mainnet`. For devnet, explicitly add `"network":"devnet"` to `data-options`. The hosted script uses the hosted API. The installation and deployment sections below are for self-hosting.
+2. Replace `YOUR_VALIDATOR_VOTE_ACCOUNT` with your vote account address, not the validator identity address.
+3. Keep only the tabs you want. Enable `blaze` and `vault` only when your validator is eligible for BlazeStake CLS and The Vault direct stake.
+4. Open the page over HTTPS and check that your validator name, commission, and APY appear.
+
+When omitted, `theme` defaults to `dark`, `network` defaults to `mainnet`, and `tabs` defaults to all tabs supported on the resolved network. Invalid configuration renders a visible error instead of a blank area and logs the reason with the `[DeepStake widget]` prefix.
+
+Each valid widget instance sends one anonymous event when it mounts. See [Widget Mount Telemetry](#widget-mount-telemetry). Add `"telemetry": false` to the options to opt out.
+
+### Variant B: self-host the backend and the bundle
+
+Use this option for full control and no runtime dependency on `deepstake.info`.
+
+1. Clone the repository and copy the root, backend, and frontend environment examples as described below.
+2. Set the RPC endpoints and public backend URL under [Environment Variables](#environment-variables).
+3. Build and start the stack using [Installation](#installation).
+4. Put nginx in front of the backend on your HTTPS domain using [Production Deployment Behind Nginx](#production-deployment-behind-nginx).
+5. Use the Variant A snippet with `https://your-domain.example/api/w/widget.iife.js` as the script URL.
 
 ## Features
 
@@ -56,6 +82,9 @@ The backend is required because several Solana RPC and protocol calls should not
 - Docker and Docker Compose
 - A Solana RPC endpoint for each network you want to support
 - A validator vote account address
+- A real domain with a valid HTTPS certificate for any production page that hosts the widget and for a self-hosted backend; do not use a bare IP address or self-signed certificate in production
+
+HTTPS on a real domain avoids wallet heuristic warnings, transactions expiring while a user is still approving them, and mixed-content blocking in Firefox. `localhost` and a self-signed certificate are fine for local development.
 
 ## Installation
 
@@ -134,47 +163,6 @@ For production, replace the script URL with your public backend URL:
 <script src="https://your-domain.example/api/w/widget.iife.js"></script>
 ```
 
-For a page that adds the widget after load, including React and Next.js, create the element before loading the script. The bundle scans the page when it loads; calling `mount()` also handles a script already present on the page:
-
-```tsx
-"use client";
-
-import { useEffect, useRef } from "react";
-
-declare global {
-  interface Window {
-    DeepStakeWidget?: {
-      mount(): void;
-      unmount(element: HTMLElement): void;
-      version: string;
-    };
-  }
-}
-
-export function StakeWidget() {
-  const element = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const target = element.current;
-    const script = document.createElement("script");
-    script.src = "https://deepstake.info/api/w/widget.iife.js";
-    script.async = true;
-    script.onload = () => window.DeepStakeWidget?.mount();
-    document.body.appendChild(script);
-
-    return () => {
-      if (target) window.DeepStakeWidget?.unmount(target);
-      script.remove();
-    };
-  }, []);
-
-  return <div ref={element} data-widget="deepstake"
-    data-options={JSON.stringify({ vote_account: "YOUR_VALIDATOR_VOTE_ACCOUNT" })} />;
-}
-```
-
-`window.DeepStakeWidget.mount()` scans for new elements and skips elements already mounted. `window.DeepStakeWidget.unmount(element)` releases one widget so it can be mounted again. `window.DeepStakeWidget.version` exposes the bundle version. Existing `window.MyWidget.mountDeepStakeWidgets()` calls continue to work. For devnet, include `network: "devnet"` in the options object.
-
 ### Widget Options
 
 `data-options` is JSON. Currently supported fields:
@@ -209,6 +197,71 @@ Example:
 ></div>
 ```
 
+### React, Next.js and other single-page apps
+
+The script mounts every `data-widget="deepstake"` element that exists when it runs. It also mounts correctly when the script is injected after page load. For components added later by route changes or conditional rendering, call `window.DeepStakeWidget.mount()`; it mounts new elements and skips elements already mounted.
+
+```tsx
+"use client";
+
+import { useEffect, useRef } from "react";
+
+const SRC = "https://deepstake.info/api/w/widget.iife.js";
+
+declare global {
+  interface Window {
+    DeepStakeWidget?: {
+      mount(): void;
+      unmount(element: HTMLElement): void;
+      version: string;
+    };
+  }
+}
+
+export function DeepStakeWidget() {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    if (window.DeepStakeWidget) {
+      window.DeepStakeWidget.mount();
+    } else if (!document.querySelector(`script[src="${SRC}"]`)) {
+      const script = document.createElement("script");
+      script.src = SRC;
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
+    return () => window.DeepStakeWidget?.unmount(element);
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      data-widget="deepstake"
+      data-options={JSON.stringify({
+        vote_account: "YOUR_VALIDATOR_VOTE_ACCOUNT",
+        theme: "dark",
+        network: "mainnet",
+        tabs: ["native", "blaze", "vault"],
+      })}
+    />
+  );
+}
+```
+
+JavaScript API exposed by the bundle:
+
+| Call | What it does |
+| --- | --- |
+| `window.DeepStakeWidget.mount()` | Mounts every widget element not mounted yet; safe to call repeatedly. |
+| `window.DeepStakeWidget.unmount(element)` | Unmounts one widget element. |
+| `window.DeepStakeWidget.version` | Returns the loaded bundle's version string. |
+
+The earlier `window.MyWidget.mountDeepStakeWidgets()` call remains supported.
+
 ### Widget Mount Telemetry
 
 After a valid widget instance commits, it sends one best-effort
@@ -226,14 +279,21 @@ in `data-options` to disable the event for a widget instance.
 
 Rolling 1-, 7-, and 30-day counts are available from the protected
 `GET /api/telemetry/stats` endpoint. The opt-in `?detail=1` response adds
-external host counts for each window and up to 1,000 host/vote-account entries,
-sorted by last-seen date and identity. The persistent registry stores the first
-and latest UTC day and latest normalized event for each pair; it begins when
-this version is deployed and does not reconstruct earlier first-seen dates.
-The endpoint requires a separate `TELEMETRY_STATS_TOKEN` bearer token and is
-never cacheable. `TELEMETRY_OWN_HOSTS` classifies configured domains and their
-subdomains as development/own hosts at read time; it defaults to
-`deepstake.info` and is set in the root Compose `.env`.
+external host counts for each window and returns at most 1,000 registry entries,
+sorted by last-seen date and identity. The endpoint requires a separate
+`TELEMETRY_STATS_TOKEN` bearer token and is never cacheable.
+`TELEMETRY_OWN_HOSTS` classifies configured domains and their subdomains as
+development/own hosts at read time; it defaults to `deepstake.info` and is set
+in the root Compose `.env`.
+
+Besides daily counters, the backend keeps a persistent registry with one entry
+per hostname and vote-account pair. Each entry contains the hostname, vote
+account, network, visible tabs, theme, widget version, first and latest UTC
+dates, and the latest normalized event. The registry begins at deployment and
+does not reconstruct earlier first-seen dates. It has no expiry and never
+contains wallet addresses, IP addresses, user agents, or other visitor data.
+Authenticated `GET /api/telemetry/stats?detail=1` returns this registry subject
+to the 1,000-entry response limit.
 
 ## Validator Profile Request
 
@@ -590,8 +650,9 @@ cd frontend
 npm run dev
 ```
 
-HTTPS preview is optional. When both certificate files exist, Vite uses them
-automatically. One way to create a local self-signed certificate is:
+HTTPS for `vite preview` is optional. Vite enables it only when both
+`frontend/.cert/server.key` and `frontend/.cert/server.crt` exist. One way to
+create a local self-signed pair is:
 
 ```bash
 mkdir -p frontend/.cert
@@ -683,7 +744,32 @@ The “Don't show this again” choice is stored by the embedding site in `local
 
 ### CORS errors
 
-`backend/middleware.ts` sets `Access-Control-Allow-Origin: *` on widget-facing `/api/*` responses and preflights so validator domains can embed the widget. `/api/metrics` is handled separately. The metrics and telemetry statistics routes still require their separate bearer tokens; a CORS header does not grant access. Check that nginx forwards `/api/` and that the widget's build-time backend URL points to the public HTTPS API.
+The backend answers widget-facing `/api/*` routes and preflight requests with
+`Access-Control-Allow-Origin: *`. This is intentional because third-party
+validator domains must be able to call the backend. `/api/metrics` is handled
+separately, and protected routes still require their bearer tokens. If a CORS
+error appears, verify that the request reaches the backend. Check the nginx
+`location ^~ /api/`, Cloudflare rules, and whether a proxy-generated 404 or 502
+response lacks CORS headers instead of restricting the allowed origin.
+
+### The widget does not appear on a React / Next.js page
+
+Use the component under [React, Next.js and other single-page apps](#react-nextjs-and-other-single-page-apps). A plain `<script>` element inside JSX is not executed by React.
+
+### Browser storage used by the widget
+
+The widget stores two small values in the embedding page's origin-scoped
+`localStorage`:
+
+| Key | Meaning |
+| --- | --- |
+| `deepstake:selected-wallet` | Last selected wallet, used to restore the selection after a reload. |
+| `deepstake:hide-other-network-alert` | Set to `1` when the user selects “Don't show this again” in the “Balance Found on Another Network” dialog; delete the key to show the dialog again. |
+
+No other current widget data is stored in the browser, and the widget continues
+to work when `localStorage` is unavailable. During wallet-key migration, an
+older `qn-solana-staking:selected-wallet-and-address` value may be read and
+moved to `deepstake:selected-wallet`.
 
 ## Project Structure
 
