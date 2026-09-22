@@ -91,7 +91,7 @@ export interface ValidatorProfileCache {
   ): Promise<void>;
 }
 
-const CACHE_PREFIX = "validator-profile:v2";
+const CACHE_PREFIX = "validator-profile:v3";
 let redisCache: ValidatorProfileCache | null | undefined;
 
 function cacheKey(

@@ -82,7 +82,6 @@ export default async function globalSetup() {
       IMAGE_URL_PREFIX: "",
       VITE_NEXT_PUBLIC_NETWORK_ENV: "",
       VITE_TELEMETRY_ENDPOINT: "https://deepstake.info/api/telemetry",
-      VITE_USE_LEGACY_VALIDATOR_PROFILE: "false",
     },
   });
 

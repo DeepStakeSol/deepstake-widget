@@ -119,7 +119,7 @@ describe("App", () => {
       voteAccount: "vote-address",
       logoUrl: "https://logo.example/logo.png",
       status: "fresh",
-      field: { source: "trillium", observedAt: null, stale: false },
+      field: { source: "stakewiz", observedAt: null, stale: false },
     });
     fetchEpochInfoMock.mockResolvedValue({
       epochInfo: { epoch: 42, slotIndex: 25, slotsInEpoch: 100 },

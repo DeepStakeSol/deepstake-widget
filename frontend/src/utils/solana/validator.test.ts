@@ -58,7 +58,6 @@ describe("validator profile client", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
     vi.stubEnv("VITE_BACKEND_URL", "https://backend.example");
-    vi.stubEnv("VITE_USE_LEGACY_VALIDATOR_PROFILE", "false");
   });
 
   it("fetches and validates one backend profile", async () => {
@@ -84,10 +83,10 @@ describe("validator profile client", () => {
       response({
         network: "mainnet",
         voteAccount: "vote",
-        logoUrl: "https://logo.example/trillium.png",
+        logoUrl: "https://logo.example/stakewiz.png",
         status: "fresh",
         field: {
-          source: "trillium",
+          source: "stakewiz",
           observedAt: "2026-07-14T10:00:00.000Z",
           stale: false,
         },
@@ -95,9 +94,9 @@ describe("validator profile client", () => {
     );
 
     await expect(fetchValidatorLogo("vote", "mainnet")).resolves.toMatchObject({
-      logoUrl: "https://logo.example/trillium.png",
+      logoUrl: "https://logo.example/stakewiz.png",
       status: "fresh",
-      field: { source: "trillium" },
+      field: { source: "stakewiz" },
     });
     expect(fetch).toHaveBeenCalledWith(
       expect.stringMatching(
@@ -111,10 +110,10 @@ describe("validator profile client", () => {
     const logo = {
       network: "mainnet" as const,
       voteAccount: "vote",
-      logoUrl: "https://logo.example/trillium.png",
+      logoUrl: "https://logo.example/stakewiz.png",
       status: "fresh" as const,
       field: {
-        source: "trillium",
+        source: "stakewiz",
         observedAt: "2026-07-14T10:00:00.000Z",
         stale: false,
       },
@@ -178,35 +177,4 @@ describe("validator profile client", () => {
     expect(result.commissionPercent).toBeNull();
   });
 
-  it("uses the legacy requests only when the rollback flag is enabled", async () => {
-    vi.stubEnv("VITE_USE_LEGACY_VALIDATOR_PROFILE", "true");
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(
-        response({
-          vote_identity: "vote",
-          name: "Legacy validator",
-          total_apy: 7,
-          commission: 0,
-          is_jito: false,
-        })
-      )
-      .mockResolvedValueOnce(
-        response([
-          {
-            vote_account_pubkey: "vote",
-            icon_url: "https://legacy.example/logo.png",
-          },
-        ])
-      );
-
-    await expect(fetchValidatorProfile("vote", "mainnet")).resolves.toMatchObject({
-      name: "Legacy validator",
-      logoUrl: "https://legacy.example/logo.png",
-      commissionPercent: 0,
-    });
-    expect(fetch).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(fetch).mock.calls[0][0]).toBe(
-      "https://api.stakewiz.com/validator/vote"
-    );
-  });
 });

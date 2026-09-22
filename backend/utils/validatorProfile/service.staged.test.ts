@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const providerMocks = vi.hoisted(() => ({
   stakewiz: vi.fn(),
-  trillium: vi.fn(),
   jito: vi.fn(),
   solana: vi.fn(),
   validatorsApp: vi.fn()
@@ -16,7 +15,6 @@ vi.mock("./providers", () => {
       provider: providerMocks.stakewiz,
       baseline: true
     },
-    { id: "trillium", timeoutMs: 8_000, provider: providerMocks.trillium },
     { id: "jito", timeoutMs: 8_000, provider: providerMocks.jito },
     { id: "solana-rpc", timeoutMs: 8_000, provider: providerMocks.solana },
     {
@@ -27,11 +25,11 @@ vi.mock("./providers", () => {
   ];
   return {
     validatorProfileProviderConfigsByGroup: {
-      identity: [configurations[0], configurations[4]],
-      logo: [configurations[1], configurations[0], configurations[4]],
-      commission: [configurations[3], configurations[0], configurations[4]],
+      identity: [configurations[0], configurations[3]],
+      logo: [configurations[0], configurations[3]],
+      commission: [configurations[2], configurations[0], configurations[3]],
       apy: [configurations[0]],
-      mev: [configurations[2], configurations[0]]
+      mev: [configurations[1], configurations[0]]
     }
   };
 });
@@ -128,11 +126,6 @@ describe("staged validator profile aggregation", () => {
       })
     );
     providerMocks.solana.mockReturnValue(solana.promise);
-    providerMocks.trillium.mockResolvedValue(
-      result("trillium", {
-        logoUrl: "https://example.com/trillium.png"
-      })
-    );
     providerMocks.jito.mockResolvedValue(
       result("jito", { mevCommissionPercent: 2, mevEnabled: true })
     );
@@ -154,7 +147,7 @@ describe("staged validator profile aggregation", () => {
       mevCommissionPercent: 4
     });
     expect(profile.fields.logoUrl.source).toBeNull();
-    expect(providerMocks.trillium).not.toHaveBeenCalled();
+    expect(providerMocks.validatorsApp).toHaveBeenCalled();
     expect(cache.lockScopes).toEqual(["profile"]);
     expect(cache.releaseCount).toBe(0);
 
@@ -174,76 +167,54 @@ describe("staged validator profile aggregation", () => {
     expect(enhanced.fields.mevCommissionPercent.source).toBe("jito");
   });
 
-  it("keeps only the logo response pending until Trillium completes", async () => {
-    const cache = new MemoryCache();
-    const trillium = deferredProviderResult();
-    providerMocks.stakewiz.mockResolvedValue(
-      result("stakewiz", {
-        name: "DeepStake",
-        logoUrl: "https://example.com/stakewiz.png"
-      })
-    );
-    providerMocks.trillium.mockReturnValue(trillium.promise);
+  it("returns profile data while a separate logo request is pending", async () => {
+    const logoPending = deferredProviderResult();
+    providerMocks.stakewiz
+      .mockReturnValueOnce(logoPending.promise)
+      .mockResolvedValue(result("stakewiz", {
+        name: "Independent validator",
+        estimatedApyPercent: 5
+      }));
 
-    let settled = false;
-    const request = getValidatorLogo(
-      "mainnet",
-      "strict-logo-vote",
-      undefined,
-      undefined,
-      cache
-    ).finally(() => {
-      settled = true;
+    const logoRequest = getValidatorLogo(
+      "mainnet", "independent-vote", undefined, undefined, new MemoryCache()
+    );
+    await vi.waitFor(() => expect(providerMocks.stakewiz).toHaveBeenCalledTimes(1));
+
+    const profile = await getValidatorProfile(
+      "mainnet", "independent-vote", undefined, undefined, new MemoryCache()
+    );
+    expect(profile.name).toBe("Independent validator");
+    expect(profile.logoUrl).toBeNull();
+
+    logoPending.resolve(result("stakewiz", {
+      logoUrl: "https://example.com/independent.png"
+    }));
+    await expect(logoRequest).resolves.toMatchObject({
+      logoUrl: "https://example.com/independent.png",
+      field: { source: "stakewiz" }
     });
+  });
 
-    await vi.waitFor(() => expect(providerMocks.trillium).toHaveBeenCalled());
-    expect(settled).toBe(false);
-
-    trillium.resolve(
-      result("trillium", { logoUrl: "https://example.com/trillium.png" })
+  it("returns the Stakewiz logo while Validators.app is still pending", async () => {
+    const cache = new MemoryCache();
+    const validatorsApp = deferredProviderResult();
+    providerMocks.stakewiz.mockResolvedValue(
+      result("stakewiz", { logoUrl: "https://example.com/stakewiz.png" })
     );
-    const profile = await request;
+    providerMocks.validatorsApp.mockReturnValue(validatorsApp.promise);
 
-    expect(profile.logoUrl).toBe("https://example.com/trillium.png");
-    expect(profile.field.source).toBe("trillium");
+    const logo = await getValidatorLogo(
+      "mainnet", "priority-logo-vote", undefined, undefined, cache
+    );
+    expect(logo.logoUrl).toBe("https://example.com/stakewiz.png");
+    expect(logo.field.source).toBe("stakewiz");
+    expect(providerMocks.validatorsApp).toHaveBeenCalled();
     expect(cache.lockScopes).toEqual(["logo"]);
+    validatorsApp.resolve(null);
   });
 
-  it("falls back to the Stakewiz logo only after Trillium times out", async () => {
-    vi.useFakeTimers();
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const cache = new MemoryCache();
-    providerMocks.stakewiz.mockResolvedValue(
-      result("stakewiz", {
-        name: "DeepStake",
-        logoUrl: "https://example.com/stakewiz.png"
-      })
-    );
-    providerMocks.trillium.mockImplementation(
-      () => new Promise(() => undefined)
-    );
-
-    let settled = false;
-    const request = getValidatorLogo(
-      "mainnet",
-      "fallback-logo-vote",
-      undefined,
-      undefined,
-      cache
-    ).finally(() => {
-      settled = true;
-    });
-
-    await vi.advanceTimersByTimeAsync(7_999);
-    expect(settled).toBe(false);
-    await vi.advanceTimersByTimeAsync(1);
-
-    const profile = await request;
-    expect(profile.logoUrl).toBe("https://example.com/stakewiz.png");
-    expect(profile.field.source).toBe("stakewiz");
-  });
-
-  it("uses Validators.app when Trillium and Stakewiz have no logo", async () => {
+  it("uses Validators.app when Stakewiz has no logo", async () => {
     const cache = new MemoryCache();
     providerMocks.stakewiz.mockResolvedValue(
       result("stakewiz", { name: "DeepStake" })
@@ -264,6 +235,17 @@ describe("staged validator profile aggregation", () => {
 
     expect(profile.logoUrl).toBe("https://example.com/validators-app.png");
     expect(profile.field.source).toBe("validators-app");
+  });
+
+  it("returns the neutral logo result when neither provider has a logo", async () => {
+    const logo = await getValidatorLogo(
+      "mainnet", "no-logo-vote", undefined, undefined, new MemoryCache()
+    );
+    expect(logo).toMatchObject({
+      logoUrl: null,
+      status: "unavailable",
+      field: { source: null, observedAt: null, stale: false }
+    });
   });
 
   it("logs the provider identity and timeout classification", async () => {
@@ -324,9 +306,6 @@ describe("staged validator profile aggregation", () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const cache = new MemoryCache();
     providerMocks.stakewiz.mockRejectedValue(new Error("stakewiz down"));
-    providerMocks.trillium.mockResolvedValue(
-      result("trillium", { logoUrl: "https://example.com/trillium.png" })
-    );
     providerMocks.solana.mockResolvedValue(
       result("solana-rpc", { commissionPercent: 0 })
     );

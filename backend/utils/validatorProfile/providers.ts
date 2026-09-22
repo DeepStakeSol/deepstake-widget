@@ -8,7 +8,6 @@ import type {
 } from "./types";
 
 const STAKEWIZ_URL = "https://api.stakewiz.com/validator";
-const TRILLIUM_URL = "https://api.trillium.so/validator_rewards";
 const JITO_URL = "https://kobe.mainnet.jito.network/api/v1/validators";
 const VALIDATORS_APP_URL = "https://www.validators.app/api/v1/validators";
 const STAKEWIZ_TIMEOUT_MS = 8_000;
@@ -94,23 +93,6 @@ export const fetchStakewizProfile: ValidatorProfileProvider = async ({
     },
     data.updated_at
   );
-};
-
-export const fetchTrilliumProfile: ValidatorProfileProvider = async ({
-  network,
-  voteAccount,
-  signal,
-}) => {
-  if (network !== "mainnet") return null;
-  const data = await fetchJson(`${TRILLIUM_URL}/${voteAccount}`, {}, signal);
-  if (!Array.isArray(data)) throw new Error("Unexpected Trillium response format");
-
-  const match = data
-    .map(asRecord)
-    .find((item) => item?.vote_account_pubkey === voteAccount);
-  return match
-    ? result("trillium", { logoUrl: nullableString(match.icon_url) })
-    : null;
 };
 
 export const fetchJitoProfile: ValidatorProfileProvider = async ({
@@ -208,7 +190,6 @@ export const fetchValidatorsAppProfile: ValidatorProfileProvider = async ({
 
 export const validatorProfileProviders: ValidatorProfileProvider[] = [
   fetchStakewizProfile,
-  fetchTrilliumProfile,
   fetchJitoProfile,
   fetchSolanaProfile,
   fetchValidatorsAppProfile,
@@ -219,11 +200,7 @@ export const validatorProfileProvidersByGroup: Record<
   ValidatorProfileProvider[]
 > = {
   identity: [fetchStakewizProfile, fetchValidatorsAppProfile],
-  logo: [
-    fetchTrilliumProfile,
-    fetchStakewizProfile,
-    fetchValidatorsAppProfile,
-  ],
+  logo: [fetchStakewizProfile, fetchValidatorsAppProfile],
   commission: [
     fetchSolanaProfile,
     fetchStakewizProfile,
@@ -239,11 +216,6 @@ export const validatorProfileProviderConfigs: ValidatorProfileProviderConfig[] =
     timeoutMs: STAKEWIZ_TIMEOUT_MS,
     provider: fetchStakewizProfile,
     baseline: true,
-  },
-  {
-    id: "trillium",
-    timeoutMs: ENHANCEMENT_TIMEOUT_MS,
-    provider: fetchTrilliumProfile,
   },
   {
     id: "jito",

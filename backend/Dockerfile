@@ -26,7 +26,6 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder --chown=node:node /app/.next ./.next
-COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/next.config.ts ./next.config.ts
 
 EXPOSE 3000

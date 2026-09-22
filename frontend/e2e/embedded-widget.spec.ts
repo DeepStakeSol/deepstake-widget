@@ -8,6 +8,7 @@ type MockScenario = {
   epochStatus?: number;
   perfStatus?: number;
   validatorStatus?: number;
+  logoUrl?: string | null;
   balanceNetwork?: "mainnet" | "devnet";
 };
 
@@ -130,11 +131,12 @@ async function installNetworkMocks(
         await fulfillJson(route, 200, {
           network: parsed.searchParams.get("network"),
           voteAccount: parsed.searchParams.get("voteAccount"),
-          logoUrl: "/images/sol_logo.png",
-          status: "fresh",
+          logoUrl:
+            scenario.logoUrl === undefined ? "/images/sol_logo.png" : scenario.logoUrl,
+          status: scenario.logoUrl === null ? "unavailable" : "fresh",
           field: {
-            source: "trillium",
-            observedAt: "2026-07-14T10:00:00.000Z",
+            source: scenario.logoUrl === null ? null : "stakewiz",
+            observedAt: scenario.logoUrl === null ? null : "2026-07-14T10:00:00.000Z",
             stale: false,
           },
         });
@@ -705,5 +707,15 @@ test("validator information remains left-aligned inside the centered widget", as
   expect(contentBox).not.toBeNull();
   expect(contentBox!.x).toBeGreaterThan(cardBox!.x);
 
+  expect(consoleErrors).toEqual([]);
+});
+
+test("a validator without a provider logo renders the neutral avatar", async ({ page }) => {
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-mainnet-centered.html", {
+    mock: { logoUrl: null }
+  });
+  const card = page.locator(".vi-validator-card");
+  await expect(card.locator(".vi-avatar")).toBeVisible();
+  await expect(card.locator(".vi-image")).toHaveCount(0);
   expect(consoleErrors).toEqual([]);
 });

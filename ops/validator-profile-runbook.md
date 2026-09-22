@@ -42,7 +42,7 @@ channel and `warning` alerts to the service operations channel.
   result. The `error` status represents an HTTP 500 aggregation failure.
 - `deepstake_validator_logo_requests_total` and
   `deepstake_validator_logo_request_duration_seconds` track the independent
-  logo path, where Trillium timeout latency is expected to remain isolated.
+  logo path. A usable Stakewiz logo returns without waiting for Validators.app.
 - `deepstake_validator_provider_requests_total` identifies upstream failure
   type without putting validator addresses or raw errors in metric labels.
 - `deepstake_validator_cache_operations_total` covers lookup freshness,
@@ -64,13 +64,12 @@ validator vote accounts are not logged by the profile pipeline.
    direct aggregation, but latency and provider traffic will rise.
 4. For a single-provider alert, confirm that other providers still produce a
    partial or stale profile before escalating.
-5. If profiles are incorrect or broadly unavailable, rebuild the widget with
-   `VITE_USE_LEGACY_VALIDATOR_PROFILE=true` and redeploy the frontend bundle.
-6. Record the rollback time and reset the 30-day observation window.
+5. If profiles are incorrect or broadly unavailable, restore the previous
+   paired frontend/backend deployment and investigate provider and cache behavior.
 
 ## Failure Drills
 
-Run these in staging before starting the production observation window:
+Run these in staging before deployment:
 
 1. Block one external provider and verify its failure metric/log classification
    while the endpoint still returns a partial or cached profile.
@@ -82,17 +81,10 @@ Run these in staging before starting the production observation window:
 5. Seed stale cache records and verify they return immediately while a
    background refresh is recorded.
 
-## Legacy Exit Gate
+## Cache Transition
 
-Keep `VITE_USE_LEGACY_VALIDATOR_PROFILE=false` during normal production use.
-Remove the legacy browser path only after 30 consecutive days meeting all of
-these conditions:
-
-- No rollback to the legacy path.
-- No critical validator-profile alert.
-- Profile HTTP 500 rate remains below 0.1%.
-- `unavailable` profile responses remain below 0.5%.
-- No confirmed incorrect or cross-validator data incident.
-
-Legacy removal is a separate change. It must delete the option, legacy fetch
-implementation, related tests, documentation, and Docker environment wiring.
+The v3 namespace applies to group records and distributed locks. Expect a
+controlled cold-cache refresh after deployment. Leave v2 keys to expire
+naturally so the previous paired deployment can still read them if restored.
+After restart, inspect `/api/metrics` to confirm that only the active providers
+generate new request series.

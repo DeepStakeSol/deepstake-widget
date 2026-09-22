@@ -66,7 +66,6 @@ Add the frontend deployment settings to `.env`:
 VITE_BACKEND_URL=http://localhost:3000
 DISABLE_BACKEND_PREFIX=false
 IMAGE_URL_PREFIX=
-VITE_USE_LEGACY_VALIDATOR_PROFILE=false
 ```
 
 Create the backend environment file:
@@ -220,7 +219,7 @@ The profile response combines validator name, description, estimated APY, valida
 
 When `REDIS_URL` is configured, the backend caches independent identity, logo, commission, APY, and MEV field groups. Fresh cache hits avoid provider requests. Stale values are returned immediately with `fields.<field>.stale=true` while one process refreshes them in the background. Valid cached fields are never replaced by null or malformed refresh values. Redis failures fall back to direct provider aggregation.
 
-On a cold cache miss, the profile path returns a valid Stakewiz baseline without waiting for Trillium; Solana RPC, Jito, and Validators.app can continue in the background. The independent logo path starts Trillium, Stakewiz, and Validators.app concurrently but selects them in strict priority order: Trillium, then Stakewiz, then Validators.app. Therefore Trillium's 8-second ceiling delays only the logo response. Stakewiz, Solana RPC, Jito, and Trillium have 8-second request ceilings; Validators.app has a 5-second ceiling. Provider failures are logged with the provider ID, failure kind, elapsed time, and configured timeout. The cache namespace is `validator-profile:v2`; existing identity records remain usable and logos populate the new logo group.
+On a cold cache miss, the profile path returns a valid Stakewiz baseline while Solana RPC, Jito, and Validators.app continue in the background. The independent logo path starts Stakewiz and Validators.app concurrently. It returns a usable Stakewiz logo immediately; when Stakewiz has no logo, it uses Validators.app if available, otherwise the widget shows its neutral fallback. Stakewiz, Solana RPC, and Jito have 8-second request ceilings; Validators.app has a 5-second ceiling. Provider failures are logged with the provider ID, failure kind, elapsed time, and configured timeout. The cache namespace is `validator-profile:v3` for both group records and distributed locks. Deployment causes a controlled cold-cache refresh; old v2 keys expire naturally and remain available to the previous deployment.
 
 Default cache windows:
 
@@ -231,8 +230,6 @@ Default cache windows:
 | Commission | 60 seconds | 15 minutes |
 | Estimated APY | 15 minutes | 24 hours |
 | MEV | 5 minutes | 48 hours (approximately one epoch) |
-
-Set `VITE_USE_LEGACY_VALIDATOR_PROFILE=true` only as a temporary rollback during migration. The legacy path makes browser requests to Stakewiz and the backend Trillium proxy and will be removed after the observation period.
 
 ## Wallet Manage Data Cache
 
@@ -325,7 +322,6 @@ Used by Docker Compose for frontend and backend container configuration.
 | `VITE_BACKEND_URL` | `http://localhost:3000` | Base URL used by the frontend when calling backend routes. |
 | `DISABLE_BACKEND_PREFIX` | `false` | If `false`, frontend adds `/api` before backend routes. If `true`, frontend does not add `/api`. |
 | `IMAGE_URL_PREFIX` | `https://your-domain.example/api/images` | Optional prefix for local `/images/...` widget assets loaded from the backend image file server. Leave empty for same-origin assets. |
-| `VITE_USE_LEGACY_VALIDATOR_PROFILE` | `false` | Emergency rollback flag. When true, the widget uses the legacy browser Stakewiz and Trillium requests instead of `/api/validator/profile`. |
 | `METRICS_BEARER_TOKEN` | Random secret | Passed to the backend container to protect `/api/metrics`. |
 | `VITE_TELEMETRY_ENDPOINT` | `https://deepstake.info/api/telemetry` | Absolute telemetry collector URL embedded into the widget build. Defaults to the listed production URL. |
 | `VITE_WIDGET_VERSION` | Widget package version | Optional build identifier included in telemetry; local builds fall back to `frontend/package.json`. |
@@ -348,7 +344,6 @@ Production setup when nginx maps public `/api/` to backend port `3000`:
 VITE_BACKEND_URL=https://your-domain.example/api
 DISABLE_BACKEND_PREFIX=true
 IMAGE_URL_PREFIX=https://your-domain.example/api/images
-VITE_USE_LEGACY_VALIDATOR_PROFILE=false
 VITE_TELEMETRY_ENDPOINT=https://deepstake.info/api/telemetry
 METRICS_BEARER_TOKEN=replace-with-a-long-random-token
 VITE_WIDGET_VERSION=1.0.0

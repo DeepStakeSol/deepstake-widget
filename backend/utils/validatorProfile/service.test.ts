@@ -29,7 +29,6 @@ describe("validator profile aggregation", () => {
         mevEnabled: true,
         mevCommissionPercent: 8,
       }),
-      provider("trillium", { logoUrl: "https://trillium.example/logo.png" }),
       provider("solana-rpc", { commissionPercent: 3 }),
       provider("jito", { mevEnabled: true, mevCommissionPercent: 2.5 }),
     ]);

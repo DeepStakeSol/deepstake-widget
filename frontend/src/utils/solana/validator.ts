@@ -2,9 +2,6 @@ import type { Options } from "../../options";
 import { fetchBackendJson } from "../backendRequest";
 import type { NetworkType } from "../config";
 
-const VALIDATOR_INFO_URL = "https://api.stakewiz.com/validator";
-const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
-
 export type ValidatorProfileStatus =
   | "fresh"
   | "partial"
@@ -46,21 +43,6 @@ export interface ValidatorProfile {
   mevEnabled: boolean | null;
   status: ValidatorProfileStatus;
   fields: Record<ValidatorProfileField, ValidatorFieldMetadata>;
-}
-
-interface LegacyStakewizResponse {
-  vote_identity?: unknown;
-  name?: unknown;
-  description?: unknown;
-  total_apy?: unknown;
-  commission?: unknown;
-  jito_commission_bps?: unknown;
-  is_jito?: unknown;
-}
-
-interface TrilliumRewardItem {
-  icon_url?: unknown;
-  vote_account_pubkey?: unknown;
 }
 
 const PROFILE_FIELDS: ValidatorProfileField[] = [
@@ -213,83 +195,10 @@ function parseBackendProfile(
   };
 }
 
-function legacyMetadata(source: string): ValidatorFieldMetadata {
-  return { source, observedAt: new Date().toISOString(), stale: false };
-}
-
-async function fetchLegacyValidatorInfo(
-  voteAccount: string,
-  network: NetworkType
-): Promise<ValidatorProfile> {
-  const response = await fetch(`${VALIDATOR_INFO_URL}/${voteAccount}`);
-  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-  const data = (await response.json()) as LegacyStakewizResponse;
-  const mevCommissionBps = nullableNumber(
-    data.jito_commission_bps,
-    "jito_commission_bps"
-  );
-  const profile = createUnavailableValidatorProfile(voteAccount, network);
-  profile.name = nullableString(data.name, "name");
-  profile.description = nullableString(data.description, "description");
-  profile.estimatedApyPercent = nullableNumber(data.total_apy, "total_apy");
-  profile.commissionPercent = nullableNumber(data.commission, "commission");
-  profile.mevCommissionPercent =
-    mevCommissionBps === null ? null : mevCommissionBps / 100;
-  profile.mevEnabled = nullableBoolean(data.is_jito, "is_jito");
-  profile.status = "partial";
-
-  for (const field of PROFILE_FIELDS) {
-    if (profile[field] !== null) profile.fields[field] = legacyMetadata("stakewiz");
-  }
-  return profile;
-}
-
-async function fetchLegacyValidatorLogo(voteAccount: string): Promise<string | null> {
-  const data = await fetchBackendJson<TrilliumRewardItem[]>(
-    "/trillium/rewards?validatorIdentity=" + encodeURIComponent(voteAccount)
-  );
-  if (!Array.isArray(data)) return null;
-  const match = data.find((item) => item.vote_account_pubkey === voteAccount);
-  return nullableString(match?.icon_url, "icon_url");
-}
-
-async function fetchLegacyValidatorProfile(
-  voteAccount: string,
-  network: NetworkType
-): Promise<ValidatorProfile> {
-  const [info, logo] = await Promise.allSettled([
-    fetchLegacyValidatorInfo(voteAccount, network),
-    fetchLegacyValidatorLogo(voteAccount),
-  ]);
-  if (info.status === "rejected" && logo.status === "rejected") throw info.reason;
-
-  const profile =
-    info.status === "fulfilled"
-      ? info.value
-      : createUnavailableValidatorProfile(voteAccount, network);
-  if (logo.status === "fulfilled" && logo.value) {
-    profile.logoUrl = logo.value;
-    profile.fields.logoUrl = legacyMetadata("trillium");
-    if (profile.status === "unavailable") profile.status = "partial";
-  }
-  return profile;
-}
-
-export function isLegacyValidatorProfileEnabled(): boolean {
-  return TRUE_VALUES.has(
-    (import.meta.env.VITE_USE_LEGACY_VALIDATOR_PROFILE || "").toLowerCase()
-  );
-}
-
 export async function fetchValidatorProfile(
   voteAccount: string,
   network: NetworkType
 ): Promise<ValidatorProfile> {
-  if (isLegacyValidatorProfileEnabled()) {
-    return fetchLegacyValidatorProfile(voteAccount, network);
-  }
-
   const query = new URLSearchParams({ network, voteAccount });
   const data = await fetchBackendJson<unknown>(
     "/validator/profile?" + query.toString()

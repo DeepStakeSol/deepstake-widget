@@ -15,7 +15,6 @@ import {
   createUnavailableValidatorProfile,
   fetchValidatorLogo,
   fetchValidatorProfile,
-  isLegacyValidatorProfileEnabled,
   ValidatorLogo,
   ValidatorProfile,
 } from "./utils/solana/validator";
@@ -249,11 +248,7 @@ function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
   ]);
 
   useEffect(() => {
-    if (
-      !voteAccount ||
-      options?.validator_logo_url ||
-      isLegacyValidatorProfileEnabled()
-    ) {
+    if (!voteAccount || options?.validator_logo_url) {
       return;
     }
     let cancelled = false;

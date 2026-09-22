@@ -11,7 +11,6 @@ import {
   fetchJitoProfile,
   fetchSolanaProfile,
   fetchStakewizProfile,
-  fetchTrilliumProfile,
   fetchValidatorsAppProfile,
   validatorProfileProviderConfigs,
 } from "./providers";
@@ -54,7 +53,6 @@ describe("validator profile providers", () => {
       )
     ).toEqual({
       stakewiz: 8_000,
-      trillium: 8_000,
       jito: 8_000,
       "solana-rpc": 8_000,
       "validators-app": 5_000,
@@ -90,7 +88,6 @@ describe("validator profile providers", () => {
 
   it("does not query mainnet-only metadata providers for devnet", async () => {
     await expect(fetchStakewizProfile(context("devnet"))).resolves.toBeNull();
-    await expect(fetchTrilliumProfile(context("devnet"))).resolves.toBeNull();
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -142,15 +139,23 @@ describe("validator profile providers", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("selects the matching Trillium logo", async () => {
+  it("uses a configured Validators.app avatar for the requested vote account", async () => {
+    vi.stubEnv("VALIDATORS_APP_TOKEN", "test-token");
     vi.mocked(fetch).mockResolvedValue(
-      response([{ vote_account_pubkey: "vote", icon_url: "https://logo.example/logo.png" }])
+      response([
+        { vote_account: "other", avatar_url: "https://logo.example/other.png" },
+        { vote_account: "vote", avatar_url: "https://logo.example/fallback.png" }
+      ])
     );
 
-    await expect(fetchTrilliumProfile(context())).resolves.toMatchObject({
-      source: "trillium",
-      values: { logoUrl: "https://logo.example/logo.png" },
+    await expect(fetchValidatorsAppProfile(context())).resolves.toMatchObject({
+      source: "validators-app",
+      values: { logoUrl: "https://logo.example/fallback.png" }
     });
+    expect(fetch).toHaveBeenCalledWith(
+      "https://www.validators.app/api/v1/validators/mainnet/vote.json",
+      expect.objectContaining({ headers: { Token: "test-token" } })
+    );
   });
 
   it("does not call Validators.app without a token", async () => {
@@ -164,8 +169,8 @@ describe("validator profile providers", () => {
       .mockResolvedValueOnce(response({ not: "an array" }));
 
     await expect(fetchStakewizProfile(context())).rejects.toThrow("HTTP 503");
-    await expect(fetchTrilliumProfile(context())).rejects.toThrow(
-      "Unexpected Trillium response format"
+    await expect(fetchJitoProfile(context())).rejects.toThrow(
+      "Unexpected Jito response format"
     );
   });
 });
