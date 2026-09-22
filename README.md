@@ -6,6 +6,18 @@ DeepStake Widget is a JavaScript widget that can be embedded on a validator webs
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+## Hosted widget quick start
+
+A production embedding page needs a public domain with HTTPS. Replace the vote account below with your validator vote account:
+
+```html
+<div data-widget="deepstake"
+     data-options='{"vote_account":"YOUR_VALIDATOR_VOTE_ACCOUNT"}'></div>
+<script src="https://deepstake.info/api/w/widget.iife.js"></script>
+```
+
+The network defaults to `mainnet`. For devnet, explicitly add `"network":"devnet"` to `data-options`. The hosted script uses the hosted API. The installation and deployment sections below are for self-hosting.
+
 ## Features
 
 - Native Solana staking: stake, unstake, and withdraw.
@@ -57,7 +69,7 @@ cd deepstake-widget
 Create the root environment file used by `docker-compose.yaml`:
 
 ```bash
-touch .env
+cp .env.example .env
 ```
 
 Add the frontend deployment settings to `.env`:
@@ -121,21 +133,37 @@ For production, replace the script URL with your public backend URL:
 <script src="https://your-domain.example/api/w/widget.iife.js"></script>
 ```
 
-For a page that adds the widget after load (including React and Next.js), add the element first and then load the script. The bundle mounts it when the script finishes:
+For a page that adds the widget after load, including React and Next.js, create the element before loading the script. The bundle scans the page when it loads; calling `mount()` also handles a script already present on the page:
 
-```jsx
+```tsx
+"use client";
+
 import { useEffect, useRef } from "react";
 
-function StakeWidget() {
-  const element = useRef(null);
+declare global {
+  interface Window {
+    DeepStakeWidget?: {
+      mount(): void;
+      unmount(element: HTMLElement): void;
+      version: string;
+    };
+  }
+}
+
+export function StakeWidget() {
+  const element = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
+    const target = element.current;
     const script = document.createElement("script");
-    script.src = "https://your-domain.example/api/w/widget.iife.js";
+    script.src = "https://deepstake.info/api/w/widget.iife.js";
     script.async = true;
+    script.onload = () => window.DeepStakeWidget?.mount();
     document.body.appendChild(script);
+
     return () => {
+      if (target) window.DeepStakeWidget?.unmount(target);
       script.remove();
-      if (element.current) window.DeepStakeWidget?.unmount(element.current);
     };
   }, []);
 
@@ -144,7 +172,7 @@ function StakeWidget() {
 }
 ```
 
-`window.DeepStakeWidget.mount()` scans for newly inserted elements, and repeated calls leave mounted elements alone. `window.DeepStakeWidget.unmount(element)` removes one widget so it can be mounted again. `window.DeepStakeWidget.version` exposes the bundle version. Existing `window.MyWidget.mountDeepStakeWidgets()` calls continue to work.
+`window.DeepStakeWidget.mount()` scans for new elements and skips elements already mounted. `window.DeepStakeWidget.unmount(element)` releases one widget so it can be mounted again. `window.DeepStakeWidget.version` exposes the bundle version. Existing `window.MyWidget.mountDeepStakeWidgets()` calls continue to work. For devnet, include `network: "devnet"` in the options object.
 
 ### Widget Options
 
@@ -324,9 +352,10 @@ Used by Docker Compose for frontend and backend container configuration.
 | `IMAGE_URL_PREFIX` | `https://your-domain.example/api/images` | Optional prefix for local `/images/...` widget assets loaded from the backend image file server. Leave empty for same-origin assets. |
 | `METRICS_BEARER_TOKEN` | Random secret | Passed to the backend container to protect `/api/metrics`. |
 | `VITE_TELEMETRY_ENDPOINT` | `https://deepstake.info/api/telemetry` | Absolute telemetry collector URL embedded into the widget build. Defaults to the listed production URL. |
-| `VITE_WIDGET_VERSION` | Widget package version | Optional build identifier included in telemetry; local builds fall back to `frontend/package.json`. |
+| `VITE_WIDGET_VERSION` | Empty | Optional override. Leave empty in production so `frontend/package.json` supplies `1.1.0` to the browser API and telemetry. |
 | `TELEMETRY_STATS_TOKEN` | Separate random secret | Passed to the backend container to protect `/api/telemetry/stats`. |
 | `TELEMETRY_OWN_HOSTS` | `deepstake.info` | Comma-separated own hostnames, including their subdomains, for detailed telemetry classification. |
+| `REDIS_URL` | Empty | Optional Compose override; empty uses `redis://redis:6379`. |
 
 Default local setup:
 
@@ -345,9 +374,11 @@ VITE_BACKEND_URL=https://your-domain.example/api
 DISABLE_BACKEND_PREFIX=true
 IMAGE_URL_PREFIX=https://your-domain.example/api/images
 VITE_TELEMETRY_ENDPOINT=https://deepstake.info/api/telemetry
-METRICS_BEARER_TOKEN=replace-with-a-long-random-token
-VITE_WIDGET_VERSION=1.0.0
-TELEMETRY_STATS_TOKEN=replace-with-a-separate-long-random-token
+VITE_WIDGET_VERSION=
+REDIS_URL=
+TELEMETRY_OWN_HOSTS=deepstake.info
+METRICS_BEARER_TOKEN=YOUR_PRIVATE_METRICS_TOKEN
+TELEMETRY_STATS_TOKEN=YOUR_DIFFERENT_PRIVATE_STATS_TOKEN
 ```
 
 With that production setup, frontend calls become:
@@ -385,11 +416,12 @@ Used by the Next.js backend.
 | `VALIDATORS_APP_TOKEN` | No | Optional Validators.app API token. |
 | `REDIS_URL` | Recommended | Redis connection URL for validator-profile and wallet-data caches. Without it, requests use direct providers with local in-flight coalescing. |
 | `METRICS_BEARER_TOKEN` | Production | Bearer token required to scrape `/api/metrics`. Production returns 503 when it is unset. |
-| `APP_URL` | Recommended in production | Allowed CORS origin for `/api/*`; defaults to `http://localhost:8080`. |
 | `SHARED_FILES_DIR` | No | Filesystem path served by `/api/w/`; Docker sets this to `/shared`. |
 | `TELEMETRY_STATS_TOKEN` | Yes for telemetry statistics | Separate bearer token required by `/api/telemetry/stats`; the endpoint returns 503 when unset. |
 | `TELEMETRY_OWN_HOSTS` | No | Comma-separated own hostnames; defaults to `deepstake.info`. Compose reads it from the root `.env`. |
 | `IMAGES_DIR` | No | Filesystem path served by `/api/images/`; Docker sets this to `/images`. |
+
+`backend/.env` supplies RPC endpoints, validator address, and optional provider token to production Compose. Compose overrides Redis, token, telemetry-host, and filesystem-path settings from the root `.env` or its service configuration. For a direct backend run, `backend/.env` can supply those settings. `frontend/.env.example` lists optional browser-side network, RPC, and protocol overrides; Compose uses root `.env` for its build arguments.
 
 ## Observability
 
@@ -443,11 +475,10 @@ A common deployment is:
 - nginx proxies `/api/` to the backend on `127.0.0.1:3000`.
 - The widget script is loaded from `/api/w/widget.iife.js`.
 
-Create the private environment files described above, then build and start the
-production stack:
+Copy `.env.example` to the private root `.env` and `backend/.env.example` to the private `backend/.env`. Set the public HTTPS `VITE_BACKEND_URL`, its matching prefix setting, real RPC endpoints, validator vote account, and separate non-empty metrics and telemetry statistics tokens. Leave `VITE_WIDGET_VERSION=` empty. Keep both private files out of Git. Then build and start the production stack:
 
 ```bash
-git pull && docker compose -f docker-compose.prod.yaml up -d --build --remove-orphans
+docker compose -f docker-compose.prod.yaml up -d --build --remove-orphans
 ```
 
 The production Compose file:
@@ -467,6 +498,13 @@ Check the deployment with:
 
 ```bash
 docker compose -f docker-compose.prod.yaml ps --all
+curl -fsS http://127.0.0.1:3000/api/health
+curl -I http://127.0.0.1:3000/api/w/widget.iife.js
+curl -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3000/api/metrics
+curl -o /dev/null -w '%{http_code}\n' 'http://127.0.0.1:3000/api/telemetry/stats?detail=1'
+# Both protected requests above should return 401. Use private token values to check 200:
+curl -H 'Authorization: Bearer YOUR_PRIVATE_METRICS_TOKEN' http://127.0.0.1:3000/api/metrics
+curl -H 'Authorization: Bearer YOUR_DIFFERENT_PRIVATE_STATS_TOKEN' 'http://127.0.0.1:3000/api/telemetry/stats?detail=1'
 ```
 
 Use an nginx prefix location that is not overridden by static `.js` regex locations:
@@ -513,10 +551,7 @@ loopback interface. Do not change these bindings to `0.0.0.0`: public traffic
 must reach the backend through nginx, and the preview server is not a
 production entry point.
 
-Docker Compose automatically merges `docker-compose.override.yml` when that
-file exists. Before deploying, remove any public `ports` entries from the
-override or run Compose with `-f docker-compose.yaml` so an old local override
-cannot publish the services again.
+The explicit `-f docker-compose.prod.yaml` command excludes the development override. Development Compose uses loopback-only ports; never publish those ports publicly.
 
 For temporary access to both services from a local machine, use an SSH tunnel:
 
@@ -524,7 +559,7 @@ For temporary access to both services from a local machine, use an SSH tunnel:
 ssh -L 4173:127.0.0.1:4173 -L 3000:127.0.0.1:3000 <user>@<VPS_IP>
 ```
 
-The tunneled services are then available locally on ports `4173` and `3000`.
+The tunneled backend is available locally on port `3000`. Port `4173` is available only when the development frontend preview service is running; production Compose has no preview service.
 Keep `METRICS_BEARER_TOKEN` and `TELEMETRY_STATS_TOKEN` in the private VPS
 environment; do not commit them or share them in group chats.
 
@@ -576,7 +611,7 @@ cd frontend
 npm run build
 ```
 
-Then serve the generated bundle from the location configured by `SHARED_FILES_DIR`.
+Then copy `frontend/dist/widget.iife.js` into the `SHARED_FILES_DIR` directory (the example uses `../shared` relative to `backend/`).
 
 ## Useful Commands
 
@@ -643,15 +678,11 @@ Check `data-options.network` first. It has priority over `VITE_NEXT_PUBLIC_NETWO
 
 ### Restore the other-network balance warning
 
-The “Don't show this again” choice is stored by the embedding site in `localStorage` under `deepstake:hide-other-network-alert`. To restore the warning, remove that key in the browser's site storage.
+The “Don't show this again” choice is stored by the embedding site in `localStorage` under `deepstake:hide-other-network-alert`. The choice is scoped to the embedding page's origin. To restore the warning on that origin, run `localStorage.removeItem("deepstake:hide-other-network-alert")` in its browser console.
 
 ### CORS errors
 
-Set backend `APP_URL` to the origin of the website embedding the widget:
-
-```env
-APP_URL=https://your-domain.example
-```
+`backend/middleware.ts` sets `Access-Control-Allow-Origin: *` on widget-facing `/api/*` responses and preflights so validator domains can embed the widget. `/api/metrics` is handled separately. The metrics and telemetry statistics routes still require their separate bearer tokens; a CORS header does not grant access. Check that nginx forwards `/api/` and that the widget's build-time backend URL points to the public HTTPS API.
 
 ## Project Structure
 
@@ -676,7 +707,7 @@ Current state:
 - [x] Dark and light themes
 - [x] Widget embedding through an IIFE script
 - [x] Backend-served widget bundle from shared disk
-- [ ] Full production hardening
+- [x] Production server hardening
 - [ ] Expanded configuration options
 - [ ] Additional protocol integrations
 

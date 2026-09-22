@@ -1,6 +1,6 @@
 {
-  "name": "qn-stake",
-  "version": "0.1.0",
+  "name": "deepstake-widget-backend",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
