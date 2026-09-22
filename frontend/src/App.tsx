@@ -143,68 +143,18 @@ function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
       ? validatorLogoState.logo
       : null;
   const validatorInfo = profile ? applyValidatorLogo(profile, logo) : null;
-
-  const prefetchProvider = useCallback((provider: WidgetTab) => {
-    if (!selectedWalletAccount) return;
-
-    void prefetchManageData(
-      provider,
-      selectedWalletAccount.address,
-      network
-    ).catch(() => undefined);
-  }, [network, selectedWalletAccount]);
+  const walletAddress = selectedWalletAccount?.address;
 
   useEffect(() => {
-    if (!selectedWalletAccount) return;
+    if (!walletAddress) return;
 
-    let cancelled = false;
-    let idleCallbackId: number | undefined;
-    const inactiveProviders = (enabledTabIds.split(":") as WidgetTab[])
-      .filter((provider) => provider !== activeTab.id);
-
-    const prefetchInactiveProviders = async () => {
-      for (const provider of inactiveProviders) {
-        if (cancelled) return;
-        try {
-          await prefetchManageData(
-            provider,
-            selectedWalletAccount.address,
-            network
-          );
-        } catch {
-          // Background prefetch failures are retried when the provider is opened.
-        }
-      }
-    };
-
-    const timeoutId = window.setTimeout(() => {
-      if (typeof window.requestIdleCallback === "function") {
-        idleCallbackId = window.requestIdleCallback(
-          () => void prefetchInactiveProviders(),
-          { timeout: 2_000 }
-        );
-        return;
-      }
-
-      void prefetchInactiveProviders();
-    }, 1_000);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-      if (
-        idleCallbackId !== undefined
-        && typeof window.cancelIdleCallback === "function"
-      ) {
-        window.cancelIdleCallback(idleCallbackId);
-      }
-    };
-  }, [
-    activeTab.id,
-    enabledTabIds,
-    network,
-    selectedWalletAccount,
-  ]);
+    (enabledTabIds.split(":") as WidgetTab[])
+      .filter((provider) => provider === "blaze" || provider === "vault")
+      .forEach((provider) => {
+        void prefetchManageData(provider, walletAddress, network)
+          .catch(() => undefined);
+      });
+  }, [enabledTabIds, network, walletAddress]);
 
   useEffect(() => {
     if (!voteAccount) return;
@@ -354,9 +304,6 @@ function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
                     key={tab.id}
                     value={tab.value}
                     className={`tabs-trigger ${tab.className}`}
-                    onPointerEnter={() => prefetchProvider(tab.id)}
-                    onPointerDown={() => prefetchProvider(tab.id)}
-                    onFocus={() => prefetchProvider(tab.id)}
                   >
                     {tab.label}
                   </Tabs.Trigger>
