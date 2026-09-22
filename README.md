@@ -78,6 +78,7 @@ Add the frontend deployment settings to `.env`:
 VITE_BACKEND_URL=http://localhost:3000
 DISABLE_BACKEND_PREFIX=false
 IMAGE_URL_PREFIX=
+VITE_TELEMETRY_ENDPOINT=http://localhost:3000/api/telemetry
 ```
 
 Create the backend environment file:
@@ -349,7 +350,7 @@ Used by Docker Compose for frontend and backend container configuration.
 | --- | --- | --- |
 | `VITE_BACKEND_URL` | `http://localhost:3000` | Base URL used by the frontend when calling backend routes. |
 | `DISABLE_BACKEND_PREFIX` | `false` | If `false`, frontend adds `/api` before backend routes. If `true`, frontend does not add `/api`. |
-| `IMAGE_URL_PREFIX` | `https://your-domain.example/api/images` | Optional prefix for local `/images/...` widget assets loaded from the backend image file server. Leave empty for same-origin assets. |
+| `IMAGE_URL_PREFIX` | `https://your-domain.example/api` | Optional prefix for local `/images/...` widget assets loaded from the backend image file server. Leave empty for same-origin assets. |
 | `METRICS_BEARER_TOKEN` | Random secret | Passed to the backend container to protect `/api/metrics`. |
 | `VITE_TELEMETRY_ENDPOINT` | `https://deepstake.info/api/telemetry` | Absolute telemetry collector URL embedded into the widget build. Defaults to the listed production URL. |
 | `VITE_WIDGET_VERSION` | Empty | Optional override. Leave empty in production so `frontend/package.json` supplies `1.1.0` to the browser API and telemetry. |
@@ -363,7 +364,7 @@ Default local setup:
 VITE_BACKEND_URL=http://localhost:3000
 DISABLE_BACKEND_PREFIX=false
 IMAGE_URL_PREFIX=
-VITE_TELEMETRY_ENDPOINT=https://deepstake.info/api/telemetry
+VITE_TELEMETRY_ENDPOINT=http://localhost:3000/api/telemetry
 VITE_WIDGET_VERSION=
 ```
 
@@ -372,7 +373,7 @@ Production setup when nginx maps public `/api/` to backend port `3000`:
 ```env
 VITE_BACKEND_URL=https://your-domain.example/api
 DISABLE_BACKEND_PREFIX=true
-IMAGE_URL_PREFIX=https://your-domain.example/api/images
+IMAGE_URL_PREFIX=https://your-domain.example/api
 VITE_TELEMETRY_ENDPOINT=https://deepstake.info/api/telemetry
 VITE_WIDGET_VERSION=
 REDIS_URL=
@@ -390,7 +391,7 @@ https://your-domain.example/api/validator/logo?network=mainnet&voteAccount=YOUR_
 https://your-domain.example/api/w/widget.iife.js
 ```
 
-With `IMAGE_URL_PREFIX=https://your-domain.example/api/images`, local widget images are rewritten from:
+With `IMAGE_URL_PREFIX=https://your-domain.example/api`, local widget images are rewritten from:
 
 ```text
 /images/sol_logo.png
