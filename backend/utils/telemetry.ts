@@ -6,7 +6,7 @@ export const TELEMETRY_BODY_LIMIT_BYTES = 4 * 1024;
 export const TELEMETRY_RETENTION_DAYS = 32;
 
 const TELEMETRY_PREFIX = "telemetry:v1";
-const VALID_TABS = new Set(["native", "blaze", "vault"]);
+const VALID_TABS = new Set(["native", "blaze", "vault", "jpool"]);
 const ALLOWED_FIELDS = new Set([
   "event",
   "hostname",
@@ -17,7 +17,7 @@ const ALLOWED_FIELDS = new Set([
   "version"
 ]);
 
-export type TelemetryTab = "native" | "blaze" | "vault";
+export type TelemetryTab = "native" | "blaze" | "vault" | "jpool";
 
 export type WidgetMountEvent = {
   event: "widget_mount";

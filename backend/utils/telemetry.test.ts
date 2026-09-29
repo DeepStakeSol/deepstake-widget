@@ -34,6 +34,11 @@ describe("telemetry validation", () => {
     ).toEqual(event);
   });
 
+  it("accepts the JPool tab alongside the other three", () => {
+    const tabs = ["native", "blaze", "vault", "jpool"];
+    expect(parseTelemetryPayload({ ...event, tabs }).tabs).toEqual(tabs);
+  });
+
   it.each([
     ["event", { ...event, event: "click" }],
     ["hostname", { ...event, hostname: "https://validator.example/path" }],
@@ -41,6 +46,7 @@ describe("telemetry validation", () => {
     ["network", { ...event, network: "testnet" }],
     ["theme", { ...event, theme: "sepia" }],
     ["tabs", { ...event, tabs: ["native", "native"] }],
+    ["unknown tab", { ...event, tabs: ["native", "marinade"] }],
     ["version", { ...event, version: "bad version" }],
     ["unknown fields", { ...event, wallet: "must-not-be-stored" }]
   ])("rejects an invalid %s", (_label, payload) => {

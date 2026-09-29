@@ -27,10 +27,10 @@ DeepStake hosts the backend and widget bundle. You only add a snippet to your pa
 ```
 
 2. Replace `YOUR_VALIDATOR_VOTE_ACCOUNT` with your vote account address, not the validator identity address.
-3. Keep only the tabs you want. Enable `blaze` and `vault` only when your validator is eligible for BlazeStake CLS and The Vault direct stake.
+3. Keep only the tabs you want. Enable `blaze` and `vault` only when your validator is eligible for BlazeStake CLS and The Vault direct stake. Add `jpool` to offer JPool direct staking (mainnet only; see [JPool Tab](#jpool-tab)).
 4. Open the page over HTTPS and check that your validator name, commission, and APY appear.
 
-When omitted, `theme` defaults to `dark`, `network` defaults to `mainnet`, and `tabs` defaults to all tabs supported on the resolved network. Invalid configuration renders a visible error instead of a blank area and logs the reason with the `[DeepStake widget]` prefix.
+When omitted, `theme` defaults to `dark`, `network` defaults to `mainnet`, and `tabs` defaults to `native`, `blaze` and `vault` (minus tabs the resolved network does not support). `jpool` is shown only when listed explicitly until release 2.0.0. Invalid configuration renders a visible error instead of a blank area and logs the reason with the `[DeepStake widget]` prefix.
 
 Each valid widget instance sends one anonymous event when it mounts. See [Widget Mount Telemetry](#widget-mount-telemetry). Add `"telemetry": false` to the options to opt out.
 
@@ -49,6 +49,7 @@ Use this option for full control and no runtime dependency on `deepstake.info`.
 - Native Solana staking: stake, unstake, and withdraw.
 - BlazeStake directed liquid staking.
 - Vault directed liquid staking.
+- JPool direct staking (opt-in, mainnet only).
 - Wallet connection through Solana wallet-standard compatible wallets.
 - Validator information display.
 - Light and dark themes.
@@ -172,13 +173,21 @@ For production, replace the script URL with your public backend URL:
 | `vote_account` | Yes | Solana vote account address | Validator vote account that native staking targets. |
 | `theme` | No | `light`, `dark` | Widget theme. Defaults to `dark`. Unknown values also fall back to `dark`. |
 | `network` | No | `mainnet`, `devnet` | Solana cluster used by API calls, wallet chain checks, and explorer links. Overrides `VITE_NEXT_PUBLIC_NETWORK_ENV`. |
-| `tabs` | No | `native`, `blaze`, `vault` | Top-level staking tabs to show. Defaults to all tabs supported by the selected network. |
+| `tabs` | No | `native`, `blaze`, `vault`, `jpool` | Top-level staking tabs to show. Defaults to `native`, `blaze`, `vault` minus tabs unsupported on the selected network. `jpool` is opt-in: it appears only when listed, until 2.0.0 makes it a default. |
 | `telemetry` | No | `true`, `false` | Mount telemetry is enabled by default. Set to `false` to opt out. |
 | `validator_name` | No | String | Overrides the validator name returned by the backend profile. |
 | `validator_description` | No | String | Overrides the validator description returned by the backend profile. |
 | `validator_logo_url` | No | HTTPS or local image URL | Overrides the validator logo returned by the backend profile. |
 
-Vault is mainnet-only. On devnet, the widget hides Vault and logs a warning. A devnet configuration that explicitly enables only Vault is rejected as invalid.
+Vault and JPool are mainnet-only. On devnet, the widget hides them and logs a warning for each. A devnet configuration that explicitly enables only mainnet-only tabs is rejected as invalid.
+
+### JPool Tab
+
+`"tabs": [..., "jpool"]` adds a "Direct staking JPool" tab on mainnet. A deposit sends SOL into the JPool stake pool and returns JSOL, a liquid staking token. Each deposit carries a `direct:<vote_account>` memo, so JPool counts it as direct stake for the widget's validator. The Manage view shows the wallet's JSOL balance, the amount JPool counts for the validator, and the wallet's JPool binding. Unstaking happens in the JPool app or on a DEX; the widget only links to them.
+
+Before showing the tab, the widget asks the backend whether JPool accepts direct stake for the validator (`GET /api/jpool/eligibility?vote=<vote_account>&network=mainnet`). The tab is hidden only when JPool marks the validator as blocked or superminority, with the console line `[DeepStake widget] JPool tab hidden: <reason>`. If the check fails or takes longer than 2 seconds, the tab is shown. A widget configured with only `jpool` shows a short loader while the check runs. Telemetry reports the requested tabs, including a `jpool` tab that eligibility later hides.
+
+JPool transactions are simulated and relayed by the backend (`POST /api/transaction/send`), so the JPool tab needs no browser-side RPC endpoint.
 
 Example:
 
@@ -267,7 +276,8 @@ The earlier `window.MyWidget.mountDeepStakeWidgets()` call remains supported.
 After a valid widget instance commits, it sends one best-effort
 `widget_mount` event to `https://deepstake.info/api/telemetry`. The event
 contains the host page's `location.hostname`, validator vote account, resolved
-network, effective visible tabs, normalized theme, and widget build version.
+network, requested tabs after the devnet filter (the JPool eligibility check does
+not change them), normalized theme, and widget build version.
 It does not contain a wallet address. The application does not store the
 request IP address, user agent, Referer, or other request headers.
 
@@ -330,6 +340,8 @@ When `REDIS_URL` is configured, Native stake accounts, Blaze applied stakes, and
 | Blaze applied stakes | 2 minutes | 30 minutes | SolBlaze |
 | Vault Manage | 1 minute | 10 minutes | Solana RPC and Stakebot data |
 | Vault Manage while `updating` | 10 seconds | 1 minute | Solana RPC and Stakebot data |
+| JPool Manage (per wallet and vote) | 1 minute | 10 minutes | Solana RPC and the JPool API |
+| JPool Manage after a deposit, or with a source unavailable | 10 seconds | 1 minute | Solana RPC and the JPool API |
 
 During the fresh window, Redis is returned without an upstream request. After freshness expires but before retention expires, stale data is returned immediately and one background refresh is coalesced per wallet/resource in each backend process. After retention expires, the request waits for upstream data. Empty arrays are valid cache entries. Redis connection, read, or write failures fall back to the live provider. Cache keys use the `wallet-data:v1` namespace.
 
@@ -341,7 +353,9 @@ The three read routes accept `refresh=true` to bypass a cached value and synchro
 
 `GET /api/blaze/manage/vault?wallet=<wallet>&network=<network>&refresh=true`
 
-Vote-filtered Native stake-account requests remain uncached. Transaction confirmation accepts a typed `cacheMutation` context, waits for `confirmed` commitment, and invalidates the corresponding Redis entry. Native stake, unstake, and withdraw invalidate Native accounts; Blaze stake invalidates applied stakes; Vault stake invalidates Vault Manage. Each frontend mutation then performs one forced read. Blaze CLS registration is proxied through `POST /api/blaze/stake/register` and invalidates applied stakes again after SolBlaze accepts the registration. Invalidation and refresh failures are best-effort and do not turn an already confirmed transaction into a failed transaction.
+`GET /api/jpool/manage?wallet=<wallet>&vote=<vote_account>&network=mainnet&refresh=true`
+
+Vote-filtered Native stake-account requests remain uncached. Transaction confirmation accepts a typed `cacheMutation` context, waits for `confirmed` commitment, and invalidates the corresponding Redis entry. Native stake, unstake, and withdraw invalidate Native accounts; Blaze stake invalidates applied stakes; Vault stake invalidates Vault Manage; JPool stake marks JPool Manage stale for every vote of the wallet. Each frontend mutation then performs one forced read. Blaze CLS registration is proxied through `POST /api/blaze/stake/register` and invalidates applied stakes again after SolBlaze accepts the registration. Invalidation and refresh failures are best-effort and do not turn an already confirmed transaction into a failed transaction.
 
 See [the wallet cache runbook](ops/wallet-data-cache-runbook.md) for metrics and failure checks.
 
@@ -481,6 +495,7 @@ Used by the Next.js backend.
 | `TELEMETRY_STATS_TOKEN` | Yes for telemetry statistics | Separate bearer token required by `/api/telemetry/stats`; the endpoint returns 503 when unset. |
 | `TELEMETRY_OWN_HOSTS` | No | Comma-separated own hostnames; defaults to `deepstake.info`. Compose reads it from the root `.env`. |
 | `IMAGES_DIR` | No | Filesystem path served by `/api/images/`; Docker sets this to `/images`. |
+| `JPOOL_ELIGIBILITY_REQUIRE_MEMBERSHIP` | No | `true` also hides the JPool tab for validators outside the JPool pool (`isJpoolValidator: false`). Default `false`: only blocked or superminority validators are hidden. |
 
 `backend/.env` supplies RPC endpoints, validator address, and optional provider token to production Compose. Compose overrides Redis, token, telemetry-host, and filesystem-path settings from the root `.env` or its service configuration. For a direct backend run, `backend/.env` can supply those settings. `frontend/.env.example` lists optional browser-side network, RPC, and protocol overrides; Compose uses root `.env` for its build arguments.
 
@@ -791,6 +806,7 @@ Current state:
 - [x] Native staking
 - [x] BlazeStake directed staking
 - [x] Vault directed staking
+- [x] JPool direct staking (opt-in until 2.0.0)
 - [x] Dark and light themes
 - [x] Widget embedding through an IIFE script
 - [x] Backend-served widget bundle from shared disk

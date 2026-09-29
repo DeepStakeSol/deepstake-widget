@@ -13,7 +13,9 @@ const {
   prefetchManageDataMock,
   useNetworkMock,
   useOptionsMock,
+  fetchJpoolEligibilityMock,
 } = vi.hoisted(() => ({
+  fetchJpoolEligibilityMock: vi.fn(),
   applyValidatorLogoMock: vi.fn((profile, logo) => ({
     ...profile,
     logoUrl: logo?.logoUrl ?? profile.logoUrl,
@@ -75,6 +77,12 @@ vi.mock("./components/stake/StakeFormVault2", () => ({
     <div data-vote-account={voteAccount}>Vault form</div>
   ),
 }));
+vi.mock("./components/stake/StakeFormJpool", () => ({
+  StakeFormJpool: ({ voteAccount }: { voteAccount: string }) => (
+    <div data-vote-account={voteAccount}>JPool form</div>
+  ),
+}));
+vi.mock("./utils/jpool", () => ({ fetchJpoolEligibility: fetchJpoolEligibilityMock }));
 vi.mock("./context/NetworkContext", () => ({ useNetwork: useNetworkMock }));
 vi.mock("./options", () => ({ useOptions: useOptionsMock }));
 vi.mock("./utils/solana/validator", () => ({
@@ -202,12 +210,14 @@ describe("App", () => {
     expect(prefetchManageDataMock).toHaveBeenCalledWith(
       "blaze",
       "wallet-address",
-      "devnet"
+      "devnet",
+      "vote-address"
     );
     expect(prefetchManageDataMock).not.toHaveBeenCalledWith(
       "vault",
       "wallet-address",
-      "devnet"
+      "devnet",
+      "vote-address"
     );
   });
 
@@ -246,7 +256,8 @@ describe("App", () => {
     expect(prefetchManageDataMock).toHaveBeenCalledWith(
       "blaze",
       "restored-wallet",
-      "devnet"
+      "devnet",
+      "vote-address"
     );
   });
 
@@ -262,7 +273,8 @@ describe("App", () => {
     expect(prefetchManageDataMock).toHaveBeenCalledWith(
       "blaze",
       "wallet-address",
-      "devnet"
+      "devnet",
+      "vote-address"
     );
 
     prefetchManageDataMock.mockClear();
@@ -288,13 +300,15 @@ describe("App", () => {
       1,
       "blaze",
       "wallet-address",
-      "mainnet"
+      "mainnet",
+      "vote-address"
     );
     expect(prefetchManageDataMock).toHaveBeenNthCalledWith(
       2,
       "vault",
       "wallet-address",
-      "mainnet"
+      "mainnet",
+      "vote-address"
     );
   });
 
@@ -316,7 +330,8 @@ describe("App", () => {
     expect(prefetchManageDataMock).toHaveBeenCalledWith(
       "blaze",
       "wallet-address",
-      "mainnet"
+      "mainnet",
+      "vote-address"
     );
   });
 
@@ -400,5 +415,167 @@ describe("App", () => {
       "vote-address",
       "devnet"
     );
+  });
+
+  describe("JPool tab", () => {
+    const eligible = { eligible: true, reason: null, epoch: 1045, source: "jpool" };
+
+    function deferred<T>() {
+      let resolve!: (value: T) => void;
+      const promise = new Promise<T>((r) => (resolve = r));
+      return { promise, resolve };
+    }
+
+    beforeEach(() => {
+      useNetworkMock.mockReturnValue({ network: "mainnet" });
+      fetchJpoolEligibilityMock.mockResolvedValue(eligible);
+    });
+
+    it("does not check eligibility when JPool is not requested", () => {
+      render(<App />);
+      expect(fetchJpoolEligibilityMock).not.toHaveBeenCalled();
+      expect(screen.queryByRole("tab", { name: /JPool/ })).not.toBeInTheDocument();
+    });
+
+    it("shows the tab only after an eligible answer, with four narrow tabs", async () => {
+      const answer = deferred<typeof eligible>();
+      fetchJpoolEligibilityMock.mockReturnValue(answer.promise);
+      useOptionsMock.mockReturnValue({
+        vote_account: "vote-address",
+        tabs: ["native", "blaze", "vault", "jpool"],
+      });
+
+      render(<App />);
+      expect(screen.getAllByRole("tab")).toHaveLength(3);
+      expect(screen.queryByRole("tab", { name: /JPool/ })).not.toBeInTheDocument();
+      expect(fetchJpoolEligibilityMock).toHaveBeenCalledWith("vote-address", "mainnet", {
+        signal: expect.any(AbortSignal),
+      });
+
+      answer.resolve(eligible);
+      const jpoolTab = await screen.findByRole("tab", { name: /JPool/ });
+      expect(screen.getAllByRole("tab")).toHaveLength(4);
+      expect(screen.getByRole("tablist")).toHaveClass("sw-tabs-4");
+      expect(screen.getByRole("tab", { name: /Native/ })).toHaveAttribute("data-state", "active");
+
+      await userEvent.click(jpoolTab);
+      expect(jpoolTab).toHaveAttribute("data-state", "active");
+      expect(screen.getByText("JPool form")).toHaveAttribute("data-vote-account", "vote-address");
+    });
+
+    it("shows the tab on a fallback answer", async () => {
+      fetchJpoolEligibilityMock.mockResolvedValue({
+        eligible: true,
+        reason: null,
+        epoch: null,
+        source: "fallback",
+        clientFallback: "timeout",
+      });
+      useOptionsMock.mockReturnValue({ vote_account: "vote-address", tabs: ["native", "jpool"] });
+
+      render(<App />);
+      expect(await screen.findByRole("tab", { name: /JPool/ })).toBeInTheDocument();
+      expect(screen.getByRole("tablist")).not.toHaveClass("sw-tabs-4");
+    });
+
+    it("hides an ineligible tab and logs the reason", async () => {
+      fetchJpoolEligibilityMock.mockResolvedValue({
+        eligible: false,
+        reason: "superminority",
+        epoch: 1045,
+        source: "jpool",
+      });
+      useOptionsMock.mockReturnValue({ vote_account: "vote-address", tabs: ["native", "jpool"] });
+
+      render(<App />);
+      await waitFor(() =>
+        expect(console.warn).toHaveBeenCalledWith(
+          "[DeepStake widget] JPool tab hidden: superminority"
+        )
+      );
+      expect(screen.queryByRole("tab", { name: /JPool/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /Native/ })).toBeInTheDocument();
+    });
+
+    it("shows a compact loader for a JPool-only widget until eligibility resolves", async () => {
+      const answer = deferred<typeof eligible>();
+      fetchJpoolEligibilityMock.mockReturnValue(answer.promise);
+      useOptionsMock.mockReturnValue({ vote_account: "vote-address", tabs: ["jpool"] });
+
+      render(<App />);
+      expect(screen.getByRole("status", { name: "Loading" })).toBeInTheDocument();
+      expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+
+      answer.resolve(eligible);
+      expect(await screen.findByRole("tab", { name: /JPool/ })).toHaveAttribute(
+        "data-state",
+        "active"
+      );
+      expect(screen.queryByRole("status", { name: "Loading" })).not.toBeInTheDocument();
+    });
+
+    it("explains an ineligible JPool-only widget", async () => {
+      fetchJpoolEligibilityMock.mockResolvedValue({
+        eligible: false,
+        reason: "blocked",
+        epoch: 1045,
+        source: "jpool",
+      });
+      useOptionsMock.mockReturnValue({ vote_account: "vote-address", tabs: ["jpool"] });
+
+      render(<App />);
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "DeepStake widget: JPool direct staking is unavailable for this validator"
+      );
+    });
+
+    it("prefetches JPool Manage with the vote account once the tab is visible", async () => {
+      useOptionsMock.mockReturnValue({ vote_account: "vote-address", tabs: ["native", "jpool"] });
+      const account = { address: "wallet-address" } as never;
+
+      render(
+        <SelectedWalletAccountContext.Provider value={[account, vi.fn()]}>
+          <App />
+        </SelectedWalletAccountContext.Provider>
+      );
+      await waitFor(() =>
+        expect(prefetchManageDataMock).toHaveBeenCalledWith(
+          "jpool",
+          "wallet-address",
+          "mainnet",
+          "vote-address"
+        )
+      );
+      expect(prefetchManageDataMock).not.toHaveBeenCalledWith(
+        "native",
+        expect.anything(),
+        expect.anything(),
+        expect.anything()
+      );
+    });
+
+    it("drops JPool on devnet with a warning and without an eligibility call", async () => {
+      useNetworkMock.mockReturnValue({ network: "devnet" });
+      useOptionsMock.mockReturnValue({ vote_account: "vote-address", tabs: ["native", "jpool"] });
+
+      render(<App />);
+      expect(screen.getAllByRole("tab")).toHaveLength(1);
+      await waitFor(() =>
+        expect(console.warn).toHaveBeenCalledWith(
+          "[DeepStake widget] JPool is unavailable on devnet and was hidden"
+        )
+      );
+      expect(fetchJpoolEligibilityMock).not.toHaveBeenCalled();
+    });
+
+    it("names every mainnet-only tab in the devnet configuration error", () => {
+      useNetworkMock.mockReturnValue({ network: "devnet" });
+      useOptionsMock.mockReturnValue({ vote_account: "vote-address", tabs: ["vault", "jpool"] });
+
+      render(<App />);
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "DeepStake widget: Vault and JPool are unavailable on devnet; configure at least one supported tab"
+      );
+    });
   });
 });

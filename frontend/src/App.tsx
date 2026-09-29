@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
+import { useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Card, Flex } from "@radix-ui/themes";
 import * as Tabs from "@radix-ui/react-tabs";
 import { StakeForm } from "./components/stake/StakeForm";
@@ -7,6 +7,7 @@ import { StakeFormBlaze } from "./components/stake/StakeFormBlaze";
 import RootLayout from "./components/RootLayout";
 import './App.css';
 import { StakeFormVault2 } from "./components/stake/StakeFormVault2";
+import { StakeFormJpool } from "./components/stake/StakeFormJpool";
 import { TitleHeader } from "./components/TitleHeader";
 import { ValidatorInfo } from "./components/stake/ValidatorInfo";
 import {
@@ -25,7 +26,8 @@ import { useOptions, WidgetTab } from "./options";
 import { SelectedWalletAccountContext } from "./context/SelectedWalletAccountContext";
 import { prefetchManageData } from "./utils/managePrefetch";
 import { WidgetFallback } from "./components/WidgetErrorBoundary";
-import { getEffectiveTabs } from "./utils/effectiveTabs";
+import { formatTabNames, getEffectiveTabs, WIDGET_TAB_NAMES } from "./utils/effectiveTabs";
+import { isJpoolTabVisible, useJpoolEligibility } from "./hooks/useJpoolEligibility";
 
 type TabConfig = {
   id: WidgetTab;
@@ -67,12 +69,23 @@ const ALL_TABS: TabConfig[] = [
         Vault
       </>
     )
+  },
+  {
+    id: "jpool",
+    value: "stake4",
+    className: "tab-jpool",
+    label: (
+      <>
+        Direct staking <br />
+        JPool
+      </>
+    )
   }
 ];
 
 type EnabledTabs = {
   tabs: TabConfig[];
-  vaultHidden: boolean;
+  devnetHidden: WidgetTab[];
   invalidConfiguration: boolean;
 };
 
@@ -87,7 +100,7 @@ function getEnabledTabs(
 
   return {
     tabs: ALL_TABS.filter((tab) => effective.tabs.includes(tab.id)),
-    vaultHidden: effective.vaultHidden,
+    devnetHidden: effective.devnetHidden,
     invalidConfiguration: effective.invalidConfiguration,
   };
 }
@@ -96,21 +109,52 @@ function App() {
   const { network } = useNetwork();
   const options = useOptions();
   const enabled = getEnabledTabs(options?.tabs, network);
-  const warnedAboutVault = useRef(false);
+  const warnedAboutDevnet = useRef(new Set<WidgetTab>());
+  const devnetHiddenKey = enabled.devnetHidden.join(":");
 
   useEffect(() => {
-    if (!enabled.vaultHidden || warnedAboutVault.current) return;
-    warnedAboutVault.current = true;
-    console.warn("[DeepStake widget] Vault is unavailable on devnet and was hidden");
-  }, [enabled.vaultHidden]);
+    if (!devnetHiddenKey) return;
+    (devnetHiddenKey.split(":") as WidgetTab[]).forEach((tab) => {
+      if (warnedAboutDevnet.current.has(tab)) return;
+      warnedAboutDevnet.current.add(tab);
+      console.warn(
+        `[DeepStake widget] ${WIDGET_TAB_NAMES[tab]} is unavailable on devnet and was hidden`
+      );
+    });
+  }, [devnetHiddenKey]);
+
+  // Telemetry keeps reporting the requested tabs (TEMP-11); eligibility only
+  // changes what is rendered.
+  const jpoolEligibility = useJpoolEligibility(
+    enabled.tabs.some((tab) => tab.id === "jpool"),
+    options?.vote_account ?? "",
+    network,
+  );
+  const visibleTabs = enabled.tabs.filter(
+    (tab) => tab.id !== "jpool" || isJpoolTabVisible(jpoolEligibility.status),
+  );
 
   if (enabled.invalidConfiguration) {
+    const hidden = enabled.devnetHidden;
     return (
-      <WidgetFallback message="DeepStake widget: Vault is unavailable on devnet; configure at least one supported tab" />
+      <WidgetFallback
+        message={`DeepStake widget: ${formatTabNames(hidden)} ${hidden.length > 1 ? "are" : "is"} unavailable on devnet; configure at least one supported tab`}
+      />
     );
   }
 
-  return <StakingApp enabledTabs={enabled.tabs} />;
+  if (visibleTabs.length === 0) {
+    // Only JPool was requested: wait for eligibility instead of flashing a tab.
+    return jpoolEligibility.status === "pending" ? (
+      <div className="sw-widget-loading" role="status" aria-label="Loading">
+        Loading…
+      </div>
+    ) : (
+      <WidgetFallback message="DeepStake widget: JPool direct staking is unavailable for this validator" />
+    );
+  }
+
+  return <StakingApp enabledTabs={visibleTabs} />;
 }
 
 function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
@@ -149,12 +193,12 @@ function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
     if (!walletAddress) return;
 
     (enabledTabIds.split(":") as WidgetTab[])
-      .filter((provider) => provider === "blaze" || provider === "vault")
+      .filter((provider) => provider !== "native")
       .forEach((provider) => {
-        void prefetchManageData(provider, walletAddress, network)
+        void prefetchManageData(provider, walletAddress, network, voteAccount)
           .catch(() => undefined);
       });
-  }, [enabledTabIds, network, walletAddress]);
+  }, [enabledTabIds, network, walletAddress, voteAccount]);
 
   useEffect(() => {
     if (!voteAccount) return;
@@ -294,6 +338,7 @@ function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
               style={{ width: "100%", padding: "7px", marginBottom: "10px" }}
             >
               <Tabs.List
+                className={enabledTabs.length > 3 ? "sw-tabs-4" : undefined}
                 style={{
                   display: "flex",
                   gap: 7,
@@ -328,6 +373,13 @@ function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
                 )}
                 {tab.id === "vault" && (
                   <StakeFormVault2
+                    validatorInfo={validatorInfo}
+                    voteAccount={voteAccount}
+                    secondsRemainToEpochEnd={secondsRemainToEpochEnd}
+                  />
+                )}
+                {tab.id === "jpool" && (
+                  <StakeFormJpool
                     validatorInfo={validatorInfo}
                     voteAccount={voteAccount}
                     secondsRemainToEpochEnd={secondsRemainToEpochEnd}
@@ -398,9 +450,39 @@ function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
           background-image: ${cssImageUrl("/images/vault_stake_selected.png")};
         }
         
+        /* Four tabs share the same 640 px widget: narrower triggers, art
+           anchored left and clipped by the rounded corners. */
+        [data-widget="deepstake"] .sw-tabs-4 .tabs-trigger,
+        [data-widget="deepstake"] .sw-tabs-4 .tabs-trigger[data-state="active"] {
+          flex: 1 1 0;
+          width: auto;
+          min-width: 0;
+          padding: 8px;
+          font-size: 13px;
+          background-position: left center;
+          overflow: hidden;
+        }
+
+        /* TEMP(JPOOL-TMP-03): no JPool tab art yet; flat colours matching the
+           other tabs until the design assets arrive. */
+        [data-widget="deepstake"] .tabs-trigger.tab-jpool {
+          background-image: none;
+          background-color: #CBCAD0;
+        }
+        [data-widget="deepstake"] .tabs-trigger.tab-jpool[data-state="active"] {
+          background-color: #5A5A62;
+        }
+
         [data-widget="deepstake"][data-theme="dark"] .tabs-trigger {
           background-color: #9f9fac00;
           color: #9F9FAC;
+        }
+
+        [data-widget="deepstake"][data-theme="dark"] .tabs-trigger.tab-jpool {
+          background-color: #0D1625;
+        }
+        [data-widget="deepstake"][data-theme="dark"] .tabs-trigger.tab-jpool[data-state="active"] {
+          background-color: #D9D9D9;
         }
 
         [data-widget="deepstake"][data-theme="dark"] .tabs-trigger[data-state="active"] {

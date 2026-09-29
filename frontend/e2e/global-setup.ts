@@ -173,4 +173,25 @@ export default async function globalSetup() {
     path.join(distDir, "e2e-host-multiple.html"),
     multiWidgetHtml()
   );
+
+  fs.writeFileSync(
+    path.join(distDir, "e2e-host-jpool-mainnet.html"),
+    centeredHtml({
+      vote_account: voteAccount,
+      theme: "light",
+      network: "mainnet",
+      tabs: ["native", "blaze", "vault", "jpool"],
+      telemetry: true,
+    })
+  );
+
+  fs.writeFileSync(
+    path.join(distDir, "e2e-host-jpool-devnet.html"),
+    html({ vote_account: voteAccount, theme: "light", network: "devnet", tabs: ["native", "jpool"] })
+  );
+
+  fs.writeFileSync(
+    path.join(distDir, "e2e-host-mainnet-default-tabs.html"),
+    html({ vote_account: voteAccount, theme: "dark", network: "mainnet" })
+  );
 }

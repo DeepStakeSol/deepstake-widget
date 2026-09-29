@@ -1,14 +1,9 @@
 import { address } from '@solana/kit'
-import { Options, WidgetTab } from '../options'
-
-const VALID_TABS = new Set<WidgetTab>(['native', 'blaze', 'vault'])
+import { Options } from '../options'
+import { isWidgetTab } from './effectiveTabs'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function isWidgetTab(value: unknown): value is WidgetTab {
-  return typeof value === 'string' && VALID_TABS.has(value as WidgetTab)
 }
 
 function optionalString(value: unknown): string | undefined {

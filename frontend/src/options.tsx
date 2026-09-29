@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-export type WidgetTab = "native" | "blaze" | "vault";
+export type WidgetTab = "native" | "blaze" | "vault" | "jpool";
 
 export interface Options {
   vote_account: string;

@@ -89,6 +89,28 @@
   color: #ff8a8a;
 }
 
+/* Compact placeholder while a JPool-only widget resolves eligibility (<= 2 s) */
+[data-widget="deepstake"] .sw-widget-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(640px, 100%);
+  min-height: 160px;
+  box-sizing: border-box;
+  border: 2px solid #ceced380;
+  border-radius: 15px;
+  background: #f2f1f1;
+  color: #777;
+  font-family: Outfit, Arial, Helvetica, sans-serif;
+  font-size: 16px;
+}
+
+[data-widget="deepstake"][data-theme="dark"] .sw-widget-loading {
+  border-color: #9f9fac40;
+  background: #0d1625;
+  color: #9f9fac;
+}
+
 /* Respect reduced-motion preference for widget animations only */
 @media (prefers-reduced-motion: reduce) {
   [data-widget="deepstake"] *,

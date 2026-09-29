@@ -10,6 +10,7 @@ type MockScenario = {
   validatorStatus?: number;
   logoUrl?: string | null;
   balanceNetwork?: "mainnet" | "devnet";
+  jpoolEligibility?: { eligible: boolean; reason: string | null; source: "jpool" | "fallback" };
 };
 
 type GotoOptions = {
@@ -123,6 +124,54 @@ async function installNetworkMocks(
             epoch: 42,
           },
           uiStatus: "ready",
+        });
+        return;
+      }
+
+      if (parsed.pathname === "/api/jpool/eligibility") {
+        await fulfillJson(route, 200, {
+          epoch: 42,
+          ...(scenario.jpoolEligibility ?? { eligible: true, reason: null, source: "jpool" }),
+        });
+        return;
+      }
+
+      if (parsed.pathname === "/api/jpool/pool") {
+        await fulfillJson(route, 200, {
+          network: "mainnet",
+          poolAddress: "CtMyWsrUtAwXWiGr9WjHT5fC3p3fgV8cyGpLTo2LJzG1",
+          totalLamports: "1376600000",
+          poolTokenSupply: "1000000000",
+          lastUpdateEpoch: "42",
+          solDepositFee: { denominator: "0", numerator: "0" },
+          depositsRestricted: false,
+        });
+        return;
+      }
+
+      if (parsed.pathname === "/api/jpool/manage") {
+        await fulfillJson(route, 200, {
+          wallet: e2eWalletAddress,
+          network: "mainnet",
+          voteAccount: parsed.searchParams.get("vote"),
+          walletAtaBalance: "7264213",
+          ataExists: true,
+          portfolioBalance: null,
+          poolRate: { totalLamports: "1376600000", poolTokenSupply: "1000000000" },
+          binding: { voteId: parsed.searchParams.get("vote"), amount: "0", updatedAt: null },
+          directStakes: [
+            {
+              id: "842",
+              voteId: parsed.searchParams.get("vote"),
+              poolTokenAmount: "7264213",
+              balanceAmount: "7264213",
+              availableAmount: "7264213",
+              createdAt: null,
+            },
+          ],
+          countedForValidator: "7264213",
+          sources: { wallet: "ok", pool: "ok", binding: "ok", directStakes: "ok" },
+          uiStatus: "bound_here",
         });
         return;
       }
@@ -717,5 +766,91 @@ test("a validator without a provider logo renders the neutral avatar", async ({ 
   const card = page.locator(".vi-validator-card");
   await expect(card.locator(".vi-avatar")).toBeVisible();
   await expect(card.locator(".vi-image")).toHaveCount(0);
+  expect(consoleErrors).toEqual([]);
+});
+
+test("a four-tab mainnet embed shows JPool after eligibility and keeps the width", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 1000 });
+  const telemetryPayloads: unknown[] = [];
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-jpool-mainnet.html", {
+    wallet: true,
+    mock: { balanceNetwork: "mainnet" },
+    telemetryPayloads,
+  });
+
+  const jpoolTab = page.getByRole("tab", { name: /JPool/ });
+  await expect(jpoolTab).toBeVisible();
+  await expect(page.locator(".sw-main-tabs [role='tab']")).toHaveCount(4);
+  await expect.poll(() => telemetryPayloads.length).toBe(1);
+  expect(telemetryPayloads[0]).toMatchObject({ tabs: ["native", "blaze", "vault", "jpool"] });
+
+  const widget = page.locator('[data-widget="deepstake"]');
+  const width = () => widget.evaluate((root) => root.getBoundingClientRect().width);
+  expect(await width()).toBeCloseTo(640, 0);
+  const tabBoxes = await page.locator(".sw-main-tabs [role='tab']").evaluateAll((tabs) =>
+    tabs.map((tab) => tab.getBoundingClientRect())
+  );
+  const listBox = await page.locator(".sw-main-tabs").boundingBox();
+  for (const box of tabBoxes) {
+    expect(box.right).toBeLessThanOrEqual(listBox!.x + listBox!.width);
+  }
+  expect(await widget.evaluate((root) => root.scrollWidth === root.clientWidth)).toBe(true);
+
+  await jpoolTab.click();
+  await expect(jpoolTab).toHaveAttribute("data-state", "active");
+  await expect(page.getByText(/tagged for E2E Validator via JPool direct staking/)).toBeVisible();
+  await expect(page.getByText("Estimated APY :")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Connect Wallet" }).first().click();
+  await page.getByRole("button", { name: "Connect with E2E Wallet" }).click();
+  await expect(page.getByText("So11...1112")).toBeVisible();
+
+  await page.getByLabel("Stake Amount").fill("0.01");
+  await expect(page.getByText("You receive ~0.007264 JSOL")).toBeVisible();
+
+  await page.locator('[role="tab"]:visible').filter({ hasText: "Manage" }).click();
+  await expect(page.locator(".jm-status")).toHaveText("E2E Validator");
+  await expect(page.getByText("0.007264 JSOL (~0.009999 SOL)")).toBeVisible();
+  expect(await width()).toBeCloseTo(640, 0);
+  expect(consoleErrors).toEqual([]);
+});
+
+test("an ineligible validator never shows the JPool tab", async ({ page }) => {
+  const consoleWarnings: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "warning") consoleWarnings.push(message.text());
+  });
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-jpool-mainnet.html", {
+    mock: { jpoolEligibility: { eligible: false, reason: "superminority", source: "jpool" } },
+    telemetryPayloads: [],
+  });
+
+  await expect.poll(() => consoleWarnings).toContain(
+    "[DeepStake widget] JPool tab hidden: superminority"
+  );
+  await expect(page.locator(".sw-main-tabs [role='tab']")).toHaveCount(3);
+  await expect(page.getByRole("tab", { name: /JPool/ })).toHaveCount(0);
+  expect(consoleErrors).toEqual([]);
+});
+
+test("devnet hides a requested JPool tab without calling eligibility", async ({ page }) => {
+  const eligibilityRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/jpool/")) eligibilityRequests.push(request.url());
+  });
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-jpool-devnet.html");
+
+  await expect(page.getByRole("tab", { name: /Native/ })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /JPool/ })).toHaveCount(0);
+  expect(eligibilityRequests).toEqual([]);
+  expect(consoleErrors).toEqual([]);
+});
+
+test("the default tab set stays three tabs on mainnet", async ({ page }) => {
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-mainnet-default-tabs.html");
+
+  await expect(page.locator(".sw-main-tabs [role='tab']")).toHaveCount(3);
+  await expect(page.getByRole("tab", { name: /Vault/ })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /JPool/ })).toHaveCount(0);
   expect(consoleErrors).toEqual([]);
 });

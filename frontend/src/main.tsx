@@ -62,6 +62,8 @@ export function mountDeepStakeWidgets() {
             <OptionsContext.Provider value={options}>
               <NetworkProvider>
                 <App />
+                {/* TEMP(JPOOL-TMP-11): reports the requested tabs after the devnet
+                    filter; JPool eligibility is resolved later inside App. */}
                 <WidgetTelemetry
                   options={options}
                   network={network}
