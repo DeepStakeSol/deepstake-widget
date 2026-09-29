@@ -4,6 +4,7 @@ type BackendErrorPayload = {
   error?: unknown
   code?: unknown
   details?: unknown
+  signature?: unknown
 }
 
 export function formatLamportsAsSol(lamports: number): string {
@@ -22,16 +23,20 @@ export class BackendRequestError extends Error {
   readonly status: number
   readonly code?: string
   readonly details?: unknown
+  // Set by /transaction/send on TRANSACTION_SEND_FAILED: the bytes may still
+  // have landed, so the caller confirms this signature before retrying.
+  readonly signature?: string
 
   constructor(
     message: string,
-    options: { status: number; code?: string; details?: unknown },
+    options: { status: number; code?: string; details?: unknown; signature?: string },
   ) {
     super(message)
     this.name = 'BackendRequestError'
     this.status = options.status
     this.code = options.code
     this.details = options.details
+    this.signature = options.signature
   }
 }
 
@@ -52,6 +57,7 @@ async function backendError(response: Response): Promise<BackendRequestError> {
     status: response.status,
     code: typeof payload?.code === 'string' ? payload.code : undefined,
     details: payload?.details,
+    signature: typeof payload?.signature === 'string' ? payload.signature : undefined,
   })
 }
 

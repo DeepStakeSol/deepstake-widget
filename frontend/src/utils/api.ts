@@ -276,6 +276,21 @@ export type WalletMutation =
   | 'native-withdraw'
   | 'blaze-stake'
   | 'vault-stake'
+  | 'jpool-stake'
+
+// Backend simulate + relay of a fully signed transaction (finding N1).
+// TEMP(JPOOL-TMP-10): only the JPool tab uses it; the other tabs still send
+// through a browser RPC connection.
+export async function sendSignedTransaction(
+  network: string,
+  transaction: Base64EncodedWireTransaction
+): Promise<string> {
+  const data = await postJson<{ signature: string }>(
+    `/transaction/send?network=${encodeURIComponent(network)}`,
+    { transaction }
+  )
+  return data.signature
+}
 
 export interface ConfirmTxOptions {
   txid: string

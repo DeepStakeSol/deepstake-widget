@@ -260,4 +260,31 @@ describe('API helpers', () => {
       'https://backend.example/api/stake/minimum?network=mainnet',
     )
   })
+  it('relays a signed transaction through the backend send route', async () => {
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockReturnValue(mockJsonResponse({ signature: 'sig' }))
+    const { sendSignedTransaction } = await loadApi()
+
+    await expect(sendSignedTransaction('mainnet', 'AQID' as never)).resolves.toBe('sig')
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('https://backend.example/api/transaction/send?network=mainnet')
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(init?.body as string)).toEqual({ transaction: 'AQID' })
+  })
+
+  it('keeps the send failure code and signature', async () => {
+    vi.mocked(fetch).mockReturnValue(
+      mockJsonResponse(
+        { error: 'send failed', code: 'TRANSACTION_SEND_FAILED', signature: 'sig' },
+        { ok: false, status: 502 }
+      )
+    )
+    const { sendSignedTransaction } = await loadApi()
+
+    await expect(sendSignedTransaction('mainnet', 'AQID' as never)).rejects.toMatchObject({
+      status: 502,
+      code: 'TRANSACTION_SEND_FAILED',
+      signature: 'sig',
+    })
+  })
 })
