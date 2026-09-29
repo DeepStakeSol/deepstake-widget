@@ -90,4 +90,24 @@ describe("StakeInputSection", () => {
       "Min: 1.00228288 SOL"
     );
   });
+
+  it("renders an input hint in the minimum slot", () => {
+    render(
+      <StakeInputSection
+        isConnected={false}
+        balance={0}
+        formattedStakeAmount=""
+        onInputChange={vi.fn()}
+        onSetStakeAmount={vi.fn()}
+        onSetFormattedStakeAmount={vi.fn()}
+        validatorInfo={null}
+        secondsRemainToEpochEnd={10}
+        stakeMode="jpool"
+        inputHint="You receive ~0.007264 JSOL"
+      />
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("You receive ~0.007264 JSOL");
+    expect(screen.getByTestId("wallet-balance")).toHaveTextContent("0:jpool");
+  });
 });

@@ -221,3 +221,20 @@ export function getJpoolErrorText(error: unknown): string {
   const code = error instanceof BackendRequestError ? error.code : undefined
   return (code && JPOOL_ERROR_TEXT[code]) || JPOOL_DEPOSIT_FAILED_TEXT
 }
+
+// Post-deposit registration check: JPool's indexer adds a `/find` record a few
+// seconds after the block. Delays are measured from confirmation.
+export const JPOOL_REGISTRATION_POLL_DELAYS_MS = [3_000, 8_000, 15_000] as const
+
+function directStakeKey(record: JpoolDirectStake): string {
+  return record.id ?? `${record.createdAt}:${record.poolTokenAmount}:${record.availableAmount}`
+}
+
+// Null when the records are unknown (JPool /find unavailable).
+export function directStakeKeys(manage: JpoolManageResponse | null): Set<string> | null {
+  return manage?.directStakes ? new Set(manage.directStakes.map(directStakeKey)) : null
+}
+
+export function hasNewDirectStake(before: Set<string>, manage: JpoolManageResponse): boolean {
+  return (manage.directStakes ?? []).some((record) => !before.has(directStakeKey(record)))
+}

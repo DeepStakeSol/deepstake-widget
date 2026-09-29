@@ -97,4 +97,19 @@ describe("WalletBalance", () => {
 
     expect(screen.getByText("instantly")).toBeInTheDocument();
   });
+
+  it("hides the validator APY on the JPool tab", () => {
+    render(
+      <WalletBalance
+        balance={1}
+        validatorInfo={validatorInfo}
+        secondsRemainToEpochEnd={86400}
+        stakeMode="jpool"
+      />
+    );
+
+    expect(screen.queryByText("Estimated APY :")).not.toBeInTheDocument();
+    expect(screen.getByText("Fee / Commission :")).toBeInTheDocument();
+    expect(screen.getByText("instantly")).toBeInTheDocument();
+  });
 });

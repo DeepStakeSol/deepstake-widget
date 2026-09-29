@@ -234,3 +234,34 @@ describe('getJpoolErrorText', () => {
     expect(getJpoolErrorText(new Error('wallet rejected'))).toBe(JPOOL_DEPOSIT_FAILED_TEXT)
   })
 })
+
+describe('direct-stake registration helpers', () => {
+  const record = (id: string | null, poolTokenAmount = '1') => ({
+    id,
+    voteId: VOTE,
+    poolTokenAmount,
+    balanceAmount: '1',
+    availableAmount: '1',
+    createdAt: '2026-09-29T00:00:00.000Z',
+  })
+
+  it('treats unknown records as no baseline', async () => {
+    const { directStakeKeys } = await loadModules()
+    expect(directStakeKeys(null)).toBeNull()
+    expect(directStakeKeys({ directStakes: null } as never)).toBeNull()
+    expect(directStakeKeys({ directStakes: [] } as never)).toEqual(new Set())
+  })
+
+  it('detects a new record by id, or by content when ids are missing', async () => {
+    const { directStakeKeys, hasNewDirectStake } = await loadModules()
+    const before = directStakeKeys({ directStakes: [record('1'), record(null, '5')] } as never)!
+    expect(
+      hasNewDirectStake(before, { directStakes: [record('1'), record(null, '5')] } as never)
+    ).toBe(false)
+    expect(hasNewDirectStake(before, { directStakes: [record('1'), record('2')] } as never)).toBe(
+      true
+    )
+    expect(hasNewDirectStake(before, { directStakes: [record(null, '6')] } as never)).toBe(true)
+    expect(hasNewDirectStake(before, { directStakes: null } as never)).toBe(false)
+  })
+})

@@ -96,4 +96,28 @@ describe("WalletInfo", () => {
     expect(onSetStakeAmount).toHaveBeenLastCalledWith("0.000000");
     expect(onSetFormattedStakeAmount).toHaveBeenLastCalledWith("0");
   });
+
+  it("uses supplied Half/MAX handlers instead of the native reserve", async () => {
+    const onSetStakeAmount = vi.fn();
+    const onHalf = vi.fn();
+    const onMax = vi.fn();
+    render(
+      <WalletInfo
+        isConnected
+        address="wallet-address"
+        balance={10}
+        onSetStakeAmount={onSetStakeAmount}
+        onSetFormattedStakeAmount={vi.fn()}
+        onHalf={onHalf}
+        onMax={onMax}
+      />
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Half" }));
+    await userEvent.click(screen.getByRole("button", { name: "MAX" }));
+
+    expect(onHalf).toHaveBeenCalledTimes(1);
+    expect(onMax).toHaveBeenCalledTimes(1);
+    expect(onSetStakeAmount).not.toHaveBeenCalled();
+  });
 });

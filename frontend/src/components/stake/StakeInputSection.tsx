@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Flex } from "@radix-ui/themes";
 import {
   Form,
@@ -20,9 +21,13 @@ interface StakeInputSectionProps {
   onSetFormattedStakeAmount: (value: string) => void;
   validatorInfo: ValidatorProfile | null;
   secondsRemainToEpochEnd: number;
-  stakeMode?: "default" | "vault" | "blaze";
+  stakeMode?: "default" | "vault" | "blaze" | "jpool";
   minimumStakeLamports?: number;
   isMinimumLoading?: boolean;
+  onHalf?: () => void;
+  onMax?: () => void;
+  // Rendered under the input, in the slot the native "Min:" line uses.
+  inputHint?: ReactNode;
 }
 
 export function StakeInputSection({
@@ -38,6 +43,9 @@ export function StakeInputSection({
   stakeMode = "default",
   minimumStakeLamports,
   isMinimumLoading = false,
+  onHalf,
+  onMax,
+  inputHint,
 }: StakeInputSectionProps) {
   const styles = {
     widget: {
@@ -74,6 +82,8 @@ export function StakeInputSection({
           balance={balance}
           onSetStakeAmount={onSetStakeAmount}
           onSetFormattedStakeAmount={onSetFormattedStakeAmount}
+          onHalf={onHalf}
+          onMax={onMax}
         />
       </Flex>
 
@@ -122,6 +132,12 @@ export function StakeInputSection({
               : "Min: " + formatLamportsAsSol(minimumStakeLamports as number) + " SOL"}
           </div>
         )}
+
+      {inputHint && (
+        <div className="stake-minimum" role="status">
+          {inputHint}
+        </div>
+      )}
 
       <Flex align="center" justify="between">
         <WalletBalance

@@ -5,7 +5,7 @@ interface WalletBalanceProps {
   balance: number;
   validatorInfo: ValidatorProfile | null;
   secondsRemainToEpochEnd: number;
-  stakeMode?: "default" | "vault" | "blaze";
+  stakeMode?: "default" | "vault" | "blaze" | "jpool";
 }
 
 export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd, stakeMode }: WalletBalanceProps) {
@@ -30,10 +30,14 @@ export function WalletBalance({ balance, validatorInfo, secondsRemainToEpochEnd,
         </div>
 
         <div className="binfo-right">
-          <div className="binfo-row">
-            <span className="binfo-key">Estimated APY :</span>
-            <span className="binfo-value">{formatPercent(estimatedApy)}</span>
-          </div>
+          {/* TEMP(JPOOL-TMP-08): no APY source for JSOL yet; the validator APY
+              would be misleading on the JPool tab. */}
+          {stakeMode !== "jpool" && (
+            <div className="binfo-row">
+              <span className="binfo-key">Estimated APY :</span>
+              <span className="binfo-value">{formatPercent(estimatedApy)}</span>
+            </div>
+          )}
           <div className="binfo-row">
             <span className="binfo-key">
               Fee / Commission :

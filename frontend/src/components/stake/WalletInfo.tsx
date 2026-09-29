@@ -9,6 +9,10 @@ interface WalletInfoProps {
   balance: number;
   onSetStakeAmount: (newAmount: string) => void;
   onSetFormattedStakeAmount: (newAmount: string) => void;
+  // Liquid-stake forms reserve differently (no stake account rent) and supply
+  // their own Half/MAX handlers.
+  onHalf?: () => void;
+  onMax?: () => void;
 }
 
 const styles = {
@@ -66,7 +70,7 @@ const styles = {
     },
   };
 
-export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, onSetFormattedStakeAmount }: WalletInfoProps) {
+export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, onSetFormattedStakeAmount, onHalf, onMax }: WalletInfoProps) {
   
   const handleMaxClick = () => {
       // calculate how much SOL can actually be staked after rent and fees
@@ -130,14 +134,14 @@ export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, on
         <button 
               type="button"
               className="max-btn"
-              onClick={handleHalfClick}
+              onClick={onHalf ?? handleHalfClick}
             >
               Half
         </button>
         <button 
               type="button"
               className="max-btn"
-              onClick={handleMaxClick}
+              onClick={onMax ?? handleMaxClick}
             >
               MAX
         </button>
