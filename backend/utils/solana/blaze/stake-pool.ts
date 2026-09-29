@@ -211,3 +211,106 @@ export function getBlazeMemoInstruction({
     )
   } as unknown as BlazeInstruction;
 }
+
+export interface StakePoolFee {
+  denominator: bigint;
+  numerator: bigint;
+}
+
+export interface StakePoolSolDepositConfig {
+  solDepositAuthority: Address | null;
+  solDepositFee: StakePoolFee;
+}
+
+// The fields after `lastUpdateEpoch` are Borsh-encoded and include variable
+// length Option/FutureEpoch values, so their offsets depend on pool state.
+// The account itself is allocated at the maximum size and zero-padded, which
+// makes fixed offsets silently read padding instead of the real values.
+export function decodeStakePoolSolDepositConfig(
+  bytes: Uint8Array
+): StakePoolSolDepositConfig {
+  decodeStakePoolAccount(bytes);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let offset = STAKE_POOL_LAST_UPDATE_EPOCH_OFFSET + 8;
+
+  const ensure = (size: number) => {
+    if (offset + size > bytes.length) {
+      throw new Error("Invalid stake pool account data");
+    }
+  };
+  const readU8 = () => {
+    ensure(1);
+    return bytes[offset++];
+  };
+  const readU64 = () => {
+    ensure(8);
+    const value = view.getBigUint64(offset, true);
+    offset += 8;
+    return value;
+  };
+  const readFee = (): StakePoolFee => ({
+    denominator: readU64(),
+    numerator: readU64()
+  });
+  const readAddress = () => {
+    ensure(32);
+    const value = decodeAddress(bytes, offset);
+    offset += 32;
+    return value;
+  };
+  const readOption = <T>(read: () => T): T | null => {
+    const tag = readU8();
+    if (tag === 0) return null;
+    if (tag === 1) return read();
+    throw new Error("Invalid stake pool option tag");
+  };
+  const skipFutureEpochFee = () => {
+    const tag = readU8();
+    if (tag === 0) return;
+    if (tag === 1 || tag === 2) {
+      readFee();
+      return;
+    }
+    throw new Error("Invalid stake pool future fee tag");
+  };
+
+  offset += 48; // lockup: unix timestamp, epoch, custodian
+  readFee(); // epoch fee
+  skipFutureEpochFee(); // next epoch fee
+  readOption(readAddress); // preferred deposit validator
+  readOption(readAddress); // preferred withdraw validator
+  readFee(); // stake deposit fee
+  readFee(); // stake withdrawal fee
+  skipFutureEpochFee(); // next stake withdrawal fee
+  readU8(); // stake referral fee
+  const solDepositAuthority = readOption(readAddress);
+  const solDepositFee = readFee();
+
+  return { solDepositAuthority, solDepositFee };
+}
+
+export function getCreateAssociatedTokenAccountIdempotentInstruction({
+  payer,
+  ata,
+  owner,
+  mint
+}: {
+  payer: TransactionSigner;
+  ata: Address;
+  owner: Address;
+  mint: Address;
+}): BlazeInstruction {
+  return {
+    ...getCreateAssociatedTokenAccountInstruction({ payer, ata, owner, mint }),
+    // Associated Token Account program `CreateIdempotent`.
+    data: new Uint8Array([1])
+  } as BlazeInstruction;
+}
+
+export function getPlainMemoInstruction(text: string): BlazeInstruction {
+  return {
+    programAddress: MEMO_PROGRAM_ADDRESS,
+    accounts: [],
+    data: new TextEncoder().encode(text)
+  } as unknown as BlazeInstruction;
+}

@@ -23,3 +23,12 @@ export function getBlazeUpdatePoolUrl(network: string | null): string {
     ? "https://stake.solblaze.org/api/v1/update_pool?network=mainnet"
     : "https://stake.solblaze.org/api/v1/update_pool?network=devnet";
 }
+
+// JPool has no devnet pool; the tab and routes are mainnet only.
+const JPOOL_STAKE_POOL_MAINNET = "CtMyWsrUtAwXWiGr9WjHT5fC3p3fgV8cyGpLTo2LJzG1";
+
+export const JSOL_MINT = "7Q2afV64in6N6SeZsAAB81TJzwDoD6zpqmHkzi9Dcavn";
+
+export function getJpoolStakePoolAddress(network: string | null): string | null {
+  return network === "mainnet" ? JPOOL_STAKE_POOL_MAINNET : null;
+}
