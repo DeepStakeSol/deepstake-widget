@@ -11,7 +11,9 @@ export type JpoolErrorCode =
   | "JPOOL_SIMULATION_FAILED"
   | "JPOOL_POOL_INVALID"
   | "JPOOL_RPC_UNAVAILABLE"
-  | "JPOOL_GENERATE_FAILED";
+  | "JPOOL_GENERATE_FAILED"
+  | "JPOOL_MANAGE_FAILED"
+  | "JPOOL_ELIGIBILITY_FAILED";
 
 export const JPOOL_ERROR_MESSAGES: Record<JpoolErrorCode, string> = {
   JPOOL_MAINNET_ONLY: "JPool is available on mainnet only",
@@ -28,7 +30,9 @@ export const JPOOL_ERROR_MESSAGES: Record<JpoolErrorCode, string> = {
   JPOOL_SIMULATION_FAILED: "JPool deposit simulation failed",
   JPOOL_POOL_INVALID: "JPool stake pool account is not valid",
   JPOOL_RPC_UNAVAILABLE: "Solana RPC is temporarily unavailable",
-  JPOOL_GENERATE_FAILED: "Failed to generate JPool deposit transaction"
+  JPOOL_GENERATE_FAILED: "Failed to generate JPool deposit transaction",
+  JPOOL_MANAGE_FAILED: "Failed to load JPool data",
+  JPOOL_ELIGIBILITY_FAILED: "Failed to check JPool eligibility"
 };
 
 export class JpoolRouteError extends Error {

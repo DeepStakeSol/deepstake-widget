@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 
-import { JPOOL_ERROR_MESSAGES, JpoolRouteError } from "./errors";
+import {
+  JPOOL_ERROR_MESSAGES,
+  JpoolRouteError,
+  type JpoolErrorCode
+} from "./errors";
 
-export function jpoolErrorResponse(error: unknown, logLabel: string) {
+export function jpoolErrorResponse(
+  error: unknown,
+  logLabel: string,
+  fallbackCode: JpoolErrorCode = "JPOOL_GENERATE_FAILED"
+) {
   if (error instanceof JpoolRouteError) {
     // TEMP(JPOOL-TMP-04): unmapped simulation failures keep their raw details
     // so real JPool error shapes can be collected and mapped later.
@@ -23,10 +31,7 @@ export function jpoolErrorResponse(error: unknown, logLabel: string) {
   }
   console.error(logLabel, error);
   return NextResponse.json(
-    {
-      error: JPOOL_ERROR_MESSAGES.JPOOL_GENERATE_FAILED,
-      code: "JPOOL_GENERATE_FAILED"
-    },
+    { error: JPOOL_ERROR_MESSAGES[fallbackCode], code: fallbackCode },
     { status: 500 }
   );
 }

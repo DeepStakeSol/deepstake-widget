@@ -6,7 +6,8 @@ export const WALLET_MUTATIONS = [
   "native-unstake",
   "native-withdraw",
   "blaze-stake",
-  "vault-stake"
+  "vault-stake",
+  "jpool-stake"
 ] as const;
 
 export type WalletMutation = (typeof WALLET_MUTATIONS)[number];
@@ -26,9 +27,24 @@ export function isWalletMutation(value: unknown): value is WalletMutation {
 export function resourceForMutation(
   mutation: WalletMutation
 ): WalletDataResource {
-  if (mutation.startsWith("native-")) return "native-stake";
-  if (mutation === "blaze-stake") return "blaze-applied";
-  return "vault-manage";
+  switch (mutation) {
+    case "native-stake":
+    case "native-unstake":
+    case "native-withdraw":
+      return "native-stake";
+    case "blaze-stake":
+      return "blaze-applied";
+    case "vault-stake":
+      return "vault-manage";
+    case "jpool-stake":
+      // Marker invalidation: covers every vote-scoped record of the wallet.
+      return "jpool-manage";
+    default: {
+      // A new mutation must be mapped explicitly, never fall through.
+      const unknown: never = mutation;
+      throw new Error(`Unknown wallet mutation: ${String(unknown)}`);
+    }
+  }
 }
 
 export function invalidateMutationData(

@@ -77,6 +77,20 @@ describe("POST /api/transaction/confirm", () => {
     );
   });
 
+  it("accepts the jpool-stake mutation", async () => {
+    confirmTransactionMock.mockResolvedValue(undefined);
+    const cacheMutation = {
+      walletAddress: "wallet",
+      mutation: "jpool-stake"
+    } as const;
+    const response = await POST(request({ txid: "sig", cacheMutation }));
+    expect(response.status).toBe(200);
+    expect(invalidateMutationDataMock).toHaveBeenCalledWith(
+      "devnet",
+      cacheMutation
+    );
+  });
+
   it("rejects invalid mutation contexts", async () => {
     const response = await POST(
       request({

@@ -1,0 +1,53 @@
+{
+  "provenance": {
+    "notes": "Synthetic, sanitized shapes modelled on api2.jpool.one/direct-stake responses from spec section 1.3 (2026-09-19..23). Wallets are placeholders; amounts are illustrative."
+  },
+  "bindingBoundHere": {
+    "id": 305,
+    "wallet": "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T",
+    "voteId": "DeEpSdaw8uBLQ5T2HQhDf8fBSVbm13jGqJwoSF3HTpL5",
+    "strategyId": null,
+    "amount": "0",
+    "updatedAt": "2026-09-22T10:00:00.000Z",
+    "createdAt": "2026-09-20T10:00:00.000Z",
+    "boundTo": { "voteId": "DeEpSdaw8uBLQ5T2HQhDf8fBSVbm13jGqJwoSF3HTpL5" }
+  },
+  "bindingElsewhereNumberAmount": {
+    "id": 306,
+    "wallet": "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T",
+    "voteId": "Vote111111111111111111111111111111111111111",
+    "amount": 1500000000,
+    "updatedAt": "2026-09-21T10:00:00.000Z"
+  },
+  "bindingMismatch": {
+    "id": 307,
+    "wallet": "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T",
+    "voteId": "DeEpSdaw8uBLQ5T2HQhDf8fBSVbm13jGqJwoSF3HTpL5",
+    "amount": "0",
+    "boundTo": { "voteId": "Vote111111111111111111111111111111111111111" }
+  },
+  "directStakes": [
+    {
+      "id": 842,
+      "wallet": "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T",
+      "voteId": "DeEpSdaw8uBLQ5T2HQhDf8fBSVbm13jGqJwoSF3HTpL5",
+      "strategyId": null,
+      "poolTokenAmount": "7264213",
+      "balanceAmount": "7264213",
+      "availableAmount": "7264213",
+      "balanceCheckDate": "2026-09-22T10:00:00.000Z",
+      "graceChecksRemaining": 0,
+      "updatedAt": "2026-09-22T10:00:00.000Z",
+      "createdAt": "2026-09-20T10:00:04.000Z"
+    },
+    {
+      "id": "843",
+      "wallet": "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T",
+      "voteId": "DeEpSdaw8uBLQ5T2HQhDf8fBSVbm13jGqJwoSF3HTpL5",
+      "poolTokenAmount": 1000,
+      "balanceAmount": 1000,
+      "availableAmount": 500,
+      "createdAt": "2026-09-23T10:00:00.000Z"
+    }
+  ]
+}

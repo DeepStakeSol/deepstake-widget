@@ -12,6 +12,7 @@ import {
   type ValidatorNetwork,
   type ValidatorProfile
 } from "../validatorProfile/types";
+import type { WalletDataResource } from "../walletData/cache";
 
 export type ProviderOutcome =
   | "success"
@@ -207,7 +208,7 @@ export function recordLogoResponse(
 }
 
 export function recordWalletCacheOperation(
-  resource: "native-stake" | "blaze-applied" | "vault-manage",
+  resource: WalletDataResource,
   operation: string,
   result: string,
   network: string
@@ -221,7 +222,7 @@ export function recordWalletCacheOperation(
 }
 
 export function observeWalletCacheRefresh(
-  resource: "native-stake" | "blaze-applied" | "vault-manage",
+  resource: WalletDataResource,
   outcome: "success" | "error",
   network: string,
   elapsedMs: number

@@ -18,15 +18,38 @@ export const WALLET_CACHE_POLICIES = {
   native: { freshMs: 2 * 60_000, staleMs: 30 * 60_000 },
   blaze: { freshMs: 2 * 60_000, staleMs: 30 * 60_000 },
   vault: { freshMs: 60_000, staleMs: 10 * 60_000 },
-  vaultUpdating: { freshMs: 10_000, staleMs: 60_000 }
+  vaultUpdating: { freshMs: 10_000, staleMs: 60_000 },
+  jpool: { freshMs: 60_000, staleMs: 10 * 60_000 },
+  // After a deposit the JPool indexer needs a few seconds to register it, and
+  // partial upstream failures should not be served for long.
+  jpoolRecent: { freshMs: 10_000, staleMs: 60_000 }
 } as const satisfies Record<string, WalletCachePolicy>;
+
+// Resources whose invalidation is a wallet-level marker instead of a DEL,
+// because their records are split by scope (one record per vote account).
+const MARKER_INVALIDATED_RESOURCES: ReadonlySet<WalletDataResource> = new Set([
+  "jpool-manage"
+]);
+// How long after a mutation `recentlyMutated` is reported to policies.
+export const RECENT_MUTATION_WINDOW_MS = 60_000;
+// The marker must outlive every record cached before it; otherwise an old
+// record becomes servable again when the marker expires.
+const MUTATION_MARKER_TTL_MS = WALLET_CACHE_POLICIES.jpool.staleMs;
+
+export interface WalletPolicyContext {
+  recentlyMutated: boolean;
+}
 
 interface GetWalletDataOptions<T> {
   resource: WalletDataResource;
   network: string;
   wallet: string;
+  // Extra key segment for resources cached per wallet and per something else.
+  scope?: string;
   fetcher: () => Promise<T>;
-  policy: WalletCachePolicy | ((data: T) => WalletCachePolicy);
+  policy:
+    | WalletCachePolicy
+    | ((data: T, context: WalletPolicyContext) => WalletCachePolicy);
   forceRefresh?: boolean;
   cache?: WalletDataCache | null;
   now?: () => number;
@@ -38,27 +61,52 @@ const LOCK_TTL_MS = 15_000;
 function requestKey(
   resource: WalletDataResource,
   network: string,
-  wallet: string
+  wallet: string,
+  scope?: string
 ): string {
-  return `${resource}:${network}:${wallet}`;
+  return scope === undefined
+    ? `${resource}:${network}:${wallet}`
+    : `${resource}:${network}:${wallet}:${scope}`;
 }
 
 function resolvePolicy<T>(
   policy: GetWalletDataOptions<T>["policy"],
-  data: T
+  data: T,
+  context: WalletPolicyContext
 ): WalletCachePolicy {
-  return typeof policy === "function" ? policy(data) : policy;
+  return typeof policy === "function" ? policy(data, context) : policy;
+}
+
+async function readMutationMarker(
+  cache: WalletDataCache | null,
+  resource: WalletDataResource,
+  network: string,
+  wallet: string
+): Promise<number | null> {
+  if (!cache || !MARKER_INVALIDATED_RESOURCES.has(resource)) return null;
+  try {
+    return await cache.readMutation(resource, network, wallet);
+  } catch (error) {
+    recordWalletCacheOperation(resource, "marker", "error", network);
+    console.warn("Wallet data mutation marker read failed", {
+      resource,
+      network,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return null;
+  }
 }
 
 async function cacheRead<T>(
   cache: WalletDataCache | null,
   resource: WalletDataResource,
   network: string,
-  wallet: string
+  wallet: string,
+  scope?: string
 ): Promise<WalletCacheRecord<T> | null> {
   if (!cache) return null;
   try {
-    const record = await cache.read<T>(resource, network, wallet);
+    const record = await cache.read<T>(resource, network, wallet, scope);
     recordWalletCacheOperation(
       resource,
       "read",
@@ -82,7 +130,12 @@ async function refresh<T>(
   cache: WalletDataCache | null,
   skipIfLocked = false
 ): Promise<T> {
-  const key = requestKey(options.resource, options.network, options.wallet);
+  const key = requestKey(
+    options.resource,
+    options.network,
+    options.wallet,
+    options.scope
+  );
   const existing = inFlight.get(key);
   if (existing) {
     recordWalletCacheOperation(
@@ -105,7 +158,8 @@ async function refresh<T>(
             options.resource,
             options.network,
             options.wallet,
-            LOCK_TTL_MS
+            LOCK_TTL_MS,
+            options.scope
           );
         } catch {
           lockFailed = true;
@@ -127,20 +181,32 @@ async function refresh<T>(
             cache,
             options.resource,
             options.network,
-            options.wallet
+            options.wallet,
+            options.scope
           );
           if (latest) return latest.data;
         }
       }
 
+      const fetchStartedAt = (options.now ?? Date.now)();
       const data = await options.fetcher();
       const now = (options.now ?? Date.now)();
-      const policy = resolvePolicy(options.policy, data);
+      const mutatedAt = await readMutationMarker(
+        cache,
+        options.resource,
+        options.network,
+        options.wallet
+      );
+      const policy = resolvePolicy(options.policy, data, {
+        recentlyMutated:
+          mutatedAt !== null && now - mutatedAt < RECENT_MUTATION_WINDOW_MS
+      });
       const record: WalletCacheRecord<T> = {
         version: 1,
         cachedAt: now,
         freshUntil: now + policy.freshMs,
         staleUntil: now + policy.staleMs,
+        fetchStartedAt,
         data
       };
 
@@ -150,7 +216,8 @@ async function refresh<T>(
             options.resource,
             options.network,
             options.wallet,
-            record
+            record,
+            options.scope
           );
           recordWalletCacheOperation(
             options.resource,
@@ -194,7 +261,8 @@ async function refresh<T>(
             options.resource,
             options.network,
             options.wallet,
-            token
+            token,
+            options.scope
           );
         } catch {
           recordWalletCacheOperation(
@@ -220,12 +288,30 @@ export async function getWalletData<T>(
   const now = (options.now ?? Date.now)();
 
   if (!options.forceRefresh) {
-    const record = await cacheRead<T>(
-      cache,
-      options.resource,
-      options.network,
-      options.wallet
-    );
+    const [cached, mutatedAt] = await Promise.all([
+      cacheRead<T>(
+        cache,
+        options.resource,
+        options.network,
+        options.wallet,
+        options.scope
+      ),
+      readMutationMarker(cache, options.resource, options.network, options.wallet)
+    ]);
+    // A record whose fetch started before the last mutation is outdated.
+    const outdated =
+      cached !== null &&
+      mutatedAt !== null &&
+      (cached.fetchStartedAt ?? cached.cachedAt) <= mutatedAt;
+    if (outdated) {
+      recordWalletCacheOperation(
+        options.resource,
+        "lookup",
+        "invalidated",
+        options.network
+      );
+    }
+    const record = outdated ? null : cached;
     if (record && now <= record.freshUntil) {
       recordWalletCacheOperation(
         options.resource,
@@ -266,12 +352,25 @@ export async function getWalletData<T>(
 export async function invalidateWalletData(
   resource: WalletDataResource,
   network: string,
-  wallet: string
+  wallet: string,
+  cacheOverride?: WalletDataCache | null,
+  now: () => number = Date.now
 ): Promise<boolean> {
-  const cache = getWalletDataCache();
+  const cache =
+    cacheOverride === undefined ? getWalletDataCache() : cacheOverride;
   if (!cache) return false;
   try {
-    await cache.delete(resource, network, wallet);
+    if (MARKER_INVALIDATED_RESOURCES.has(resource)) {
+      await cache.markMutation(
+        resource,
+        network,
+        wallet,
+        now(),
+        MUTATION_MARKER_TTL_MS
+      );
+    } else {
+      await cache.delete(resource, network, wallet);
+    }
     recordWalletCacheOperation(resource, "delete", "success", network);
     return true;
   } catch (error) {

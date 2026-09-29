@@ -5,7 +5,8 @@ import { getRedisClient, isRedisConfigured } from "../redis";
 export const WALLET_DATA_RESOURCES = [
   "native-stake",
   "blaze-applied",
-  "vault-manage"
+  "vault-manage",
+  "jpool-manage"
 ] as const;
 
 export type WalletDataResource = (typeof WALLET_DATA_RESOURCES)[number];
@@ -16,56 +17,94 @@ export interface WalletCacheRecord<T = unknown> {
   freshUntil: number;
   staleUntil: number;
   data: T;
+  // When the provider fetch started. Mutation markers compare against this,
+  // so a fetch that raced a mutation is not served as post-mutation data.
+  fetchStartedAt?: number;
 }
 
 export interface WalletDataCache {
   read<T>(
     resource: WalletDataResource,
     network: string,
-    wallet: string
+    wallet: string,
+    scope?: string
   ): Promise<WalletCacheRecord<T> | null>;
   write<T>(
     resource: WalletDataResource,
     network: string,
     wallet: string,
-    record: WalletCacheRecord<T>
+    record: WalletCacheRecord<T>,
+    scope?: string
   ): Promise<void>;
   delete(
     resource: WalletDataResource,
     network: string,
-    wallet: string
+    wallet: string,
+    scope?: string
   ): Promise<void>;
   acquireLock(
     resource: WalletDataResource,
     network: string,
     wallet: string,
-    ttlMs: number
+    ttlMs: number,
+    scope?: string
   ): Promise<string | null>;
   releaseLock(
     resource: WalletDataResource,
     network: string,
     wallet: string,
-    token: string
+    token: string,
+    scope?: string
   ): Promise<void>;
+  // Wallet-level mutation marker: invalidates every scope of a resource for a
+  // wallet without a key scan.
+  markMutation(
+    resource: WalletDataResource,
+    network: string,
+    wallet: string,
+    at: number,
+    ttlMs: number
+  ): Promise<void>;
+  readMutation(
+    resource: WalletDataResource,
+    network: string,
+    wallet: string
+  ): Promise<number | null>;
 }
 
 const CACHE_PREFIX = "wallet-data:v1";
 let redisCache: WalletDataCache | null | undefined;
 
+// TEMP(JPOOL-TMP-17): a scope (the JPool vote account) is one extra key
+// segment over one aggregated record, instead of separate per-fact caches.
+function scopeSuffix(scope?: string): string {
+  return scope === undefined ? "" : `:${encodeURIComponent(scope)}`;
+}
+
 export function walletDataCacheKey(
   resource: WalletDataResource,
   network: string,
-  wallet: string
+  wallet: string,
+  scope?: string
 ): string {
-  return `${CACHE_PREFIX}:${resource}:${network}:${encodeURIComponent(wallet)}`;
+  return `${CACHE_PREFIX}:${resource}:${network}:${encodeURIComponent(wallet)}${scopeSuffix(scope)}`;
 }
 
 function lockKey(
   resource: WalletDataResource,
   network: string,
+  wallet: string,
+  scope?: string
+): string {
+  return `${CACHE_PREFIX}:lock:${resource}:${network}:${encodeURIComponent(wallet)}${scopeSuffix(scope)}`;
+}
+
+export function walletMutationKey(
+  resource: WalletDataResource,
+  network: string,
   wallet: string
 ): string {
-  return `${CACHE_PREFIX}:lock:${resource}:${network}:${encodeURIComponent(wallet)}`;
+  return `${CACHE_PREFIX}:mutated:${resource}:${network}:${encodeURIComponent(wallet)}`;
 }
 
 function parseRecord<T>(
@@ -77,6 +116,8 @@ function parseRecord<T>(
     if (
       value.version !== 1 ||
       typeof value.cachedAt !== "number" ||
+      (value.fetchStartedAt !== undefined &&
+        typeof value.fetchStartedAt !== "number") ||
       typeof value.freshUntil !== "number" ||
       typeof value.staleUntil !== "number" ||
       !("data" in value)
@@ -93,11 +134,12 @@ class RedisWalletDataCache implements WalletDataCache {
   async read<T>(
     resource: WalletDataResource,
     network: string,
-    wallet: string
+    wallet: string,
+    scope?: string
   ): Promise<WalletCacheRecord<T> | null> {
     const client = await getRedisClient();
     return parseRecord<T>(
-      await client.get(walletDataCacheKey(resource, network, wallet))
+      await client.get(walletDataCacheKey(resource, network, wallet, scope))
     );
   }
 
@@ -105,12 +147,13 @@ class RedisWalletDataCache implements WalletDataCache {
     resource: WalletDataResource,
     network: string,
     wallet: string,
-    record: WalletCacheRecord<T>
+    record: WalletCacheRecord<T>,
+    scope?: string
   ): Promise<void> {
     const ttlMs = Math.max(1, record.staleUntil - Date.now());
     const client = await getRedisClient();
     await client.set(
-      walletDataCacheKey(resource, network, wallet),
+      walletDataCacheKey(resource, network, wallet, scope),
       JSON.stringify(record),
       { PX: ttlMs }
     );
@@ -119,24 +162,27 @@ class RedisWalletDataCache implements WalletDataCache {
   async delete(
     resource: WalletDataResource,
     network: string,
-    wallet: string
+    wallet: string,
+    scope?: string
   ): Promise<void> {
     const client = await getRedisClient();
-    await client.del(walletDataCacheKey(resource, network, wallet));
+    await client.del(walletDataCacheKey(resource, network, wallet, scope));
   }
 
   async acquireLock(
     resource: WalletDataResource,
     network: string,
     wallet: string,
-    ttlMs: number
+    ttlMs: number,
+    scope?: string
   ): Promise<string | null> {
     const client = await getRedisClient();
     const token = randomUUID();
-    const result = await client.set(lockKey(resource, network, wallet), token, {
-      NX: true,
-      PX: ttlMs
-    });
+    const result = await client.set(
+      lockKey(resource, network, wallet, scope),
+      token,
+      { NX: true, PX: ttlMs }
+    );
     return result === "OK" ? token : null;
   }
 
@@ -144,13 +190,39 @@ class RedisWalletDataCache implements WalletDataCache {
     resource: WalletDataResource,
     network: string,
     wallet: string,
-    token: string
+    token: string,
+    scope?: string
   ): Promise<void> {
     const client = await getRedisClient();
     await client.eval(
       "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
-      { keys: [lockKey(resource, network, wallet)], arguments: [token] }
+      { keys: [lockKey(resource, network, wallet, scope)], arguments: [token] }
     );
+  }
+
+  async markMutation(
+    resource: WalletDataResource,
+    network: string,
+    wallet: string,
+    at: number,
+    ttlMs: number
+  ): Promise<void> {
+    const client = await getRedisClient();
+    await client.set(walletMutationKey(resource, network, wallet), String(at), {
+      PX: ttlMs
+    });
+  }
+
+  async readMutation(
+    resource: WalletDataResource,
+    network: string,
+    wallet: string
+  ): Promise<number | null> {
+    const client = await getRedisClient();
+    const value = Number(
+      await client.get(walletMutationKey(resource, network, wallet))
+    );
+    return Number.isFinite(value) && value > 0 ? value : null;
   }
 }
 
