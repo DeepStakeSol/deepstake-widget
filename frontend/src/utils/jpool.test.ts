@@ -265,3 +265,15 @@ describe('direct-stake registration helpers', () => {
     expect(hasNewDirectStake(before, { directStakes: null } as never)).toBe(false)
   })
 })
+
+describe('jpoolAtaRentLamports', () => {
+  it('reads the live rent and falls back to null', async () => {
+    const { jpoolAtaRentLamports } = await loadModules()
+    expect(jpoolAtaRentLamports({ ataRentLamports: '1488440' } as never)).toBe(BigInt(1_488_440))
+    expect(jpoolAtaRentLamports({ ataRentLamports: null } as never)).toBeNull()
+    // a pool response cached before the field existed
+    expect(jpoolAtaRentLamports({} as never)).toBeNull()
+    expect(jpoolAtaRentLamports({ ataRentLamports: '-1' } as never)).toBeNull()
+    expect(jpoolAtaRentLamports(null)).toBeNull()
+  })
+})

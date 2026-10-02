@@ -12,11 +12,11 @@ export interface JpoolCompletion {
 export function jpoolRegistrationText(registration: JpoolRegistration, validatorName: string) {
   switch (registration) {
     case 'pending':
-      return 'Deposit is being registered by JPool…'
+      return 'JPool usually registers a deposit within 5 minutes. Checking…'
     case 'registered':
       return `JPool has registered this deposit for ${validatorName}.`
     case 'not_yet':
-      return 'JPool has not registered this deposit yet. It will appear on the Manage tab once it does.'
+      return "JPool hasn't registered this deposit yet. It will appear on the Manage tab within a few minutes."
     case 'unknown':
       return `Check the Manage tab shortly to see this deposit counted for ${validatorName}.`
   }

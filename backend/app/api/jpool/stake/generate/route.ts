@@ -251,8 +251,8 @@ export async function POST(request: NextRequest) {
         stakePool: poolAddress,
         withdrawAuthority: await findStakePoolWithdrawAuthority(poolAddress),
         reserveStake: pool.reserveStake,
-        // TEMP(JPOOL-TMP-02): one-signer shape; indexer attribution is proven
-        // only by the J1 mainnet gate.
+        // The wallet funds the deposit itself (one signer). JPool's indexer
+        // attributes this shape: J1 mainnet gate, records 877 and 882.
         fundingAccount: walletSigner,
         destinationPoolAccount: jsolAta,
         managerFeeAccount: pool.managerFeeAccount,

@@ -13,16 +13,20 @@ import {
 } from '../utils/lamports'
 import { useIsWalletConnected } from './useIsWalletConnected'
 
-// TEMP(JPOOL-TMP-15): a constant reserve for the network fee and priority fee
-// instead of an estimate from the generated transaction.
+// Reserve for the network and priority fee. A real deposit costs about 5,000
+// lamports (J1 mainnet gate), so this leaves the wallet SOL for later fees too.
 export const FEE_RESERVE_LAMPORTS = PRIORITY_FEE_BUFFER_LAMPORTS
-// Rent-exempt minimum of a 165-byte SPL token account (the JSOL ATA).
+// Fallback rent for a 165-byte SPL token account (the JSOL ATA) when the live
+// value is unknown. This is the pre-2026 rent and above the current one
+// (1,488,440), so the fallback over-reserves rather than fails.
 export const TOKEN_ACCOUNT_RENT_LAMPORTS = BigInt(2_039_280)
 
 export interface UseLiquidStakeFormOptions {
   // From Manage `ataExists`: rent is reserved only when the ATA is confirmed
   // missing (`false`); `null`/`undefined` (unknown) reserves nothing extra.
   ataExists?: boolean | null
+  // Live ATA rent from `/jpool/pool`; null/undefined uses the fallback.
+  ataRentLamports?: bigint | null
 }
 
 // Normalizes typed input to digits and one dot with at most 9 decimals.
@@ -43,7 +47,7 @@ export function normalizeSolInput(value: string): string {
 // Stake form for liquid-staking deposits (JPool): no stake accounts, no stake
 // account rent, exact lamports. Mirrors the `useStakeForm` surface where it
 // can so the shared input components keep working.
-export function useLiquidStakeForm({ ataExists }: UseLiquidStakeFormOptions = {}) {
+export function useLiquidStakeForm({ ataExists, ataRentLamports }: UseLiquidStakeFormOptions = {}) {
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext)
   const { network } = useNetwork()
   const isConnected = useIsWalletConnected()
@@ -84,7 +88,8 @@ export function useLiquidStakeForm({ ataExists }: UseLiquidStakeFormOptions = {}
   }, [walletAddress, loadBalance])
 
   const reserveLamports =
-    FEE_RESERVE_LAMPORTS + (ataExists === false ? TOKEN_ACCOUNT_RENT_LAMPORTS : BigInt(0))
+    FEE_RESERVE_LAMPORTS +
+    (ataExists === false ? (ataRentLamports ?? TOKEN_ACCOUNT_RENT_LAMPORTS) : BigInt(0))
   const zero = BigInt(0)
   const maxStakeLamports =
     balanceLamports !== null && balanceLamports > reserveLamports

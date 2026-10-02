@@ -174,11 +174,11 @@ describe('StakeButtonJpool', () => {
     expect(success.title).toBe('Stake sent to JPool')
     expect(success.signature).toBe('sig-1')
     expect(success.message).toBe(
-      'You received ~0.007264 JSOL. Your deposit is tagged for DeepStake via JPool direct staking. Deposit is being registered by JPool…'
+      'You received ~0.007264 JSOL. Your deposit is tagged for DeepStake via JPool direct staking. JPool usually registers a deposit within 5 minutes. Checking…'
     )
   })
 
-  it('polls Manage at 3, 8 and 15 s and stops once a new record appears', async () => {
+  it('polls Manage at 15 s, 1, 3 and 5.5 min and stops once a new record appears', async () => {
     const { onManageLoaded } = renderButton()
     await clickStake()
     // the baseline read before the deposit
@@ -187,29 +187,36 @@ describe('StakeButtonJpool', () => {
       .mockResolvedValueOnce(manageWith(['1']))
       .mockResolvedValueOnce(manageWith(['1', '2']))
 
-    await advance(2_999)
+    await advance(14_999)
     expect(mocks.manageMock).toHaveBeenCalledTimes(1)
     await advance(1)
     expect(mocks.manageMock).toHaveBeenCalledTimes(2)
     expect(mocks.manageMock).toHaveBeenLastCalledWith(WALLET, VOTE, 'mainnet', { refresh: true })
-    expect(lastSuccess().message).toContain('Deposit is being registered by JPool…')
+    expect(lastSuccess().message).toContain(
+      'JPool usually registers a deposit within 5 minutes. Checking…'
+    )
 
-    await advance(5_000)
+    await advance(45_000)
     expect(mocks.manageMock).toHaveBeenCalledTimes(3)
     expect(onManageLoaded).toHaveBeenCalledTimes(2)
     expect(lastSuccess().message).toContain('JPool has registered this deposit for DeepStake.')
 
-    await advance(10_000)
+    await advance(300_000)
     expect(mocks.manageMock).toHaveBeenCalledTimes(3)
   })
 
   it('reports not-yet-registered after the last poll', async () => {
     renderButton()
     await clickStake()
-    await advance(15_000)
+    await advance(329_999)
     expect(mocks.manageMock).toHaveBeenCalledTimes(4)
     expect(lastSuccess().message).toContain(
-      'JPool has not registered this deposit yet. It will appear on the Manage tab once it does.'
+      'JPool usually registers a deposit within 5 minutes. Checking…'
+    )
+    await advance(1)
+    expect(mocks.manageMock).toHaveBeenCalledTimes(5)
+    expect(lastSuccess().message).toContain(
+      "JPool hasn't registered this deposit yet. It will appear on the Manage tab within a few minutes."
     )
   })
 
@@ -218,7 +225,7 @@ describe('StakeButtonJpool', () => {
     renderButton()
     await clickStake()
     mocks.manageMock.mockResolvedValue(manageWith(['1', '2']))
-    await advance(15_000)
+    await advance(330_000)
     expect(lastSuccess().message).toContain(
       'Check the Manage tab shortly to see this deposit counted for DeepStake.'
     )
@@ -231,7 +238,7 @@ describe('StakeButtonJpool', () => {
       .mockRejectedValueOnce(new Error('down'))
       .mockRejectedValueOnce(new Error('down'))
       .mockResolvedValueOnce(manageWith(['1', '2']))
-    await advance(15_000)
+    await advance(330_000)
     expect(lastSuccess().message).toContain('JPool has registered this deposit')
   })
 
@@ -241,7 +248,7 @@ describe('StakeButtonJpool', () => {
     await act(async () => lastSuccess().onClose())
     expect(onSuccess).toHaveBeenCalledTimes(1)
     expect(mocks.hideSuccessModal).toHaveBeenCalled()
-    await advance(15_000)
+    await advance(330_000)
     expect(mocks.manageMock).toHaveBeenCalledTimes(1)
   })
 

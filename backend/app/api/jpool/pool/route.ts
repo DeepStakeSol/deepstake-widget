@@ -12,6 +12,8 @@ import { jpoolErrorResponse } from "@/utils/solana/jpool/response";
 // re-reads the pool, so this cache only affects the pre-submit estimate.
 const POOL_CACHE_TTL_MS = 5 * 60_000;
 const POOL_CACHE_PREFIX = "jpool:v1:pool";
+// Size of an SPL Token account (the JSOL ATA a first deposit creates).
+const TOKEN_ACCOUNT_SIZE = BigInt(165);
 
 export interface JpoolPoolResponse {
   network: string;
@@ -21,6 +23,9 @@ export interface JpoolPoolResponse {
   lastUpdateEpoch: string;
   solDepositFee: { denominator: string; numerator: string };
   depositsRestricted: boolean;
+  // Live rent-exempt minimum for the JSOL ATA; null when the read failed (the
+  // widget then reserves a conservative constant).
+  ataRentLamports: string | null;
 }
 
 async function readCache(key: string): Promise<JpoolPoolResponse | null> {
@@ -57,10 +62,17 @@ export async function GET(request: NextRequest) {
     if (!getRpcEndpoint(network)) {
       throw new JpoolRouteError("JPOOL_RPC_UNAVAILABLE", 503);
     }
-    const pool = await fetchJpoolStakePool(
-      createRpcConnection(network),
-      address(poolAddress)
-    );
+    const rpc = createRpcConnection(network);
+    const [pool, ataRentLamports] = await Promise.all([
+      fetchJpoolStakePool(rpc, address(poolAddress)),
+      rpc
+        .getMinimumBalanceForRentExemption(TOKEN_ACCOUNT_SIZE, {
+          commitment: "confirmed"
+        })
+        .send()
+        .then((rent) => rent.toString())
+        .catch(() => null)
+    ]);
     const body: JpoolPoolResponse = {
       network,
       poolAddress,
@@ -71,7 +83,8 @@ export async function GET(request: NextRequest) {
         denominator: pool.solDepositFee.denominator.toString(),
         numerator: pool.solDepositFee.numerator.toString()
       },
-      depositsRestricted: pool.solDepositAuthority !== null
+      depositsRestricted: pool.solDepositAuthority !== null,
+      ataRentLamports
     };
     await writeCache(cacheKey, body);
     return NextResponse.json(body);

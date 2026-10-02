@@ -13,6 +13,7 @@ import { useLiquidStakeForm } from '../../hooks/useLiquidStakeForm'
 import {
   fetchJpoolManage,
   fetchJpoolPool,
+  jpoolAtaRentLamports,
   quoteJsolForPool,
   type JpoolManageResponse,
   type JpoolPoolResponse,
@@ -50,7 +51,10 @@ export function StakeFormJpool({ validatorInfo, voteAccount, secondsRemainToEpoc
     stakeLamports,
     inSufficientBalance,
     resetFormAndRefreshBalance,
-  } = useLiquidStakeForm({ ataExists: manage?.ataExists })
+  } = useLiquidStakeForm({
+    ataExists: manage?.ataExists,
+    ataRentLamports: jpoolAtaRentLamports(pool),
+  })
 
   const isMainnet = network === 'mainnet'
   const walletAddress = selectedWalletAccount?.address

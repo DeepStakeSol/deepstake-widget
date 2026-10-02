@@ -51,6 +51,15 @@ export interface JpoolPoolResponse {
   lastUpdateEpoch: string
   solDepositFee: { denominator: string; numerator: string }
   depositsRestricted: boolean
+  // Live rent for the JSOL ATA. Null when the backend could not read it;
+  // absent in responses cached before the field existed.
+  ataRentLamports?: string | null
+}
+
+// Live ATA rent from the pool response, or null to fall back to the constant.
+export function jpoolAtaRentLamports(pool: JpoolPoolResponse | null): bigint | null {
+  const rent = pool?.ataRentLamports
+  return typeof rent === 'string' && /^\d+$/.test(rent) ? BigInt(rent) : null
 }
 
 export async function fetchJpoolPool(network: string): Promise<JpoolPoolResponse> {
@@ -222,9 +231,10 @@ export function getJpoolErrorText(error: unknown): string {
   return (code && JPOOL_ERROR_TEXT[code]) || JPOOL_DEPOSIT_FAILED_TEXT
 }
 
-// Post-deposit registration check: JPool's indexer adds a `/find` record a few
-// seconds after the block. Delays are measured from confirmation.
-export const JPOOL_REGISTRATION_POLL_DELAYS_MS = [3_000, 8_000, 15_000] as const
+// Post-deposit registration check, measured from confirmation. JPool's indexer
+// runs on 5-minute marks (J1 mainnet gate: records created 2.5 and 3 min after
+// the block), so the last poll lands just past one full cycle.
+export const JPOOL_REGISTRATION_POLL_DELAYS_MS = [15_000, 60_000, 180_000, 330_000] as const
 
 function directStakeKey(record: JpoolDirectStake): string {
   return record.id ?? `${record.createdAt}:${record.poolTokenAmount}:${record.availableAmount}`

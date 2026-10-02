@@ -78,6 +78,7 @@ const POOL = {
   poolTokenSupply: '1000000000',
   solDepositFee: { denominator: '0', numerator: '0' },
   depositsRestricted: false,
+  ataRentLamports: '1488440',
 }
 
 function mockForm(overrides = {}) {
@@ -193,7 +194,10 @@ describe('StakeFormJpool', () => {
     expect(mocks.fetchJpoolManageMock).toHaveBeenCalledWith('wallet', VOTE, 'mainnet', {
       refresh: false,
     })
-    expect(mocks.useLiquidStakeFormMock).toHaveBeenLastCalledWith({ ataExists: false })
+    expect(mocks.useLiquidStakeFormMock).toHaveBeenLastCalledWith({
+      ataExists: false,
+      ataRentLamports: BigInt(1_488_440),
+    })
     expect(mocks.buttonProps).toHaveBeenLastCalledWith(
       expect.objectContaining({
         voteAccount: VOTE,

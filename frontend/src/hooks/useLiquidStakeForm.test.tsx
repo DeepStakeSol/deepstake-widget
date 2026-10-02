@@ -129,6 +129,24 @@ describe('useLiquidStakeForm', () => {
     expect(TOKEN_ACCOUNT_RENT_LAMPORTS).toBe(BigInt(2_039_280))
   })
 
+  it('uses the live ATA rent from the pool when it is known', async () => {
+    const { result } = renderForm(account, {
+      ataExists: false,
+      ataRentLamports: BigInt(1_488_440),
+    })
+    await waitFor(() => expect(result.current.balanceLamports).not.toBeNull())
+    expect(result.current.reserveLamports).toBe(FEE_RESERVE_LAMPORTS + BigInt(1_488_440))
+    act(() => result.current.setMax())
+    // 1 SOL - 0.001 fee reserve - 0.00148844 live rent
+    expect(result.current.stakeAmount).toBe('0.99751156')
+  })
+
+  it('ignores the live rent when the ATA exists', async () => {
+    const { result } = renderForm(account, { ataExists: true, ataRentLamports: BigInt(1_488_440) })
+    await waitFor(() => expect(result.current.balanceLamports).not.toBeNull())
+    expect(result.current.reserveLamports).toBe(FEE_RESERVE_LAMPORTS)
+  })
+
   it('Max fills balance minus reserve', async () => {
     const { result } = renderForm(account, { ataExists: false })
     await waitFor(() => expect(result.current.balanceLamports).not.toBeNull())

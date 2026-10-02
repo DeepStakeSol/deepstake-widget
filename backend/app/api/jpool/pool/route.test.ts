@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import jpoolStakePoolFixture from "@/test/fixtures/jpool-stake-pool.json";
 
-const { accountSendMock, redis, redisConfigured } = vi.hoisted(() => ({
+const { accountSendMock, rentSendMock, redis, redisConfigured } = vi.hoisted(() => ({
   accountSendMock: vi.fn(),
+  rentSendMock: vi.fn(),
   redis: { get: vi.fn(), set: vi.fn() },
   redisConfigured: { value: false }
 }));
@@ -11,7 +12,8 @@ const { accountSendMock, redis, redisConfigured } = vi.hoisted(() => ({
 vi.mock("@/utils/solana/rpc", () => ({
   getRpcEndpoint: vi.fn(() => "https://rpc.example"),
   createRpcConnection: vi.fn(() => ({
-    getAccountInfo: vi.fn(() => ({ send: accountSendMock }))
+    getAccountInfo: vi.fn(() => ({ send: accountSendMock })),
+    getMinimumBalanceForRentExemption: vi.fn(() => ({ send: rentSendMock }))
   }))
 }));
 
@@ -38,6 +40,7 @@ describe("GET /api/jpool/pool", () => {
         data: [jpoolStakePoolFixture.data, "base64"]
       }
     });
+    rentSendMock.mockReset().mockResolvedValue(BigInt(1_488_440));
     redis.get.mockReset().mockResolvedValue(null);
     redis.set.mockReset().mockResolvedValue("OK");
     redisConfigured.value = false;
@@ -51,7 +54,8 @@ describe("GET /api/jpool/pool", () => {
     expect(body).toMatchObject({
       network: "mainnet",
       poolAddress: POOL,
-      depositsRestricted: false
+      depositsRestricted: false,
+      ataRentLamports: "1488440"
     });
     for (const value of [
       body.totalLamports,
@@ -106,5 +110,12 @@ describe("GET /api/jpool/pool", () => {
     const response = await GET(request());
     expect(response.status).toBe(503);
     expect((await response.json()).code).toBe("JPOOL_RPC_UNAVAILABLE");
+  });
+
+  it("still returns the pool when the rent read fails", async () => {
+    rentSendMock.mockRejectedValue(new Error("rpc hiccup"));
+    const response = await GET(request());
+    expect(response.status).toBe(200);
+    expect((await response.json()).ataRentLamports).toBeNull();
   });
 });
