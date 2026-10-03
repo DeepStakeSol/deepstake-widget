@@ -1,0 +1,47 @@
+{
+  "provenance": {
+    "notes": "Real responses from POST https://api2.jpool.one/direct-stake/wallet-binding/bind, captured 2026-10-02/03 (TEMP-06) with test wallet 6vCSEqLYhE88vyppdpi7wa3aVbZhKffuAFcQhwqFfV3. Signatures are never stored: requests keep only the signed message and the signature format.",
+    "request": {
+      "headers": { "content-type": "application/json" },
+      "signatureFormat": "base64 of the 64-byte Ed25519 signature (88 chars, '==' padded)",
+      "originRequired": false
+    }
+  },
+  "signedMessage": "{\"wallet\":\"6vCSEqLYhE88vyppdpi7wa3aVbZhKffuAFcQhwqFfV3\",\"action\":\"bindWallet\",\"voteId\":\"DeEpSdaw8uBLQ5T2HQhDf8fBSVbm13jGqJwoSF3HTpL5\",\"timestamp\":1790956418243}",
+  "bound": {
+    "status": 201,
+    "body": {
+      "wallet": "6vCSEqLYhE88vyppdpi7wa3aVbZhKffuAFcQhwqFfV3",
+      "voteId": "DeEpSdaw8uBLQ5T2HQhDf8fBSVbm13jGqJwoSF3HTpL5",
+      "strategyId": null,
+      "amount": "0",
+      "updatedAt": "2026-10-02T15:54:14.534Z",
+      "id": 439,
+      "createdAt": "2026-10-02T15:54:14.528Z",
+      "boundTo": { "voteId": "DeEpSdaw8uBLQ5T2HQhDf8fBSVbm13jGqJwoSF3HTpL5" }
+    }
+  },
+  "alreadyBound": {
+    "status": 409,
+    "body": {
+      "message": "Wallet already has a binding",
+      "boundTo": { "voteId": "DeEpSdaw8uBLQ5T2HQhDf8fBSVbm13jGqJwoSF3HTpL5" }
+    }
+  },
+  "expiredTimestamp": {
+    "status": 401,
+    "body": {
+      "message": "Message expired or invalid timestamp",
+      "error": "Unauthorized",
+      "statusCode": 401
+    }
+  },
+  "badSignature": {
+    "status": 401,
+    "body": {
+      "message": "Signature verification failed",
+      "error": "Unauthorized",
+      "statusCode": 401
+    }
+  }
+}
