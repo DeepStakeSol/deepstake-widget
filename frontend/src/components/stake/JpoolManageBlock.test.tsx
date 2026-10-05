@@ -44,34 +44,121 @@ function manage(overrides: Partial<JpoolManageResponse> = {}): JpoolManageRespon
   }
 }
 
-function renderBlock(data: JpoolManageResponse | null, isLoading = false) {
+function renderBlock(
+  data: JpoolManageResponse | null,
+  validatorInfo: ValidatorProfile | null = profile
+) {
   return render(
     <JpoolManageBlock
       data={data}
-      isLoading={isLoading}
       network="mainnet"
-      validatorInfo={profile}
+      validatorInfo={validatorInfo}
       widgetVoteAccount={WIDGET_VOTE}
     />
   )
 }
 
+function valueUnder(label: string) {
+  return screen.getByText(label).nextElementSibling
+}
+
 describe('JpoolManageBlock', () => {
   beforeEach(() => {
-    fetchValidatorProfileMock.mockReset()
+    fetchValidatorProfileMock.mockReset().mockResolvedValue({ name: 'Other Validator' })
   })
 
-  it('shows a bound-here wallet in green with directed stake and balance', () => {
-    const { container } = renderBlock(manage())
-    const status = container.querySelector('.jm-status')
-    expect(status).toHaveTextContent('DeepStake')
-    expect(status).toHaveClass('jm-status-here')
-    expect(screen.getByText('Directed to DeepStake:').nextElementSibling).toHaveTextContent(
-      '0.007264 JSOL (~0.009999 SOL)'
-    )
-    expect(screen.getByText('Your balance:').nextElementSibling).toHaveTextContent('0.007264 JSOL')
+  it('shows the design layout for a wallet staked to this validator', () => {
+    renderBlock(manage())
+    const stakedTo = valueUnder('Staked to:')
+    expect(stakedTo).toHaveTextContent('DeepStake')
+    expect(stakedTo).toHaveClass('jm-validator', 'jm-tone-here')
+    // 7,264,213 JSOL * 1.3766 = 9,999,915 lamports, truncated to 5 decimals
+    expect(valueUnder('Summary stake:')).toHaveTextContent(/^0\.00999 SOL$/)
+    expect(valueUnder('Your balance:')).toHaveTextContent('0.00726 JSOL')
     expect(screen.queryByText(/Matching updates next epoch/)).not.toBeInTheDocument()
     expect(fetchValidatorProfileMock).not.toHaveBeenCalled()
+  })
+
+  it('explains the summary stake in a tooltip', () => {
+    const { container } = renderBlock(manage())
+    expect(container.querySelector('.jm-tooltip')).toHaveAttribute(
+      'data-tooltip',
+      'JSOL that JPool counts for DeepStake, in SOL at the current pool rate.'
+    )
+  })
+
+  it('names this validator for memo deposits without a binding (counted first)', () => {
+    renderBlock(manage({ uiStatus: 'not_bound', binding: null }))
+    expect(valueUnder('Staked to:')).toHaveTextContent('DeepStake')
+    expect(valueUnder('Staked to:')).toHaveClass('jm-tone-here')
+  })
+
+  it('names this validator when bound here even if nothing is counted yet', () => {
+    renderBlock(manage({ directStakes: [], countedForValidator: '0' }))
+    expect(valueUnder('Staked to:')).toHaveClass('jm-tone-here')
+    expect(valueUnder('Summary stake:')).toHaveTextContent('0.00000 SOL')
+  })
+
+  it('keeps this validator when counted, even if the binding points elsewhere', () => {
+    renderBlock(
+      manage({
+        uiStatus: 'bound_elsewhere',
+        binding: { voteId: OTHER_VOTE, amount: '5', updatedAt: null },
+      })
+    )
+    expect(valueUnder('Staked to:')).toHaveTextContent('DeepStake')
+    expect(screen.getByText(/Your JPool binding points to another validator/)).toBeInTheDocument()
+  })
+
+  it('shows another validator in amber, with its name once loaded', async () => {
+    fetchValidatorProfileMock.mockResolvedValue({ name: 'Other Validator' })
+    renderBlock(
+      manage({
+        uiStatus: 'bound_elsewhere',
+        binding: { voteId: OTHER_VOTE, amount: '5', updatedAt: null },
+        directStakes: [],
+        countedForValidator: '0',
+      })
+    )
+    const stakedTo = valueUnder('Staked to:')
+    expect(stakedTo).toHaveClass('jm-tone-elsewhere')
+    expect(stakedTo).toHaveTextContent('Vote11...111111')
+    await waitFor(() => expect(stakedTo).toHaveTextContent('Other Validator'))
+    expect(fetchValidatorProfileMock).toHaveBeenCalledWith(OTHER_VOTE, 'mainnet')
+    expect(screen.getByRole('link', { name: 'JPool app' })).toHaveAttribute(
+      'href',
+      `https://app.jpool.one/validators/${WIDGET_VOTE}/direct`
+    )
+  })
+
+  it('keeps the truncated key when the name lookup fails', async () => {
+    fetchValidatorProfileMock.mockRejectedValue(new Error('down'))
+    renderBlock(
+      manage({
+        uiStatus: 'bound_elsewhere',
+        binding: { voteId: OTHER_VOTE, amount: null, updatedAt: null },
+        directStakes: [],
+        countedForValidator: '0',
+      })
+    )
+    await waitFor(() => expect(fetchValidatorProfileMock).toHaveBeenCalled())
+    expect(valueUnder('Staked to:')).toHaveTextContent('Vote11...111111')
+  })
+
+  it('shows an untouched wallet as not direct staked', () => {
+    renderBlock(
+      manage({
+        uiStatus: 'not_bound',
+        binding: null,
+        directStakes: [],
+        countedForValidator: '0',
+        walletAtaBalance: '0',
+        ataExists: false,
+      })
+    )
+    expect(valueUnder('Staked to:')).toHaveTextContent('NOT DIRECT STAKED TO ANY VALIDATOR')
+    expect(valueUnder('Staked to:')).toHaveClass('jm-tone-none')
+    expect(valueUnder('Your balance:')).toHaveTextContent('0.00000 JSOL')
   })
 
   it('shows the matching hint when bound here and less is counted than held', () => {
@@ -79,46 +166,6 @@ describe('JpoolManageBlock', () => {
     expect(
       screen.getByText('JPool refreshes balances in the background. Matching updates next epoch.')
     ).toBeInTheDocument()
-  })
-
-  it('shows another validator in amber, with its name once loaded', async () => {
-    fetchValidatorProfileMock.mockResolvedValue({ name: 'Other Validator' })
-    const { container } = renderBlock(
-      manage({
-        uiStatus: 'bound_elsewhere',
-        binding: { voteId: OTHER_VOTE, amount: '5', updatedAt: null },
-      })
-    )
-    const status = container.querySelector('.jm-status')
-    expect(status).toHaveClass('jm-status-elsewhere')
-    expect(status).toHaveTextContent('Vote11...111111')
-    await waitFor(() => expect(status).toHaveTextContent('Other Validator'))
-    expect(fetchValidatorProfileMock).toHaveBeenCalledWith(OTHER_VOTE, 'mainnet')
-    expect(screen.queryByText(/Matching updates next epoch/)).not.toBeInTheDocument()
-  })
-
-  it('keeps the truncated key when the name lookup fails', async () => {
-    fetchValidatorProfileMock.mockRejectedValue(new Error('down'))
-    const { container } = renderBlock(
-      manage({
-        uiStatus: 'bound_elsewhere',
-        binding: { voteId: OTHER_VOTE, amount: null, updatedAt: null },
-      })
-    )
-    await waitFor(() => expect(fetchValidatorProfileMock).toHaveBeenCalled())
-    expect(container.querySelector('.jm-status')).toHaveTextContent('Vote11...111111')
-  })
-
-  it('shows an unbound wallet in gray', () => {
-    const { container } = renderBlock(
-      manage({ uiStatus: 'not_bound', binding: null, directStakes: [], countedForValidator: '0' })
-    )
-    const status = container.querySelector('.jm-status')
-    expect(status).toHaveTextContent('Not bound to any validator')
-    expect(status).toHaveClass('jm-status-none')
-    expect(screen.getByText('Directed to DeepStake:').nextElementSibling).toHaveTextContent(
-      '0 JSOL (~0 SOL)'
-    )
   })
 
   it('degrades when the binding is unavailable but keeps the balance', () => {
@@ -130,75 +177,57 @@ describe('JpoolManageBlock', () => {
         sources: { wallet: 'ok', pool: 'ok', binding: 'unavailable', directStakes: 'ok' },
       })
     )
-    expect(screen.getByText('Status temporarily unavailable')).toBeInTheDocument()
-    expect(screen.getByText('Directed to DeepStake:').nextElementSibling).toHaveTextContent(
-      'temporarily unavailable'
-    )
+    expect(valueUnder('Staked to:')).toHaveTextContent('STATUS TEMPORARILY UNAVAILABLE')
+    expect(valueUnder('Summary stake:')).toHaveTextContent('temporarily unavailable')
     expect(screen.getByText(UNAVAILABLE)).toBeInTheDocument()
-    expect(screen.getByText('Your balance:').nextElementSibling).toHaveTextContent('0.007264 JSOL')
+    expect(valueUnder('Your balance:')).toHaveTextContent('0.00726 JSOL')
   })
 
-  it('shows unknown direct stakes and wallet balance as unavailable', () => {
+  it('shows unknown amounts as unavailable', () => {
     renderBlock(
       manage({
+        uiStatus: 'not_bound',
+        binding: null,
         directStakes: null,
         countedForValidator: null,
         walletAtaBalance: null,
         ataExists: null,
-        sources: { wallet: 'unavailable', pool: 'ok', binding: 'ok', directStakes: 'unavailable' },
       })
     )
-    expect(screen.getByText('Directed to DeepStake:').nextElementSibling).toHaveTextContent(
-      'temporarily unavailable'
-    )
-    expect(screen.getByText('Your balance:').nextElementSibling).toHaveTextContent(
-      'temporarily unavailable'
-    )
+    expect(valueUnder('Staked to:')).toHaveTextContent('STATUS TEMPORARILY UNAVAILABLE')
+    expect(valueUnder('Summary stake:')).toHaveTextContent('temporarily unavailable')
+    expect(valueUnder('Your balance:')).toHaveTextContent('temporarily unavailable')
   })
 
-  it('omits the SOL estimate when the pool rate is unavailable', () => {
+  it('shows the counted amount in JSOL when the pool rate is unavailable', () => {
     renderBlock(manage({ poolRate: null }))
-    expect(screen.getByText('Directed to DeepStake:').nextElementSibling).toHaveTextContent(
-      /^0\.007264 JSOL$/
-    )
+    expect(valueUnder('Summary stake:')).toHaveTextContent(/^0\.00726 JSOL$/)
   })
 
-  it('renders the loading and no-data states', () => {
-    const { rerender } = renderBlock(null, true)
-    expect(screen.getByText('Loading JPool data…')).toBeInTheDocument()
-    rerender(
-      <JpoolManageBlock
-        data={null}
-        isLoading={false}
-        network="mainnet"
-        validatorInfo={profile}
-        widgetVoteAccount={WIDGET_VOTE}
-      />
-    )
+  it('shows the unavailable note and unstake text without data', () => {
+    renderBlock(null)
     expect(screen.getByText(UNAVAILABLE)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Jupiter' })).toBeInTheDocument()
   })
 
-  it('keeps the bind slot empty and links to the JPool app and Jupiter', () => {
-    renderBlock(manage({ uiStatus: 'not_bound', binding: null }))
+  it('keeps the bind slot empty and offers only Jupiter for unstaking', () => {
+    renderBlock(manage())
     expect(screen.getByTestId('jpool-bind-slot')).toBeEmptyDOMElement()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'JPool app' })).toHaveAttribute(
-      'href',
-      'https://app.jpool.one'
-    )
+    expect(
+      screen.getByText(/To unstake it, sell them through your wallet or DEX\./)
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /When selling, the distribution of direct stake will change proportionally\./
+      )
+    ).toBeInTheDocument()
+    expect(screen.getAllByRole('link')).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'Jupiter' })).toHaveAttribute('href', 'https://jup.ag')
   })
 
   it('falls back to the truncated widget vote without a validator profile', () => {
-    render(
-      <JpoolManageBlock
-        data={manage()}
-        isLoading={false}
-        network="mainnet"
-        validatorInfo={null}
-        widgetVoteAccount={WIDGET_VOTE}
-      />
-    )
-    expect(screen.getByText('Directed to DeEpSd...3HTpL5:')).toBeInTheDocument()
+    renderBlock(manage(), null)
+    expect(valueUnder('Staked to:')).toHaveTextContent('DeEpSd...3HTpL5')
   })
 })

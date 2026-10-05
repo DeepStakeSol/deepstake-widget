@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatLamports, parseSolToLamports, solNumberToLamports } from './lamports'
+import {
+  formatLamports,
+  formatLamportsFixed,
+  parseSolToLamports,
+  solNumberToLamports,
+} from './lamports'
 
 describe('parseSolToLamports', () => {
   it.each([
@@ -63,5 +68,19 @@ describe('solNumberToLamports', () => {
 
   it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])('maps %s to zero', (value) => {
     expect(solNumberToLamports(value)).toBe(BigInt(0))
+  })
+})
+
+describe('formatLamportsFixed', () => {
+  it.each([
+    [BigInt(6_000_000_000), 5, '6.00000'],
+    [BigInt('1256000000000'), 5, '1256.00000'],
+    [BigInt(7_264_213), 5, '0.00726'],
+    [BigInt(9_999_999), 5, '0.00999'],
+    [BigInt(0), 5, '0.00000'],
+    [BigInt(1_500_000_000), 0, '1'],
+    [BigInt(-1_500_000_000), 2, '-1.50'],
+  ])('formats %s with %i decimals', (lamports, decimals, expected) => {
+    expect(formatLamportsFixed(lamports, decimals)).toBe(expected)
   })
 })

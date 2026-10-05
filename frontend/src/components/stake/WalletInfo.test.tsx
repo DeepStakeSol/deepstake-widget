@@ -120,4 +120,20 @@ describe("WalletInfo", () => {
     expect(onMax).toHaveBeenCalledTimes(1);
     expect(onSetStakeAmount).not.toHaveBeenCalled();
   });
+
+  it("hides Half/MAX when amount buttons are off", () => {
+    render(
+      <WalletInfo
+        isConnected
+        address="wallet-address"
+        balance={10}
+        onSetStakeAmount={vi.fn()}
+        onSetFormattedStakeAmount={vi.fn()}
+        showAmountButtons={false}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Half" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "MAX" })).not.toBeInTheDocument();
+  });
 });

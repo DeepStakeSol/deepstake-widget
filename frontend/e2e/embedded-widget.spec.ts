@@ -809,8 +809,12 @@ test("a four-tab mainnet embed shows JPool after eligibility and keeps the width
   await expect(page.getByText("You receive ~0.007264 JSOL")).toBeVisible();
 
   await page.locator('[role="tab"]:visible').filter({ hasText: "Manage" }).click();
-  await expect(page.locator(".jm-status")).toHaveText("E2E Validator");
-  await expect(page.getByText("0.007264 JSOL (~0.009999 SOL)")).toBeVisible();
+  await expect(page.getByText("Staked to:")).toBeVisible();
+  await expect(page.locator(".jm-validator")).toHaveText("E2E Validator");
+  await expect(page.locator(".jm-validator")).toHaveCSS("text-transform", "uppercase");
+  await expect(page.getByText("0.00999 SOL")).toBeVisible();
+  await expect(page.getByText("0.00726 JSOL")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Jupiter" })).toBeVisible();
   expect(await width()).toBeCloseTo(640, 0);
   expect(consoleErrors).toEqual([]);
 });

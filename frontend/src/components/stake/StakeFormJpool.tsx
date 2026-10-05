@@ -9,6 +9,7 @@ import { WalletConnectButton } from '../WalletConnectButton'
 import { StakeInputSection } from './StakeInputSection'
 import { StakeLayout } from './StakeLayout'
 import { NoWalletTable } from './NoWalletTable'
+import { WalletInfo } from './WalletInfo'
 import { useLiquidStakeForm } from '../../hooks/useLiquidStakeForm'
 import {
   fetchJpoolManage,
@@ -19,6 +20,7 @@ import {
   type JpoolPoolResponse,
 } from '../../utils/jpool'
 import { formatLamports } from '../../utils/lamports'
+import { getImageUrl } from '../../utils/imageUrl'
 import { ValidatorProfile } from '../../utils/solana/validator'
 
 install()
@@ -187,13 +189,85 @@ export function StakeFormJpool({ validatorInfo, voteAccount, secondsRemainToEpoc
       }
       manageChildren={
         isConnected && selectedWalletAccount ? (
-          <JpoolManageBlock
-            data={manage}
-            isLoading={manageIsLoading}
-            network={network}
-            validatorInfo={validatorInfo}
-            widgetVoteAccount={voteAccount}
-          />
+          <div className="manage-wrap jpool-manage">
+            {manageIsLoading && (
+              <div className="manage-overlay" role="status" aria-label="Loading JPool data">
+                <img
+                  className="manage-loader-light"
+                  src={getImageUrl('/images/mid_loader.png')}
+                  alt=""
+                />
+                <img
+                  className="manage-loader-dark"
+                  src={getImageUrl('/images/big_loader.png')}
+                  alt=""
+                />
+              </div>
+            )}
+            <WalletInfo
+              isConnected={isConnected}
+              address={walletAddress}
+              balance={balance}
+              onSetStakeAmount={handleInputChange}
+              onSetFormattedStakeAmount={handleInputChange}
+              showAmountButtons={false}
+            />
+            {/* Until the first answer arrives, the overlay covers the block. */}
+            {(manage || !manageIsLoading) && (
+              <JpoolManageBlock
+                data={manage}
+                network={network}
+                validatorInfo={validatorInfo}
+                widgetVoteAccount={voteAccount}
+              />
+            )}
+            <style>{`
+              [data-widget="deepstake"] .jpool-manage {
+                position: relative;
+                min-height: 200px;
+              }
+              /* Design: the Manage wallet row uses the body font, larger.
+                 WalletInfo sets these inline, hence !important. */
+              [data-widget="deepstake"] .jpool-manage .wallet-pubkey {
+                font-family: inherit !important;
+                font-size: 18px !important;
+                color: #000;
+              }
+              [data-widget="deepstake"][data-theme="dark"] .jpool-manage .wallet-pubkey {
+                color: #fff;
+              }
+              [data-widget="deepstake"] .jpool-manage .manage-overlay {
+                position: absolute;
+                inset: 0;
+                background: rgba(255, 255, 255, 0.92);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10;
+                border-radius: 4px;
+              }
+              [data-widget="deepstake"][data-theme="dark"] .jpool-manage .manage-overlay {
+                background: rgba(18, 18, 24, 0.92);
+              }
+              [data-widget="deepstake"] .jpool-manage .manage-loader-light,
+              [data-widget="deepstake"] .jpool-manage .manage-loader-dark {
+                width: 48px;
+                height: 48px;
+                object-fit: contain;
+                animation: jpool-overlay-spin 1s linear infinite;
+              }
+              [data-widget="deepstake"] .jpool-manage .manage-loader-dark { display: none; }
+              [data-widget="deepstake"][data-theme="dark"] .jpool-manage .manage-loader-light {
+                display: none;
+              }
+              [data-widget="deepstake"][data-theme="dark"] .jpool-manage .manage-loader-dark {
+                display: block;
+              }
+              @keyframes jpool-overlay-spin {
+                to { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
         ) : (
           <>
             <NoWalletTable />

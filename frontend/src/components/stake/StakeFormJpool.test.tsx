@@ -27,6 +27,13 @@ vi.mock('../WalletConnectButton', () => ({
   WalletConnectButton: () => <button type="button">Connect Wallet</button>,
 }))
 vi.mock('./NoWalletTable', () => ({ NoWalletTable: () => <div>No Wallet Table</div> }))
+vi.mock('./WalletInfo', () => ({
+  WalletInfo: (props: { address?: string; showAmountButtons?: boolean }) => (
+    <div data-testid="manage-wallet-row">
+      {props.address}:{String(props.showAmountButtons)}
+    </div>
+  ),
+}))
 vi.mock('./StakeInputSection', () => ({
   StakeInputSection: (props: { stakeMode?: string; inputHint?: React.ReactNode }) => {
     mocks.inputProps(props)
@@ -226,5 +233,21 @@ describe('StakeFormJpool', () => {
     mockForm()
     renderForm(null)
     expect(screen.getByText(/tagged for DeEpSd\.\.\.3HTpL5 via JPool/)).toBeInTheDocument()
+  })
+
+  it('shows the wallet row without Half/MAX and an overlay while Manage loads', async () => {
+    let resolveManage!: (value: unknown) => void
+    mocks.fetchJpoolManageMock.mockReturnValue(new Promise((resolve) => (resolveManage = resolve)))
+    mockForm({ selectedWalletAccount: { address: 'wallet' }, isConnected: true })
+    renderForm()
+
+    expect(screen.getByTestId('manage-wallet-row')).toHaveTextContent('wallet:false')
+    expect(await screen.findByRole('status', { name: 'Loading JPool data' })).toBeInTheDocument()
+    expect(screen.queryByText(/JPool Manage/)).not.toBeInTheDocument()
+
+    const { act } = await import('@testing-library/react')
+    await act(async () => resolveManage({ uiStatus: 'not_bound', ataExists: true }))
+    expect(screen.getByText('JPool Manage not_bound')).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'Loading JPool data' })).not.toBeInTheDocument()
   })
 })

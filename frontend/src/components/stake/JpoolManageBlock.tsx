@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
 import { JPOOL_DATA_UNAVAILABLE_TEXT, type JpoolManageResponse } from '../../utils/jpool'
-import { formatLamports } from '../../utils/lamports'
+import { formatLamportsFixed } from '../../utils/lamports'
+import { cssImageUrl } from '../../utils/imageUrl'
 import { fetchValidatorProfile, type ValidatorProfile } from '../../utils/solana/validator'
 import type { NetworkType } from '../../utils/config'
 
 export const JPOOL_APP_URL = 'https://app.jpool.one'
 export const JUPITER_URL = 'https://jup.ag'
 
+// Manage amounts use 5 decimals, as in the design.
+const DISPLAY_DECIMALS = 5
+
 interface Props {
   data: JpoolManageResponse | null
-  isLoading: boolean
   network: NetworkType
   validatorInfo?: ValidatorProfile | null
   widgetVoteAccount: string
@@ -22,10 +25,6 @@ function truncateAddress(address: string, chars = 6): string {
 
 function parseAmount(value: string | null | undefined): bigint | null {
   return value && /^\d+$/.test(value) ? BigInt(value) : null
-}
-
-function formatJsol(value: bigint): string {
-  return `${formatLamports(value, 6)} JSOL`
 }
 
 // Name of the validator this wallet is bound to when it is not the widget's
@@ -52,33 +51,22 @@ function useBoundElsewhereName(voteId: string | null, network: NetworkType) {
   return state?.key === lookupKey ? state.name : null
 }
 
-export function JpoolManageBlock({
-  data,
-  isLoading,
-  network,
-  validatorInfo,
-  widgetVoteAccount,
-}: Props) {
+type StakedTo =
+  | { tone: 'here'; text: string; title?: string }
+  | { tone: 'elsewhere'; text: string; title?: string }
+  | { tone: 'none' | 'unknown'; text: string }
+
+export function JpoolManageBlock({ data, network, validatorInfo, widgetVoteAccount }: Props) {
   const elsewhereVoteId =
     data?.uiStatus === 'bound_elsewhere' && data.binding ? data.binding.voteId : null
   const elsewhereName = useBoundElsewhereName(elsewhereVoteId, network)
-
-  if (isLoading && !data) {
-    return (
-      <>
-        <div className="jm-wrap">
-          <div className="jm-row jm-muted">Loading JPool data…</div>
-        </div>
-        <JmStyles />
-      </>
-    )
-  }
 
   if (!data) {
     return (
       <>
         <div className="jm-wrap">
-          <div className="jm-row jm-warn">{JPOOL_DATA_UNAVAILABLE_TEXT}</div>
+          <p className="jm-note jm-warn">{JPOOL_DATA_UNAVAILABLE_TEXT}</p>
+          <JmUnstake />
         </div>
         <JmStyles />
       </>
@@ -88,15 +76,11 @@ export function JpoolManageBlock({
   const validatorName = validatorInfo?.name || truncateAddress(widgetVoteAccount)
   const walletBalance = parseAmount(data.walletAtaBalance)
   const counted = parseAmount(data.countedForValidator)
-  const rate = data.poolRate
-    ? {
-        totalLamports: parseAmount(data.poolRate.totalLamports),
-        poolTokenSupply: parseAmount(data.poolRate.poolTokenSupply),
-      }
-    : null
+  const totalLamports = parseAmount(data.poolRate?.totalLamports)
+  const poolTokenSupply = parseAmount(data.poolRate?.poolTokenSupply)
   const countedSol =
-    counted !== null && rate?.totalLamports && rate.poolTokenSupply
-      ? (counted * rate.totalLamports) / rate.poolTokenSupply
+    counted !== null && totalLamports !== null && poolTokenSupply
+      ? (counted * totalLamports) / poolTokenSupply
       : null
   const showMatchingHint =
     data.uiStatus === 'bound_here' &&
@@ -104,87 +88,112 @@ export function JpoolManageBlock({
     walletBalance !== null &&
     counted < walletBalance
 
-  let boundTo: { text: string; tone: 'here' | 'elsewhere' | 'none' | 'unknown'; title?: string }
-  switch (data.uiStatus) {
-    case 'bound_here':
-      boundTo = { text: validatorName, tone: 'here', title: data.binding?.voteId }
-      break
-    case 'bound_elsewhere':
-      boundTo = {
-        text: elsewhereName || truncateAddress(data.binding?.voteId ?? ''),
-        tone: 'elsewhere',
-        title: data.binding?.voteId,
-      }
-      break
-    case 'not_bound':
-      boundTo = { text: 'Not bound to any validator', tone: 'none' }
-      break
-    default:
-      boundTo = { text: 'Status temporarily unavailable', tone: 'unknown' }
+  // Counted first: anything JPool counts for this validator (memo deposits or a
+  // binding here) names it, even when the binding points elsewhere.
+  let stakedTo: StakedTo
+  if ((counted !== null && counted > BigInt(0)) || data.uiStatus === 'bound_here') {
+    stakedTo = { tone: 'here', text: validatorName, title: widgetVoteAccount }
+  } else if (data.uiStatus === 'bound_elsewhere') {
+    stakedTo = {
+      tone: 'elsewhere',
+      text: elsewhereName || truncateAddress(data.binding?.voteId ?? ''),
+      title: data.binding?.voteId,
+    }
+  } else if (data.uiStatus === 'not_bound' && counted !== null) {
+    stakedTo = { tone: 'none', text: 'NOT DIRECT STAKED TO ANY VALIDATOR' }
+  } else {
+    stakedTo = { tone: 'unknown', text: 'STATUS TEMPORARILY UNAVAILABLE' }
   }
 
   return (
     <>
       <div className="jm-wrap">
-        <div className="jm-row">
-          <span className="jm-label">Bound to:</span>{' '}
-          <span className={`jm-status jm-status-${boundTo.tone}`} title={boundTo.title}>
-            {boundTo.text}
-          </span>
-        </div>
-
-        <div className="jm-row">
-          <span className="jm-label">Directed to {validatorName}:</span>{' '}
-          {counted !== null ? (
-            <span className="jm-value">
-              {formatJsol(counted)}
-              {countedSol !== null && ` (~${formatLamports(countedSol, 6)} SOL)`}
-            </span>
-          ) : (
-            <span className="jm-muted">temporarily unavailable</span>
-          )}
-        </div>
-
-        <div className="jm-row">
-          <span className="jm-label">Your balance:</span>{' '}
-          {walletBalance !== null ? (
-            <span className="jm-value">{formatJsol(walletBalance)}</span>
-          ) : (
-            <span className="jm-muted">temporarily unavailable</span>
-          )}
-        </div>
-
-        {showMatchingHint && (
-          <div className="jm-row jm-hint">
-            JPool refreshes balances in the background. Matching updates next epoch.
+        <div className="jm-grid">
+          <div className="jm-cell">
+            <div className="jm-label">Staked to:</div>
+            <div
+              className={`jm-validator jm-tone-${stakedTo.tone}`}
+              title={'title' in stakedTo ? stakedTo.title : undefined}
+            >
+              {stakedTo.text}
+            </div>
+            {/* TEMP(JPOOL-TMP-18): bind cannot overwrite another binding (C-03);
+                the widget points to the JPool app instead of re-binding. */}
+            {data.uiStatus === 'bound_elsewhere' && (
+              <p className="jm-note jm-warn">
+                Your JPool binding points to another validator. Unbind it in the{' '}
+                <a
+                  href={`${JPOOL_APP_URL}/validators/${widgetVoteAccount}/direct`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  JPool app
+                </a>{' '}
+                to bind it to {validatorName}.
+              </p>
+            )}
           </div>
-        )}
+
+          <div className="jm-cell">
+            <div className="jm-label">Summary stake:</div>
+            {counted === null ? (
+              <div className="jm-value jm-muted">temporarily unavailable</div>
+            ) : (
+              <div className="jm-value">
+                {countedSol !== null
+                  ? `${formatLamportsFixed(countedSol, DISPLAY_DECIMALS)} SOL`
+                  : `${formatLamportsFixed(counted, DISPLAY_DECIMALS)} JSOL`}
+                <span
+                  className="jm-tooltip"
+                  data-tooltip={`JSOL that JPool counts for ${validatorName}, in SOL at the current pool rate.`}
+                />
+              </div>
+            )}
+            {showMatchingHint && (
+              <p className="jm-note jm-hint">
+                JPool refreshes balances in the background. Matching updates next epoch.
+              </p>
+            )}
+          </div>
+
+          <div className="jm-cell">
+            <div className="jm-label">Your balance:</div>
+            {walletBalance === null ? (
+              <div className="jm-value jm-muted">temporarily unavailable</div>
+            ) : (
+              <div className="jm-value">
+                {formatLamportsFixed(walletBalance, DISPLAY_DECIMALS)} JSOL
+              </div>
+            )}
+          </div>
+        </div>
 
         {data.uiStatus === 'error' && (
-          <div className="jm-row jm-warn">{JPOOL_DATA_UNAVAILABLE_TEXT}</div>
+          <p className="jm-note jm-warn">{JPOOL_DATA_UNAVAILABLE_TEXT}</p>
         )}
 
-        {/* J2-3 renders the Bind / Re-bind controls here. */}
+        {/* J2-3 renders the Bind control here. */}
         <div className="jm-bind-slot" data-testid="jpool-bind-slot" />
 
-        <div className="jm-unstake">
-          <p>
-            To unstake, convert JSOL back to SOL in the JPool app (instant for a higher fee, or
-            delayed until the epoch ends for a lower fee), or swap JSOL on a DEX. Selling or moving
-            JSOL reduces the stake counted for the validator.
-          </p>
-          <div className="jm-links">
-            <a href={JPOOL_APP_URL} target="_blank" rel="noopener noreferrer" className="jm-link">
-              JPool app
-            </a>
-            <a href={JUPITER_URL} target="_blank" rel="noopener noreferrer" className="jm-link">
-              Jupiter
-            </a>
-          </div>
-        </div>
+        <JmUnstake />
       </div>
       <JmStyles />
     </>
+  )
+}
+
+function JmUnstake() {
+  return (
+    <div className="jm-unstake">
+      <p>
+        To unstake it, sell them through your wallet or DEX.
+        <br />
+        When selling, the distribution of direct stake will change proportionally.
+      </p>
+      <a href={JUPITER_URL} target="_blank" rel="noopener noreferrer" className="jm-jupiter">
+        Jupiter
+      </a>
+    </div>
   )
 }
 
@@ -195,79 +204,132 @@ function JmStyles() {
         box-sizing: border-box;
         width: 100%;
         padding: 0 30px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        font-size: 14px;
-        color: #111;
+        color: #000;
       }
+
+      [data-widget="deepstake"] .jm-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        column-gap: 24px;
+        row-gap: 16px;
+        margin: 16px 0 0;
+      }
+
+      [data-widget="deepstake"] .jm-cell { min-width: 0; }
 
       [data-widget="deepstake"] .jm-label {
-        color: #888;
-      }
-
-      [data-widget="deepstake"] .jm-value,
-      [data-widget="deepstake"] .jm-status {
-        font-family: monospace;
+        font-size: 16px;
         font-weight: 600;
+        margin-bottom: 6px;
       }
 
-      [data-widget="deepstake"] .jm-status-here { color: #18864b; }
-      [data-widget="deepstake"] .jm-status-elsewhere { color: #a76100; }
-      [data-widget="deepstake"] .jm-status-none,
-      [data-widget="deepstake"] .jm-status-unknown,
-      [data-widget="deepstake"] .jm-muted { color: #aaa; font-weight: 400; }
+      [data-widget="deepstake"] .jm-validator,
+      [data-widget="deepstake"] .jm-value {
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+      }
 
-      [data-widget="deepstake"] .jm-hint { color: #1a6fa8; font-size: 12px; }
-      [data-widget="deepstake"] .jm-warn { color: #a76100; font-size: 13px; line-height: 1.5; }
+      [data-widget="deepstake"] .jm-validator { text-transform: uppercase; }
+      [data-widget="deepstake"] .jm-value { display: inline-flex; align-items: center; }
 
+      [data-widget="deepstake"] .jm-tone-here { color: #18864b; }
+      [data-widget="deepstake"] .jm-tone-elsewhere { color: #a76100; }
+      [data-widget="deepstake"] .jm-tone-none,
+      [data-widget="deepstake"] .jm-tone-unknown,
+      [data-widget="deepstake"] .jm-muted { color: #aaa; }
+
+      /* Self-contained copy of the q-mark tooltip: the shared rules live in
+         components that are not mounted on the Manage tab. */
+      [data-widget="deepstake"] .jm-tooltip {
+        display: inline-block;
+        position: relative;
+        width: 16px;
+        height: 16px;
+        margin-left: 8px;
+        flex-shrink: 0;
+        background-image: ${cssImageUrl('/images/q_mark.png')};
+        background-size: contain;
+        background-repeat: no-repeat;
+        cursor: help;
+      }
+
+      [data-widget="deepstake"] .jm-tooltip:hover::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        right: 100%;
+        top: -8px;
+        margin-right: 6px;
+        width: 150px;
+        background: #E5E4E4;
+        color: #000;
+        font-size: 10px;
+        font-weight: 400;
+        line-height: 1.2;
+        border-radius: 6px;
+        padding: 8px 10px;
+        z-index: 1000;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      [data-widget="deepstake"] .jm-note {
+        margin: 8px 0 0;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      [data-widget="deepstake"] .jm-note a { color: inherit; text-decoration: underline; }
+      [data-widget="deepstake"] .jm-hint { color: #1a6fa8; }
+      [data-widget="deepstake"] .jm-warn { color: #a76100; }
+
+      /* The Manage tab content is 315 px tall; this fits the design without
+         scrolling for a one-line validator name. */
       [data-widget="deepstake"] .jm-unstake {
-        margin-top: 10px;
-        background: #fff;
-        border-radius: 10px;
-        padding: 20px 0 30px;
+        padding: 20px 0 4px;
+        /* the text may use the right padding, as in the design */
+        margin-right: -30px;
       }
 
       [data-widget="deepstake"] .jm-unstake p {
         margin: 0 0 10px;
-        color: #555;
+        color: #777;
         font-size: 13px;
         line-height: 1.5;
       }
 
-      [data-widget="deepstake"] .jm-links {
-        display: flex;
-        gap: 10px;
-      }
-
-      [data-widget="deepstake"] .jm-link {
+      [data-widget="deepstake"] .jm-jupiter {
         display: inline-block;
         background: #E5E4E4;
-        color: #000;
+        color: #555;
         text-decoration: none;
-        padding: 0 16px;
-        border-radius: 10px;
+        padding: 4px 0;
+        border-radius: 12px;
         font-weight: 500;
-        height: 24px;
-        min-width: 100px;
+        width: 120px;
         text-align: center;
         font-size: 16px;
       }
 
-      [data-widget="deepstake"] .jm-link:hover { opacity: 0.8; }
+      [data-widget="deepstake"] .jm-jupiter:hover { opacity: 0.8; }
 
       [data-widget="deepstake"][data-theme="dark"] .jm-wrap { color: #fff; }
-      [data-widget="deepstake"][data-theme="dark"] .jm-label,
-      [data-widget="deepstake"][data-theme="dark"] .jm-muted,
-      [data-widget="deepstake"][data-theme="dark"] .jm-status-none,
-      [data-widget="deepstake"][data-theme="dark"] .jm-status-unknown,
-      [data-widget="deepstake"][data-theme="dark"] .jm-unstake p { color: #9F9FAC; }
-      [data-widget="deepstake"][data-theme="dark"] .jm-status-here { color: #5fd38d; }
-      [data-widget="deepstake"][data-theme="dark"] .jm-status-elsewhere,
+      [data-widget="deepstake"][data-theme="dark"] .jm-tone-here { color: #5fd38d; }
+      [data-widget="deepstake"][data-theme="dark"] .jm-tone-elsewhere,
       [data-widget="deepstake"][data-theme="dark"] .jm-warn { color: #f4b860; }
+      [data-widget="deepstake"][data-theme="dark"] .jm-tone-none,
+      [data-widget="deepstake"][data-theme="dark"] .jm-tone-unknown,
+      [data-widget="deepstake"][data-theme="dark"] .jm-muted,
+      [data-widget="deepstake"][data-theme="dark"] .jm-unstake p { color: #9F9FAC; }
       [data-widget="deepstake"][data-theme="dark"] .jm-hint { color: #6ab8f0; }
-      [data-widget="deepstake"][data-theme="dark"] .jm-unstake { background: transparent; }
-      [data-widget="deepstake"][data-theme="dark"] .jm-link { background: #5A5A62; color: #9F9FAC; }
+      [data-widget="deepstake"][data-theme="dark"] .jm-jupiter { background: #5A5A62; color: #9F9FAC; }
+      [data-widget="deepstake"][data-theme="dark"] .jm-tooltip {
+        background-image: ${cssImageUrl('/images/q_mark_dk.png')};
+      }
+      [data-widget="deepstake"][data-theme="dark"] .jm-tooltip:hover::after {
+        background: #090F19;
+        color: #9F9FAC;
+      }
     `}</style>
   )
 }

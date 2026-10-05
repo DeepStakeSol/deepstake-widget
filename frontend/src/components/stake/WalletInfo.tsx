@@ -13,6 +13,8 @@ interface WalletInfoProps {
   // their own Half/MAX handlers.
   onHalf?: () => void;
   onMax?: () => void;
+  // Manage views show only the wallet row, without Half/MAX.
+  showAmountButtons?: boolean;
 }
 
 const styles = {
@@ -70,7 +72,7 @@ const styles = {
     },
   };
 
-export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, onSetFormattedStakeAmount, onHalf, onMax }: WalletInfoProps) {
+export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, onSetFormattedStakeAmount, onHalf, onMax, showAmountButtons = true }: WalletInfoProps) {
   
   const handleMaxClick = () => {
       // calculate how much SOL can actually be staked after rent and fees
@@ -130,6 +132,7 @@ export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, on
           </div>
         )}
 
+      {showAmountButtons && (
       <div className="buttons">
         <button 
               type="button"
@@ -146,6 +149,7 @@ export function WalletInfo({ isConnected, address, balance, onSetStakeAmount, on
               MAX
         </button>
       </div>
+      )}
       <style>{`
         [data-widget="deepstake"] .wallet-icon {
           background-size: contain;

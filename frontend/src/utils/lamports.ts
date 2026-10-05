@@ -39,3 +39,17 @@ export function solNumberToLamports(sol: number): bigint {
   if (!Number.isFinite(sol) || sol <= 0) return BigInt(0)
   return BigInt(Math.round(sol * 1_000_000_000))
 }
+
+// 6_000_000_000n, 5 -> "6.00000". Truncates like `formatLamports` but keeps
+// exactly `decimals` digits, for aligned display amounts.
+export function formatLamportsFixed(lamports: bigint, decimals: number): string {
+  const digits = Math.max(0, Math.min(decimals, LAMPORT_DECIMALS))
+  const negative = lamports < BigInt(0)
+  const abs = negative ? -lamports : lamports
+  const whole = (abs / LAMPORTS_PER_SOL_BIGINT).toString()
+  const fraction = (abs % LAMPORTS_PER_SOL_BIGINT)
+    .toString()
+    .padStart(LAMPORT_DECIMALS, '0')
+    .slice(0, digits)
+  return (negative ? '-' : '') + whole + (digits > 0 ? '.' + fraction : '')
+}
