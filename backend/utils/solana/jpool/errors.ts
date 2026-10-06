@@ -13,7 +13,16 @@ export type JpoolErrorCode =
   | "JPOOL_RPC_UNAVAILABLE"
   | "JPOOL_GENERATE_FAILED"
   | "JPOOL_MANAGE_FAILED"
-  | "JPOOL_ELIGIBILITY_FAILED";
+  | "JPOOL_ELIGIBILITY_FAILED"
+  | "INVALID_BIND_MESSAGE"
+  | "INVALID_SIGNATURE"
+  | "JPOOL_BIND_EXPIRED"
+  | "JPOOL_BOUND_ELSEWHERE"
+  | "JPOOL_BIND_REJECTED"
+  | "JPOOL_UNAVAILABLE"
+  | "JPOOL_RATE_LIMITED"
+  | "JPOOL_BIND_UNAVAILABLE"
+  | "JPOOL_BIND_FAILED";
 
 export const JPOOL_ERROR_MESSAGES: Record<JpoolErrorCode, string> = {
   JPOOL_MAINNET_ONLY: "JPool is available on mainnet only",
@@ -32,7 +41,17 @@ export const JPOOL_ERROR_MESSAGES: Record<JpoolErrorCode, string> = {
   JPOOL_RPC_UNAVAILABLE: "Solana RPC is temporarily unavailable",
   JPOOL_GENERATE_FAILED: "Failed to generate JPool deposit transaction",
   JPOOL_MANAGE_FAILED: "Failed to load JPool data",
-  JPOOL_ELIGIBILITY_FAILED: "Failed to check JPool eligibility"
+  JPOOL_ELIGIBILITY_FAILED: "Failed to check JPool eligibility",
+  INVALID_BIND_MESSAGE: "Bind message is invalid",
+  INVALID_SIGNATURE: "Bind signature is invalid",
+  JPOOL_BIND_EXPIRED:
+    "The signed message has expired. Please sign again and check your device clock.",
+  JPOOL_BOUND_ELSEWHERE: "This wallet is already bound to another validator",
+  JPOOL_BIND_REJECTED: "JPool rejected the binding",
+  JPOOL_UNAVAILABLE: "JPool is temporarily unavailable. Please try again later.",
+  JPOOL_RATE_LIMITED: "Too many bind attempts. Please try again later.",
+  JPOOL_BIND_UNAVAILABLE: "Wallet binding is temporarily unavailable",
+  JPOOL_BIND_FAILED: "Failed to bind wallet"
 };
 
 export class JpoolRouteError extends Error {

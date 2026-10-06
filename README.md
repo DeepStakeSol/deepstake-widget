@@ -189,6 +189,8 @@ Before showing the tab, the widget asks the backend whether JPool accepts direct
 
 JPool transactions are simulated and relayed by the backend (`POST /api/transaction/send`), so the JPool tab needs no browser-side RPC endpoint.
 
+Wallet binding goes through `POST /api/jpool/bind?network=mainnet` with the body `{ wallet, signature, message }`. The backend checks the signed message (compact JSON, `action: "bindWallet"`, the same wallet, a timestamp no older than 5 minutes). It verifies the Ed25519 signature before forwarding the request to JPool. Requests are limited to 10 per minute per client IP (from nginx's `X-Real-IP`) and 10 per minute per wallet. The route requires Redis and returns `503` without it. JPool never overwrites an existing binding: a wallet bound to another validator gets `409 JPOOL_BOUND_ELSEWHERE`, and the user changes the binding in the JPool app.
+
 Example:
 
 ```html
