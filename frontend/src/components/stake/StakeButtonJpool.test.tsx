@@ -11,8 +11,7 @@ const mocks = vi.hoisted(() => ({
   sendMock: vi.fn(),
   confirmMock: vi.fn(),
   invalidateMock: vi.fn(),
-  showSuccessModal: vi.fn(),
-  hideSuccessModal: vi.fn(),
+  dialogProps: vi.fn(),
 }))
 
 vi.mock('@solana/react', () => ({
@@ -24,11 +23,18 @@ vi.mock('@solana/kit', () => ({
   getBase64EncodedWireTransaction: (tx: string) => `wire(${tx})`,
 }))
 vi.mock('../../utils/config', () => ({ getCurrentChain: () => 'solana:mainnet' }))
-vi.mock('../../context/StakingModalContext', () => ({
-  useStakingModal: () => ({
-    showSuccessModal: mocks.showSuccessModal,
-    hideSuccessModal: mocks.hideSuccessModal,
-  }),
+vi.mock('./JpoolCompletionDialog', () => ({
+  JpoolCompletionDialog: (props: {
+    completed: { signature: string; registration: string }
+    onClose: () => void
+  }) => {
+    mocks.dialogProps(props)
+    return (
+      <div role="dialog" aria-label="Stake sent to JPool">
+        {props.completed.signature}:{props.completed.registration}
+      </div>
+    )
+  },
 }))
 vi.mock('../../utils/api', () => ({
   confirmTransaction: mocks.confirmMock,
@@ -107,13 +113,17 @@ async function clickStake() {
   })
 }
 
-function lastSuccess() {
-  return mocks.showSuccessModal.mock.calls.at(-1)?.[0] as {
-    title: string
-    message: string
-    signature: string
-    onClose: () => void
-  }
+type DialogProps = {
+  completed: { signature: string; expectedJsol: bigint; registration: string }
+  manage: JpoolManageResponse | null
+  manageFailed: boolean
+  validatorName: string
+  onManageLoaded: (manage: JpoolManageResponse) => void
+  onClose: () => void
+}
+
+function lastDialog() {
+  return mocks.dialogProps.mock.calls.at(-1)?.[0] as DialogProps
 }
 
 async function advance(ms: number) {
@@ -170,54 +180,50 @@ describe('StakeButtonJpool', () => {
     })
     expect(mocks.invalidateMock).toHaveBeenCalledWith(WALLET, 'mainnet')
 
-    const success = lastSuccess()
-    expect(success.title).toBe('Stake sent to JPool')
-    expect(success.signature).toBe('sig-1')
-    expect(success.message).toBe(
-      'You received ~0.007264 JSOL. Your deposit is tagged for DeepStake via JPool direct staking. JPool usually registers a deposit within 5 minutes. Checking…'
-    )
+    expect(screen.getByRole('dialog', { name: 'Stake sent to JPool' })).toBeInTheDocument()
+    const dialog = lastDialog()
+    expect(dialog.completed).toEqual({
+      signature: 'sig-1',
+      expectedJsol: BigInt(7264274),
+      registration: 'pending',
+    })
+    expect(dialog.validatorName).toBe('DeepStake')
   })
 
   it('polls Manage at 15 s, 1, 3 and 5.5 min and stops once a new record appears', async () => {
     const { onManageLoaded } = renderButton()
     await clickStake()
-    // the baseline read before the deposit
-    expect(mocks.manageMock).toHaveBeenCalledTimes(1)
+    // the baseline read before the deposit and the binding read after confirm
+    expect(mocks.manageMock).toHaveBeenCalledTimes(2)
     mocks.manageMock
       .mockResolvedValueOnce(manageWith(['1']))
       .mockResolvedValueOnce(manageWith(['1', '2']))
 
     await advance(14_999)
-    expect(mocks.manageMock).toHaveBeenCalledTimes(1)
-    await advance(1)
     expect(mocks.manageMock).toHaveBeenCalledTimes(2)
+    await advance(1)
+    expect(mocks.manageMock).toHaveBeenCalledTimes(3)
     expect(mocks.manageMock).toHaveBeenLastCalledWith(WALLET, VOTE, 'mainnet', { refresh: true })
-    expect(lastSuccess().message).toContain(
-      'JPool usually registers a deposit within 5 minutes. Checking…'
-    )
+    expect(lastDialog().completed.registration).toBe('pending')
 
     await advance(45_000)
-    expect(mocks.manageMock).toHaveBeenCalledTimes(3)
-    expect(onManageLoaded).toHaveBeenCalledTimes(2)
-    expect(lastSuccess().message).toContain('JPool has registered this deposit for DeepStake.')
+    expect(mocks.manageMock).toHaveBeenCalledTimes(4)
+    expect(onManageLoaded).toHaveBeenCalledTimes(3)
+    expect(lastDialog().completed.registration).toBe('registered')
 
     await advance(300_000)
-    expect(mocks.manageMock).toHaveBeenCalledTimes(3)
+    expect(mocks.manageMock).toHaveBeenCalledTimes(4)
   })
 
   it('reports not-yet-registered after the last poll', async () => {
     renderButton()
     await clickStake()
     await advance(329_999)
-    expect(mocks.manageMock).toHaveBeenCalledTimes(4)
-    expect(lastSuccess().message).toContain(
-      'JPool usually registers a deposit within 5 minutes. Checking…'
-    )
-    await advance(1)
     expect(mocks.manageMock).toHaveBeenCalledTimes(5)
-    expect(lastSuccess().message).toContain(
-      "JPool hasn't registered this deposit yet. It will appear on the Manage tab within a few minutes."
-    )
+    expect(lastDialog().completed.registration).toBe('pending')
+    await advance(1)
+    expect(mocks.manageMock).toHaveBeenCalledTimes(6)
+    expect(lastDialog().completed.registration).toBe('not_yet')
   })
 
   it('cannot tell registration without a baseline', async () => {
@@ -226,9 +232,7 @@ describe('StakeButtonJpool', () => {
     await clickStake()
     mocks.manageMock.mockResolvedValue(manageWith(['1', '2']))
     await advance(330_000)
-    expect(lastSuccess().message).toContain(
-      'Check the Manage tab shortly to see this deposit counted for DeepStake.'
-    )
+    expect(lastDialog().completed.registration).toBe('unknown')
   })
 
   it('keeps polling through failed polls', async () => {
@@ -239,17 +243,60 @@ describe('StakeButtonJpool', () => {
       .mockRejectedValueOnce(new Error('down'))
       .mockResolvedValueOnce(manageWith(['1', '2']))
     await advance(330_000)
-    expect(lastSuccess().message).toContain('JPool has registered this deposit')
+    expect(lastDialog().completed.registration).toBe('registered')
   })
 
   it('stops polling and resets the form on close', async () => {
     const { onSuccess } = renderButton()
     await clickStake()
-    await act(async () => lastSuccess().onClose())
+    await act(async () => lastDialog().onClose())
     expect(onSuccess).toHaveBeenCalledTimes(1)
-    expect(mocks.hideSuccessModal).toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await advance(330_000)
-    expect(mocks.manageMock).toHaveBeenCalledTimes(1)
+    // baseline and the post-confirm binding read only: no polls after close
+    expect(mocks.manageMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('reads Manage right after confirm and hands it to the dialog', async () => {
+    const fresh = { ...manageWith(['1']), uiStatus: 'not_bound' } as JpoolManageResponse
+    mocks.manageMock.mockResolvedValueOnce(manageWith(['1'])).mockResolvedValueOnce(fresh)
+    const { onManageLoaded } = renderButton()
+    await clickStake()
+    expect(mocks.manageMock).toHaveBeenNthCalledWith(2, WALLET, VOTE, 'mainnet', { refresh: true })
+    expect(onManageLoaded).toHaveBeenCalledWith(fresh)
+    expect(lastDialog().manage).toBe(fresh)
+    expect(lastDialog().manageFailed).toBe(false)
+  })
+
+  it('tells the dialog when the post-confirm Manage read fails', async () => {
+    mocks.manageMock
+      .mockResolvedValueOnce(manageWith(['1']))
+      .mockRejectedValueOnce(new Error('down'))
+    renderButton()
+    await clickStake()
+    expect(lastDialog().manage).toBeNull()
+    expect(lastDialog().manageFailed).toBe(true)
+  })
+
+  it('passes Manage from a dialog bind up to the form', async () => {
+    const { onManageLoaded } = renderButton()
+    await clickStake()
+    const bound = { ...manageWith(['1']), uiStatus: 'bound_here' } as JpoolManageResponse
+    act(() => lastDialog().onManageLoaded(bound))
+    expect(onManageLoaded).toHaveBeenLastCalledWith(bound)
+    expect(lastDialog().manage).toBe(bound)
+  })
+
+  it('starts a new deposit with a fresh dialog state', async () => {
+    renderButton()
+    await clickStake()
+    expect(lastDialog().manage).not.toBeNull()
+    await act(async () => lastDialog().onClose())
+    mocks.manageMock.mockReset().mockResolvedValueOnce(manageWith(['1']))
+    mocks.manageMock.mockReturnValueOnce(new Promise(() => undefined))
+    await clickStake()
+    expect(lastDialog().manage).toBeNull()
+    expect(lastDialog().manageFailed).toBe(false)
   })
 
   it('confirms the returned signature when the relay fails after sending', async () => {
@@ -266,7 +313,7 @@ describe('StakeButtonJpool', () => {
       'mainnet',
       expect.objectContaining({ txid: 'sig-maybe' })
     )
-    expect(lastSuccess().signature).toBe('sig-maybe')
+    expect(lastDialog().completed.signature).toBe('sig-maybe')
   })
 
   it('reports the send failure when that signature does not confirm', async () => {
@@ -283,7 +330,7 @@ describe('StakeButtonJpool', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'The transaction could not be confirmed as sent. Check your wallet activity before trying again.'
     )
-    expect(mocks.showSuccessModal).not.toHaveBeenCalled()
+    expect(mocks.dialogProps).not.toHaveBeenCalled()
   })
 
   it('maps backend error codes to JPool texts', async () => {
@@ -307,7 +354,7 @@ describe('StakeButtonJpool', () => {
 
     await clickStake()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(lastSuccess().signature).toBe('sig-1')
+    expect(lastDialog().completed.signature).toBe('sig-1')
   })
 
   it('ignores a second click while submitting', async () => {

@@ -117,7 +117,13 @@ describe('JpoolManageBind', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it.each(['bound_here', 'bound_elsewhere', 'error'] as const)(
+  it('shows the bound line for bound_here, e.g. after a reload', () => {
+    renderBind(data('bound_here'))
+    expect(screen.getByRole('status')).toHaveTextContent('Wallet bound to DeepStake.')
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it.each(['bound_elsewhere', 'error'] as const)(
     'offers no action when the status is %s',
     (uiStatus) => {
       renderBind(data(uiStatus))
@@ -145,9 +151,16 @@ describe('JpoolManageBind', () => {
     expect(document.querySelector(`[data-reason="${reason}"]`)).toBeTruthy()
   })
 
-  it('shows nothing for an unsupported wallet unless it is not_bound', () => {
+  it('shows the bound line for an unsupported wallet bound here (bound in the JPool app)', () => {
     renderBind(data('bound_here'), account([]))
+    expect(screen.getByRole('status')).toHaveTextContent('Wallet bound to DeepStake.')
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(mocks.hook).not.toHaveBeenCalled()
+  })
+
+  it('shows nothing for an unsupported wallet bound elsewhere', () => {
+    const { container } = renderBind(data('bound_elsewhere'), account([]))
+    expect(container).toBeEmptyDOMElement()
   })
 })
 

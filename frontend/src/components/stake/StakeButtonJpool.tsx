@@ -8,7 +8,6 @@ import {
 } from '@solana/kit'
 import { getCurrentChain } from '../../utils/config'
 import { StakeButtonBase } from './StakeButtonBase'
-import { useStakingModal } from '../../context/StakingModalContext'
 import { BackendRequestError } from '../../utils/backendRequest'
 import {
   confirmTransaction,
@@ -24,11 +23,8 @@ import {
   JPOOL_REGISTRATION_POLL_DELAYS_MS,
   type JpoolManageResponse,
 } from '../../utils/jpool'
-import {
-  jpoolSuccessMessage,
-  type JpoolCompletion,
-  type JpoolRegistration,
-} from '../../utils/jpoolCopy'
+import { type JpoolCompletion, type JpoolRegistration } from '../../utils/jpoolCopy'
+import { JpoolCompletionDialog } from './JpoolCompletionDialog'
 
 interface Props {
   network: string
@@ -59,12 +55,14 @@ export function StakeButtonJpool({
   onManageLoaded,
   onSuccess,
 }: Props) {
-  const { showSuccessModal, hideSuccessModal } = useStakingModal()
   const walletSigner = useWalletAccountTransactionSigner(account, getCurrentChain())
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [completed, setCompleted] = useState<JpoolCompletion | undefined>()
   const [currentError, setCurrentError] = useState<unknown>()
+  // Manage as seen by the completion dialog for the current run (binding step).
+  const [completionManage, setCompletionManage] = useState<JpoolManageResponse | null>(null)
+  const [completionManageFailed, setCompletionManageFailed] = useState(false)
   const inFlight = useRef(false)
   // Bumped on every submit and on close, so late polls of an old run are dropped.
   const runId = useRef(0)
@@ -99,7 +97,10 @@ export function StakeButtonJpool({
           }
           if (runId.current !== run || done) return
           remaining -= 1
-          if (manage) onManageLoaded(manage)
+          if (manage) {
+            onManageLoaded(manage)
+            setCompletionManage(manage)
+          }
           if (before && manage && hasNewDirectStake(before, manage)) {
             finish('registered')
           } else if (remaining === 0) {
@@ -121,6 +122,8 @@ export function StakeButtonJpool({
       stopPolling()
       setCurrentError(undefined)
       setCompleted(undefined)
+      setCompletionManage(null)
+      setCompletionManageFailed(false)
       setIsSubmitting(true)
 
       try {
@@ -176,6 +179,18 @@ export function StakeButtonJpool({
           expectedJsol: BigInt(quote.expectedJsol),
           registration: 'pending',
         })
+        // Fresh binding status for the dialog's Bind step; the stake mutation
+        // has already marked Manage stale.
+        fetchJpoolManage(account.address, voteAccount, network, { refresh: true })
+          .then((manage) => {
+            if (runId.current !== run) return
+            onManageLoaded(manage)
+            setCompletionManage((current) => current ?? manage)
+          })
+          .catch((error) => {
+            console.error('JPool Manage read after deposit failed:', error)
+            if (runId.current === run) setCompletionManageFailed(true)
+          })
         pollRegistration(run, await baseline)
       } catch (error) {
         console.error('JPool staking error:', error)
@@ -193,6 +208,7 @@ export function StakeButtonJpool({
       network,
       stopPolling,
       pollRegistration,
+      onManageLoaded,
     ]
   )
 
@@ -200,21 +216,19 @@ export function StakeButtonJpool({
     runId.current += 1
     stopPolling()
     setCompleted(undefined)
+    setCompletionManage(null)
+    setCompletionManageFailed(false)
     onSuccess()
   }, [onSuccess, stopPolling])
 
-  useEffect(() => {
-    if (completed) {
-      showSuccessModal({
-        title: 'Stake sent to JPool',
-        message: jpoolSuccessMessage(completed, validatorName),
-        signature: completed.signature,
-        onClose: handleClose,
-      })
-    } else {
-      hideSuccessModal()
-    }
-  }, [completed, validatorName, showSuccessModal, hideSuccessModal, handleClose])
+  // A bind from the dialog refreshes Manage; keep the tab and the dialog in step.
+  const handleBindManageLoaded = useCallback(
+    (manage: JpoolManageResponse) => {
+      onManageLoaded(manage)
+      setCompletionManage(manage)
+    },
+    [onManageLoaded]
+  )
 
   const hasAmount = stakeLamports !== null
   const label = isSubmitting
@@ -228,12 +242,27 @@ export function StakeButtonJpool({
           : 'Stake'
 
   return (
-    <StakeButtonBase
-      buttonLabel={label}
-      disableStakeButton={isSubmitting || depositsPaused || inSufficientBalance || !hasAmount}
-      isSendingTransaction={isSubmitting}
-      handleSubmit={handleSubmit}
-      error={currentError}
-    />
+    <>
+      <StakeButtonBase
+        buttonLabel={label}
+        disableStakeButton={isSubmitting || depositsPaused || inSufficientBalance || !hasAmount}
+        isSendingTransaction={isSubmitting}
+        handleSubmit={handleSubmit}
+        error={currentError}
+      />
+      {completed && (
+        <JpoolCompletionDialog
+          completed={completed}
+          manage={completionManage}
+          manageFailed={completionManageFailed}
+          account={account}
+          voteAccount={voteAccount}
+          network={network}
+          validatorName={validatorName}
+          onManageLoaded={handleBindManageLoaded}
+          onClose={handleClose}
+        />
+      )}
+    </>
   )
 }

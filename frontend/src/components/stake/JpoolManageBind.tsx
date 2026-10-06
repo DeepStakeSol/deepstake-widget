@@ -22,6 +22,8 @@ interface Props {
 export function JpoolManageBind(props: Props) {
   const capability = getJpoolBindCapability(props.account)
   if (capability === 'supported') return <JpoolManageBindAction {...props} />
+  // Also for wallets that cannot sign: they may have bound in the JPool app.
+  if (props.data?.uiStatus === 'bound_here') return <BoundLine validatorName={props.validatorName} />
   if (props.data?.uiStatus !== 'not_bound') return null
   return <JpoolBindUnsupported voteAccount={props.voteAccount} reason={capability} />
 }
@@ -43,13 +45,11 @@ function JpoolManageBindAction({
 
   if (status === 'success') {
     const alreadyBound = result !== null && 'alreadyBound' in result && result.alreadyBound
-    return (
-      <p className="jm-bind-status jm-tone-here" role="status">
-        {alreadyBound ? 'Wallet already bound to' : 'Wallet bound to'} {validatorName}.
-      </p>
-    )
+    return <BoundLine validatorName={validatorName} alreadyBound={alreadyBound} />
   }
 
+  // Persistent state, e.g. after a reload: the same line as right after binding.
+  if (data?.uiStatus === 'bound_here') return <BoundLine validatorName={validatorName} />
   if (data?.uiStatus !== 'not_bound') return null
 
   const busy = status === 'signing' || status === 'submitting'
@@ -80,5 +80,19 @@ function JpoolManageBindAction({
         </p>
       )}
     </div>
+  )
+}
+
+function BoundLine({
+  validatorName,
+  alreadyBound = false,
+}: {
+  validatorName: string
+  alreadyBound?: boolean
+}) {
+  return (
+    <p className="jm-bind-status jm-tone-here" role="status">
+      {alreadyBound ? 'Wallet already bound to' : 'Wallet bound to'} {validatorName}.
+    </p>
   )
 }

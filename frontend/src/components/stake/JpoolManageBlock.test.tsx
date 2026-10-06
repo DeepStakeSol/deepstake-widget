@@ -249,6 +249,24 @@ describe('JpoolManageBlock', () => {
     )
   })
 
+  it('keeps the bound line in the 4th cell for a wallet bound here', () => {
+    const account = {
+      address: '6vCSEqLYhE88vyppdpi7wa3aVbZhKffuAFcQhwqFfV3',
+      features: ['solana:signTransaction'],
+      chains: ['solana:mainnet'],
+    } as unknown as UiWalletAccount
+    render(
+      <JpoolManageBlock
+        data={manage()}
+        network="mainnet"
+        validatorInfo={profile}
+        widgetVoteAccount={WIDGET_VOTE}
+        account={account}
+      />
+    )
+    expect(screen.getByTestId('jpool-bind-cell')).toHaveTextContent('Wallet bound to DeepStake.')
+  })
+
   it('falls back to the truncated widget vote without a validator profile', () => {
     renderBlock(manage(), null)
     expect(valueUnder('Staked to:')).toHaveTextContent('DeEpSd...3HTpL5')

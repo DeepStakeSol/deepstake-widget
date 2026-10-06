@@ -859,6 +859,8 @@ test("a four-tab mainnet embed shows JPool after eligibility and keeps the width
   await expect(page.locator(".jm-validator")).toHaveCSS("text-transform", "uppercase");
   await expect(page.getByText("0.00999 SOL")).toBeVisible();
   await expect(page.getByText("0.00726 JSOL")).toBeVisible();
+  // A wallet already bound here (e.g. after a reload) keeps the bound line.
+  await expect(page.locator(".jm-bind-cell")).toHaveText("Wallet bound to E2E Validator.");
   await expect(page.getByRole("link", { name: "Jupiter" })).toBeVisible();
   expect(await width()).toBeCloseTo(640, 0);
   expect(consoleErrors).toEqual([]);

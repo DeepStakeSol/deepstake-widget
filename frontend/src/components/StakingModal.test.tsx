@@ -16,6 +16,7 @@ vi.mock("../context/StakingModalContext", () => ({
     successData: {
       title: "Congratulations!",
       message: "Your stake has been activated.",
+      signature: "sig-shared",
       onClose: onCloseMock,
     },
     hideSuccessModal: hideSuccessModalMock,
@@ -50,5 +51,23 @@ describe("StakingModal", () => {
 
     expect(onCloseMock).toHaveBeenCalledOnce();
     expect(hideSuccessModalMock).toHaveBeenCalledOnce();
+  });
+
+  // Regression for J2-4: the JPool tab has its own completion dialog; the shared
+  // success modal used by Native, Blaze, Vault, Unstake and Withdraw is unchanged.
+  it("keeps the shared success modal layout for the other tabs", () => {
+    render(
+      <div data-widget="deepstake">
+        <StakingModal />
+      </div>,
+    );
+
+    const modal = screen.getByRole("alertdialog");
+    expect(modal).toHaveTextContent("Congratulations!");
+    expect(modal).toHaveTextContent("Your stake has been activated.");
+    expect(screen.getByAltText("staking logo")).toBeInTheDocument();
+    const links = screen.getAllByRole("link");
+    expect(links.map((link) => link.textContent)).toEqual(["Explorer", "Solscan", "Orb"]);
+    links.forEach((link) => expect(link.getAttribute("href")).toContain("sig-shared"));
   });
 });

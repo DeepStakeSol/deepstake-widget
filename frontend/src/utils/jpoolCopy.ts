@@ -24,11 +24,19 @@ export function jpoolRegistrationText(registration: JpoolRegistration, validator
 
 // TEMP(JPOOL-TMP-13): the success text shows the pre-send quote ("~X JSOL");
 // the exact minted amount is only visible after a Manage refresh.
-export function jpoolSuccessMessage(completed: JpoolCompletion, validatorName: string) {
+export function jpoolDepositText(completed: JpoolCompletion, validatorName: string) {
   return [
     `You received ~${formatLamports(completed.expectedJsol, 6)} JSOL.`,
     // TEMP(JPOOL-TMP-01): softened copy until JPool confirms the attribution policy.
     `Your deposit is tagged for ${validatorName} via JPool direct staking.`,
-    jpoolRegistrationText(completed.registration, validatorName),
   ].join(' ')
+}
+
+// Post-deposit Bind step (spec §8).
+export function jpoolBindPromptTitle(validatorName: string) {
+  return `Bind your wallet to ${validatorName}?`
+}
+
+export function jpoolBindPromptText(validatorName: string) {
+  return `Binding makes all JSOL in this wallet, now and in the future, count for ${validatorName}. Your wallet will ask you to sign a short message. Nothing is spent.`
 }
