@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import type { UiWalletAccount } from '@wallet-standard/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { JpoolManageResponse } from '../../utils/jpool'
 import type { ValidatorProfile } from '../../utils/solana/validator'
@@ -210,9 +211,9 @@ describe('JpoolManageBlock', () => {
     expect(screen.getByRole('link', { name: 'Jupiter' })).toBeInTheDocument()
   })
 
-  it('keeps the bind slot empty and offers only Jupiter for unstaking', () => {
+  it('keeps the bind cell empty without a wallet and offers only Jupiter for unstaking', () => {
     renderBlock(manage())
-    expect(screen.getByTestId('jpool-bind-slot')).toBeEmptyDOMElement()
+    expect(screen.getByTestId('jpool-bind-cell')).toBeEmptyDOMElement()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(
       screen.getByText(/To unstake it, sell them through your wallet or DEX\./)
@@ -224,6 +225,28 @@ describe('JpoolManageBlock', () => {
     ).toBeInTheDocument()
     expect(screen.getAllByRole('link')).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'Jupiter' })).toHaveAttribute('href', 'https://jup.ag')
+  })
+
+  it('hosts the bind control in the 4th grid cell, keeping four cells', () => {
+    const account = {
+      address: '6vCSEqLYhE88vyppdpi7wa3aVbZhKffuAFcQhwqFfV3',
+      features: ['solana:signTransaction'],
+      chains: ['solana:mainnet'],
+    } as unknown as UiWalletAccount
+    const { container } = render(
+      <JpoolManageBlock
+        data={manage({ binding: null, uiStatus: 'not_bound' })}
+        network="mainnet"
+        validatorInfo={profile}
+        widgetVoteAccount={WIDGET_VOTE}
+        account={account}
+      />
+    )
+    expect(container.querySelectorAll('.jm-grid > .jm-cell')).toHaveLength(4)
+    // A wallet without signMessage gets the JPool link in that cell.
+    expect(screen.getByTestId('jpool-bind-cell')).toHaveTextContent(
+      'Your wallet does not support message signing.'
+    )
   })
 
   it('falls back to the truncated widget vote without a validator profile', () => {

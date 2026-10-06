@@ -349,3 +349,13 @@ export function getJpoolBindErrorText(code: string | undefined, retryAfterSecond
   }
   return (code && JPOOL_BIND_ERROR_TEXT[code]) || JPOOL_BIND_LATER_TEXT
 }
+
+const RETRY_LATER = 'Please try again later.'
+
+// The shared texts point to "later on the Manage tab"; on the Manage tab itself
+// the hint becomes a plain retry.
+export function manageBindErrorText(error: { text: string }): string {
+  if (!error.text.includes(JPOOL_BIND_LATER_TEXT)) return error.text
+  const text = error.text.replace(JPOOL_BIND_LATER_TEXT, RETRY_LATER).trim()
+  return text === RETRY_LATER ? `Binding failed. ${RETRY_LATER}` : text
+}

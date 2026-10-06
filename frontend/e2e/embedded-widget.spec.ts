@@ -11,6 +11,10 @@ type MockScenario = {
   logoUrl?: string | null;
   balanceNetwork?: "mainnet" | "devnet";
   jpoolEligibility?: { eligible: boolean; reason: string | null; source: "jpool" | "fallback" };
+  // JPool Manage starts not bound and turns bound_here after /api/jpool/bind.
+  jpoolManage?: "not_bound";
+  // Receives each /api/jpool/bind request body.
+  jpoolBindRequests?: unknown[];
 };
 
 type GotoOptions = {
@@ -38,6 +42,7 @@ async function installNetworkMocks(
   scenario: MockScenario = {},
   telemetryPayloads?: unknown[]
 ) {
+  let jpoolBound = scenario.jpoolManage !== "not_bound";
   await page.route("**/*", async (route) => {
     const request = route.request();
     const url = request.url();
@@ -145,6 +150,36 @@ async function installNetworkMocks(
           lastUpdateEpoch: "42",
           solDepositFee: { denominator: "0", numerator: "0" },
           depositsRestricted: false,
+        });
+        return;
+      }
+
+      if (parsed.pathname === "/api/jpool/bind") {
+        if (!scenario.jpoolBindRequests) throw new Error("Unexpected JPool bind request");
+        scenario.jpoolBindRequests.push(JSON.parse(request.postData() || "null"));
+        jpoolBound = true;
+        await fulfillJson(route, 200, {
+          success: true,
+          alreadyBound: false,
+          voteId: JSON.parse(JSON.parse(request.postData() || "{}").message).voteId,
+        });
+        return;
+      }
+
+      if (parsed.pathname === "/api/jpool/manage" && !jpoolBound) {
+        await fulfillJson(route, 200, {
+          wallet: e2eWalletAddress,
+          network: "mainnet",
+          voteAccount: parsed.searchParams.get("vote"),
+          walletAtaBalance: "7264213",
+          ataExists: true,
+          portfolioBalance: null,
+          poolRate: { totalLamports: "1376600000", poolTokenSupply: "1000000000" },
+          binding: null,
+          directStakes: [],
+          countedForValidator: "0",
+          sources: { wallet: "ok", pool: "ok", binding: "ok", directStakes: "ok" },
+          uiStatus: "not_bound",
         });
         return;
       }
@@ -257,11 +292,12 @@ async function installE2EWallet(page: Page) {
     const standardDisconnect = "standard:disconnect";
     const standardEvents = "standard:events";
     const solanaSignTransaction = "solana:signTransaction";
+    const solanaSignMessage = "solana:signMessage";
     const account = Object.freeze({
       address,
       publicKey: new Uint8Array(32),
       chains: ["solana:devnet", "solana:mainnet"],
-      features: ["solana:signTransaction"],
+      features: ["solana:signTransaction", "solana:signMessage"],
       label: "E2E Account",
       icon: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E",
     });
@@ -305,6 +341,15 @@ async function installE2EWallet(page: Page) {
           supportedTransactionVersions: ["legacy", 0],
           signTransaction: async (...inputs: { transaction: Uint8Array }[]) =>
             inputs.map((input) => ({ signedTransaction: input.transaction })),
+        },
+        // Echoes the message and returns a fixed 64-byte signature.
+        [solanaSignMessage]: {
+          version: "1.0.0",
+          signMessage: async (...inputs: { message: Uint8Array }[]) =>
+            inputs.map((input) => ({
+              signedMessage: input.message,
+              signature: new Uint8Array(64).fill(1),
+            })),
         },
       },
     };
@@ -816,6 +861,53 @@ test("a four-tab mainnet embed shows JPool after eligibility and keeps the width
   await expect(page.getByText("0.00726 JSOL")).toBeVisible();
   await expect(page.getByRole("link", { name: "Jupiter" })).toBeVisible();
   expect(await width()).toBeCloseTo(640, 0);
+  expect(consoleErrors).toEqual([]);
+});
+
+test("JPool Manage binds a not-bound wallet in the 4th grid cell", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 1000 });
+  const jpoolBindRequests: unknown[] = [];
+  const consoleErrors = await gotoHost(page, "/api/w/e2e-host-jpool-mainnet.html", {
+    wallet: true,
+    mock: { balanceNetwork: "mainnet", jpoolManage: "not_bound", jpoolBindRequests },
+    telemetryPayloads: [],
+  });
+
+  const jpoolTab = page.getByRole("tab", { name: /JPool/ });
+  await jpoolTab.click();
+  await page.getByRole("button", { name: "Connect Wallet" }).first().click();
+  await page.getByRole("button", { name: "Connect with E2E Wallet" }).click();
+  await page.locator('[role="tab"]:visible').filter({ hasText: "Manage" }).click();
+
+  await expect(page.locator(".jm-validator")).toHaveText("NOT DIRECT STAKED TO ANY VALIDATOR");
+  await expect(page.locator(".jm-grid > .jm-cell")).toHaveCount(4);
+  const bindButton = page.locator(".jm-bind-cell").getByRole("button", { name: "Bind wallet" });
+  await expect(bindButton).toBeVisible();
+  // The control fits the row of "Your balance", so the tab does not grow.
+  const cellHeights = await page.locator(".jm-grid > .jm-cell").evaluateAll((cells) =>
+    cells.map((cell) => cell.getBoundingClientRect().height)
+  );
+  const bindContentHeight = await page
+    .locator(".jm-bind")
+    .evaluate((node) => node.getBoundingClientRect().height);
+  expect(bindContentHeight).toBeLessThanOrEqual(cellHeights[2] + 1);
+
+  await bindButton.click();
+  await expect(page.getByRole("status").filter({ hasText: "Wallet bound to E2E Validator." })).toBeVisible();
+  await expect(page.locator(".jm-validator")).toHaveText("E2E Validator");
+  await expect(page.locator(".jm-tone-here")).toHaveCount(2);
+
+  expect(jpoolBindRequests).toHaveLength(1);
+  const body = jpoolBindRequests[0] as { wallet: string; signature: string; message: string };
+  expect(body.wallet).toBe(e2eWalletAddress);
+  expect(body.signature).toMatch(/^[A-Za-z0-9+/]{86}==$/);
+  const signed = JSON.parse(body.message) as Record<string, unknown>;
+  expect(Object.keys(signed)).toEqual(["wallet", "action", "voteId", "timestamp"]);
+  expect(signed).toMatchObject({ wallet: e2eWalletAddress, action: "bindWallet" });
+  expect(body.message).toBe(JSON.stringify(signed));
+
+  const widget = page.locator('[data-widget="deepstake"]');
+  expect(await widget.evaluate((root) => root.getBoundingClientRect().width)).toBeCloseTo(640, 0);
   expect(consoleErrors).toEqual([]);
 });
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { UiWalletAccount } from '@wallet-standard/react'
 import {
   JPOOL_DATA_UNAVAILABLE_TEXT,
   jpoolDirectStakeUrl,
@@ -8,6 +9,7 @@ import { formatLamportsFixed } from '../../utils/lamports'
 import { cssImageUrl } from '../../utils/imageUrl'
 import { fetchValidatorProfile, type ValidatorProfile } from '../../utils/solana/validator'
 import type { NetworkType } from '../../utils/config'
+import { JpoolManageBind } from './JpoolManageBind'
 
 export const JUPITER_URL = 'https://jup.ag'
 
@@ -19,6 +21,9 @@ interface Props {
   network: NetworkType
   validatorInfo?: ValidatorProfile | null
   widgetVoteAccount: string
+  // The connected wallet; enables the Bind control (J2-3).
+  account?: UiWalletAccount
+  onManageLoaded?: (manage: JpoolManageResponse) => void
 }
 
 function truncateAddress(address: string, chars = 6): string {
@@ -59,7 +64,14 @@ type StakedTo =
   | { tone: 'elsewhere'; text: string; title?: string }
   | { tone: 'none' | 'unknown'; text: string }
 
-export function JpoolManageBlock({ data, network, validatorInfo, widgetVoteAccount }: Props) {
+export function JpoolManageBlock({
+  data,
+  network,
+  validatorInfo,
+  widgetVoteAccount,
+  account,
+  onManageLoaded,
+}: Props) {
   const elsewhereVoteId =
     data?.uiStatus === 'bound_elsewhere' && data.binding ? data.binding.voteId : null
   const elsewhereName = useBoundElsewhereName(elsewhereVoteId, network)
@@ -169,14 +181,25 @@ export function JpoolManageBlock({ data, network, validatorInfo, widgetVoteAccou
               </div>
             )}
           </div>
+
+          {/* The empty 4th cell hosts the Bind control, so the tab keeps its height. */}
+          <div className="jm-cell jm-bind-cell" data-testid="jpool-bind-cell">
+            {account && (
+              <JpoolManageBind
+                account={account}
+                data={data}
+                network={network}
+                voteAccount={widgetVoteAccount}
+                validatorName={validatorName}
+                onManageLoaded={onManageLoaded}
+              />
+            )}
+          </div>
         </div>
 
         {data.uiStatus === 'error' && (
           <p className="jm-note jm-warn">{JPOOL_DATA_UNAVAILABLE_TEXT}</p>
         )}
-
-        {/* J2-3 renders the Bind control here. */}
-        <div className="jm-bind-slot" data-testid="jpool-bind-slot" />
 
         <JmUnstake />
       </div>
@@ -316,6 +339,29 @@ function JmStyles() {
 
       [data-widget="deepstake"] .jm-jupiter:hover { opacity: 0.8; }
 
+      /* Bind pill: Jupiter pill size, Stake button colours (primary action).
+         No Figma frame; pending design review. */
+      [data-widget="deepstake"] .jm-bind-row { display: flex; align-items: center; }
+      [data-widget="deepstake"] .jm-bind-button {
+        width: 120px;
+        padding: 4px 0;
+        border: 0;
+        border-radius: 12px;
+        background: #5A5A62;
+        color: #fff;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      [data-widget="deepstake"] .jm-bind-button:hover:not(:disabled) { opacity: 0.85; }
+      [data-widget="deepstake"] .jm-bind-button:disabled { opacity: 0.6; cursor: default; }
+      [data-widget="deepstake"] .jm-bind-status {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
       [data-widget="deepstake"][data-theme="dark"] .jm-wrap { color: #fff; }
       [data-widget="deepstake"][data-theme="dark"] .jm-tone-here { color: #5fd38d; }
       [data-widget="deepstake"][data-theme="dark"] .jm-tone-elsewhere,
@@ -326,6 +372,7 @@ function JmStyles() {
       [data-widget="deepstake"][data-theme="dark"] .jm-unstake p { color: #9F9FAC; }
       [data-widget="deepstake"][data-theme="dark"] .jm-hint { color: #6ab8f0; }
       [data-widget="deepstake"][data-theme="dark"] .jm-jupiter { background: #5A5A62; color: #9F9FAC; }
+      [data-widget="deepstake"][data-theme="dark"] .jm-bind-button { background: #D9D9D9; color: #000; }
       [data-widget="deepstake"][data-theme="dark"] .jm-tooltip {
         background-image: ${cssImageUrl('/images/q_mark_dk.png')};
       }

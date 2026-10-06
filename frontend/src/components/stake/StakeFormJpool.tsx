@@ -219,6 +219,8 @@ export function StakeFormJpool({ validatorInfo, voteAccount, secondsRemainToEpoc
                 network={network}
                 validatorInfo={validatorInfo}
                 widgetVoteAccount={voteAccount}
+                account={selectedWalletAccount}
+                onManageLoaded={setManage}
               />
             )}
             <style>{`

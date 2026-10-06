@@ -229,6 +229,22 @@ describe('StakeFormJpool', () => {
     expect(screen.getByText('JPool Manage bound_elsewhere')).toBeInTheDocument()
   })
 
+  it('passes the wallet to Manage and takes Manage data pushed by the bind control', async () => {
+    const account = { address: 'wallet' }
+    mockForm({ selectedWalletAccount: account, isConnected: true })
+    renderForm()
+    await waitFor(() => expect(screen.getByText('JPool Manage bound_here')).toBeInTheDocument())
+    const props = mocks.manageProps.mock.calls.at(-1)?.[0] as {
+      account: unknown
+      onManageLoaded: (data: unknown) => void
+    }
+    expect(props.account).toBe(account)
+    const { act } = await import('@testing-library/react')
+    act(() => props.onManageLoaded({ uiStatus: 'bound_here', ataExists: true, binding: null }))
+    act(() => props.onManageLoaded({ uiStatus: 'not_bound', ataExists: true }))
+    expect(screen.getByText('JPool Manage not_bound')).toBeInTheDocument()
+  })
+
   it('names the validator by truncated vote without a profile', () => {
     mockForm()
     renderForm(null)
