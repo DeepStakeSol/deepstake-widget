@@ -277,3 +277,112 @@ describe('jpoolAtaRentLamports', () => {
     expect(jpoolAtaRentLamports(null)).toBeNull()
   })
 })
+
+describe('wallet binding helpers', () => {
+  // On-curve test wallet from backend/test/fixtures/jpool-bind.json.
+  const BIND_WALLET = '6vCSEqLYhE88vyppdpi7wa3aVbZhKffuAFcQhwqFfV3'
+  // JPool's withdraw authority: a PDA, so off-curve.
+  const PDA = 'HbJTxftxnXgpePCshA8FubsRj9MW4kfPscfuUfn44fnt'
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn())
+  })
+
+  it('builds the exact compact message JPool signs', async () => {
+    const { buildJpoolBindMessage } = await loadModules()
+    expect(buildJpoolBindMessage(BIND_WALLET, VOTE, 1790956418243)).toBe(
+      '{"wallet":"6vCSEqLYhE88vyppdpi7wa3aVbZhKffuAFcQhwqFfV3","action":"bindWallet",' +
+        '"voteId":"DeEpSdaw8uBLQ5T2HQhDf8fBSVbm13jGqJwoSF3HTpL5","timestamp":1790956418243}'
+    )
+  })
+
+  it('detects whether an account can bind', async () => {
+    const { getJpoolBindCapability } = await loadModules()
+    const features = ['solana:signAndSendTransaction', 'solana:signMessage'] as const
+    expect(getJpoolBindCapability({ address: BIND_WALLET, features })).toBe('supported')
+    expect(
+      getJpoolBindCapability({ address: BIND_WALLET, features: ['solana:signTransaction'] })
+    ).toBe('no_sign_message')
+    expect(getJpoolBindCapability({ address: PDA, features })).toBe('off_curve')
+  })
+
+  it('posts the bind request and returns the result', async () => {
+    const { bindJpoolWallet } = await loadModules()
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockReturnValueOnce(
+      jsonResponse({ success: true, alreadyBound: true, voteId: VOTE })
+    )
+    const request = { wallet: BIND_WALLET, signature: 'c2ln', message: '{}' }
+
+    await expect(bindJpoolWallet('mainnet', request)).resolves.toEqual({
+      success: true,
+      alreadyBound: true,
+      voteId: VOTE,
+    })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toContain('/jpool/bind?network=mainnet')
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(String(init?.body))).toEqual(request)
+  })
+
+  it('exposes boundTo and retryAfterSeconds from bind errors', async () => {
+    const { bindJpoolWallet, jpoolBoundToVoteId, jpoolRetryAfterSeconds, BackendRequestError } =
+      await loadModules()
+    const fetchMock = vi.mocked(fetch)
+    const request = { wallet: BIND_WALLET, signature: 'c2ln', message: '{}' }
+
+    fetchMock.mockReturnValueOnce(
+      jsonResponse(
+        { error: 'bound', code: 'JPOOL_BOUND_ELSEWHERE', boundTo: { voteId: PDA } },
+        409
+      )
+    )
+    const elsewhere = await bindJpoolWallet('mainnet', request).catch((error) => error)
+    expect(elsewhere).toBeInstanceOf(BackendRequestError)
+    expect(elsewhere.code).toBe('JPOOL_BOUND_ELSEWHERE')
+    expect(jpoolBoundToVoteId(elsewhere)).toBe(PDA)
+
+    fetchMock.mockReturnValueOnce(
+      jsonResponse({ error: 'slow down', code: 'JPOOL_RATE_LIMITED', retryAfterSeconds: 42 }, 429)
+    )
+    const limited = await bindJpoolWallet('mainnet', request).catch((error) => error)
+    expect(jpoolRetryAfterSeconds(limited)).toBe(42)
+    expect(jpoolBoundToVoteId(limited)).toBeNull()
+    expect(jpoolRetryAfterSeconds(new Error('x'))).toBeNull()
+  })
+
+  it('maps bind error codes to text', async () => {
+    const { getJpoolBindErrorText, JPOOL_BIND_LATER_TEXT } = await loadModules()
+    expect(getJpoolBindErrorText('JPOOL_BIND_EXPIRED')).toMatch(/expired/)
+    expect(getJpoolBindErrorText('JPOOL_RATE_LIMITED', 42)).toContain('42 seconds')
+    expect(getJpoolBindErrorText('JPOOL_RATE_LIMITED')).toContain('in a minute')
+    expect(getJpoolBindErrorText('JPOOL_UNAVAILABLE')).toContain(JPOOL_BIND_LATER_TEXT)
+    expect(getJpoolBindErrorText('JPOOL_BIND_REJECTED')).toContain('did not accept')
+    expect(getJpoolBindErrorText('SOMETHING_NEW')).toBe(JPOOL_BIND_LATER_TEXT)
+    expect(getJpoolBindErrorText(undefined)).toBe(JPOOL_BIND_LATER_TEXT)
+  })
+})
+
+describe('BackendRequestError body', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn())
+  })
+
+  it('keeps the parsed object body and the existing fields', async () => {
+    const { fetchJpoolPool, BackendRequestError } = await loadModules()
+    vi.mocked(fetch).mockReturnValueOnce(
+      jsonResponse({ error: 'nope', code: 'JPOOL_MAINNET_ONLY', extra: 1 }, 400)
+    )
+    const error = await fetchJpoolPool('devnet').catch((e) => e)
+    expect(error).toBeInstanceOf(BackendRequestError)
+    expect(error).toMatchObject({ status: 400, code: 'JPOOL_MAINNET_ONLY', message: 'nope' })
+    expect(error.body).toEqual({ error: 'nope', code: 'JPOOL_MAINNET_ONLY', extra: 1 })
+  })
+
+  it('leaves the body undefined for non-object payloads', async () => {
+    const { fetchJpoolPool } = await loadModules()
+    vi.mocked(fetch).mockReturnValueOnce(jsonResponse(['x'], 500))
+    const error = await fetchJpoolPool('mainnet').catch((e) => e)
+    expect(error.body).toBeUndefined()
+  })
+})

@@ -26,10 +26,19 @@ export class BackendRequestError extends Error {
   // Set by /transaction/send on TRANSACTION_SEND_FAILED: the bytes may still
   // have landed, so the caller confirms this signature before retrying.
   readonly signature?: string
+  // The parsed JSON error body, for route-specific fields such as /jpool/bind's
+  // `boundTo` and `retryAfterSeconds`. Undefined when the body was not an object.
+  readonly body?: Record<string, unknown>
 
   constructor(
     message: string,
-    options: { status: number; code?: string; details?: unknown; signature?: string },
+    options: {
+      status: number
+      code?: string
+      details?: unknown
+      signature?: string
+      body?: Record<string, unknown>
+    },
   ) {
     super(message)
     this.name = 'BackendRequestError'
@@ -37,6 +46,7 @@ export class BackendRequestError extends Error {
     this.code = options.code
     this.details = options.details
     this.signature = options.signature
+    this.body = options.body
   }
 }
 
@@ -58,6 +68,10 @@ async function backendError(response: Response): Promise<BackendRequestError> {
     code: typeof payload?.code === 'string' ? payload.code : undefined,
     details: payload?.details,
     signature: typeof payload?.signature === 'string' ? payload.signature : undefined,
+    body:
+      payload && typeof payload === 'object' && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : undefined,
   })
 }
 

@@ -1,6 +1,8 @@
 // Typed clients for the JPool backend routes (J1-1..J1-4) and the UI text for
 // their error codes (spec §8). Amounts stay decimal strings on the wire and
 // become bigint only where arithmetic happens.
+import type { UiWalletAccount } from '@wallet-standard/react'
+import { address, isAddress, isOffCurveAddress } from '@solana/kit'
 import { BackendRequestError, fetchBackendJson } from './backendRequest'
 import { quoteDepositSol } from './jpoolQuote'
 import { cachedRequest, deduplicatedRequest } from './requestCache'
@@ -247,4 +249,103 @@ export function directStakeKeys(manage: JpoolManageResponse | null): Set<string>
 
 export function hasNewDirectStake(before: Set<string>, manage: JpoolManageResponse): boolean {
   return (manage.directStakes ?? []).some((record) => !before.has(directStakeKey(record)))
+}
+
+export const JPOOL_APP_URL = 'https://app.jpool.one'
+
+export function jpoolDirectStakeUrl(voteAccount: string): string {
+  return `${JPOOL_APP_URL}/validators/${voteAccount}/direct`
+}
+
+// Wallet binding (J2-2). JPool verifies an Ed25519 signature by the wallet key
+// over the exact message bytes, so the account must sign messages and be a
+// real key (not a PDA).
+export type JpoolBindCapability = 'supported' | 'no_sign_message' | 'off_curve'
+
+export const SOLANA_SIGN_MESSAGE_FEATURE = 'solana:signMessage'
+
+export function getJpoolBindCapability(
+  account: Pick<UiWalletAccount, 'address' | 'features'>
+): JpoolBindCapability {
+  if (!account.features.includes(SOLANA_SIGN_MESSAGE_FEATURE)) return 'no_sign_message'
+  if (!isAddress(account.address) || isOffCurveAddress(address(account.address))) {
+    return 'off_curve'
+  }
+  return 'supported'
+}
+
+// The exact string the wallet signs and the backend receives. Compact JSON in
+// this key order; the backend refuses any other spelling.
+export function buildJpoolBindMessage(
+  wallet: string,
+  voteId: string,
+  now: number = Date.now()
+): string {
+  return JSON.stringify({ wallet, action: 'bindWallet', voteId, timestamp: now })
+}
+
+// POST /jpool/bind
+export interface JpoolBindRequest {
+  wallet: string
+  // base64 of the 64-byte Ed25519 signature
+  signature: string
+  message: string
+}
+
+export interface JpoolBindResponse {
+  success: true
+  alreadyBound: boolean
+  voteId: string
+}
+
+// Not deduplicated: each call is a new signed attempt. Errors are
+// BackendRequestError; JPOOL_BOUND_ELSEWHERE carries `boundTo` and
+// JPOOL_RATE_LIMITED `retryAfterSeconds` in `error.body`.
+export async function bindJpoolWallet(
+  network: string,
+  request: JpoolBindRequest
+): Promise<JpoolBindResponse> {
+  return fetchBackendJson<JpoolBindResponse>(`/jpool/bind?${query({ network })}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+}
+
+export function jpoolBoundToVoteId(error: unknown): string | null {
+  if (!(error instanceof BackendRequestError)) return null
+  const boundTo = error.body?.boundTo as { voteId?: unknown } | undefined
+  return typeof boundTo?.voteId === 'string' ? boundTo.voteId : null
+}
+
+export function jpoolRetryAfterSeconds(error: unknown): number | null {
+  if (!(error instanceof BackendRequestError)) return null
+  const value = error.body?.retryAfterSeconds
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+}
+
+export const JPOOL_BIND_LATER_TEXT = 'You can bind your wallet later on the Manage tab.'
+
+const JPOOL_BIND_EXPIRED_TEXT =
+  'The signed message expired. Please try again and check your device clock.'
+const JPOOL_BIND_UNAVAILABLE_TEXT = `JPool is temporarily unavailable. ${JPOOL_BIND_LATER_TEXT}`
+const JPOOL_BIND_REJECTED_TEXT = `JPool did not accept the binding. ${JPOOL_BIND_LATER_TEXT}`
+
+// Bind error codes (backend J2-1 and the hook's own) -> UI text (spec §8).
+const JPOOL_BIND_ERROR_TEXT: Record<string, string> = {
+  JPOOL_BIND_EXPIRED: JPOOL_BIND_EXPIRED_TEXT,
+  INVALID_BIND_MESSAGE: JPOOL_BIND_EXPIRED_TEXT,
+  JPOOL_UNAVAILABLE: JPOOL_BIND_UNAVAILABLE_TEXT,
+  JPOOL_BIND_UNAVAILABLE: JPOOL_BIND_UNAVAILABLE_TEXT,
+  JPOOL_BIND_REJECTED: JPOOL_BIND_REJECTED_TEXT,
+  INVALID_SIGNATURE: JPOOL_BIND_REJECTED_TEXT,
+}
+
+export function getJpoolBindErrorText(code: string | undefined, retryAfterSeconds?: number | null) {
+  if (code === 'JPOOL_RATE_LIMITED') {
+    return retryAfterSeconds
+      ? `Too many attempts. Please try again in ${retryAfterSeconds} seconds.`
+      : 'Too many attempts. Please try again in a minute.'
+  }
+  return (code && JPOOL_BIND_ERROR_TEXT[code]) || JPOOL_BIND_LATER_TEXT
 }

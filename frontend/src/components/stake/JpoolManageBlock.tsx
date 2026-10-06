@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import { JPOOL_DATA_UNAVAILABLE_TEXT, type JpoolManageResponse } from '../../utils/jpool'
+import {
+  JPOOL_DATA_UNAVAILABLE_TEXT,
+  jpoolDirectStakeUrl,
+  type JpoolManageResponse,
+} from '../../utils/jpool'
 import { formatLamportsFixed } from '../../utils/lamports'
 import { cssImageUrl } from '../../utils/imageUrl'
 import { fetchValidatorProfile, type ValidatorProfile } from '../../utils/solana/validator'
 import type { NetworkType } from '../../utils/config'
 
-export const JPOOL_APP_URL = 'https://app.jpool.one'
 export const JUPITER_URL = 'https://jup.ag'
 
 // Manage amounts use 5 decimals, as in the design.
@@ -123,7 +126,7 @@ export function JpoolManageBlock({ data, network, validatorInfo, widgetVoteAccou
               <p className="jm-note jm-warn">
                 Your JPool binding points to another validator. Unbind it in the{' '}
                 <a
-                  href={`${JPOOL_APP_URL}/validators/${widgetVoteAccount}/direct`}
+                  href={jpoolDirectStakeUrl(widgetVoteAccount)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
