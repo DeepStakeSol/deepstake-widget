@@ -226,12 +226,20 @@ export function StakeFormJpool({ validatorInfo, voteAccount, secondsRemainToEpoc
                 position: relative;
                 min-height: 200px;
               }
-              /* Design: the Manage wallet row uses the body font, larger.
+              /* Design: the Manage wallet row uses the body font at 15 px.
                  WalletInfo sets these inline, hence !important. */
               [data-widget="deepstake"] .jpool-manage .wallet-pubkey {
                 font-family: inherit !important;
-                font-size: 18px !important;
+                font-size: 15px !important;
                 color: #000;
+              }
+              /* Icons match the 15 px text (WalletInfo sets the icon height inline). */
+              [data-widget="deepstake"] .jpool-manage .wallet-icon,
+              [data-widget="deepstake"] .jpool-manage .disconnect-logo {
+                width: 15px !important;
+                height: 15px !important;
+                background-size: contain;
+                background-repeat: no-repeat;
               }
               [data-widget="deepstake"][data-theme="dark"] .jpool-manage .wallet-pubkey {
                 color: #fff;

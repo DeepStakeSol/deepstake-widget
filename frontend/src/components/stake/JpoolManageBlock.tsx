@@ -218,14 +218,14 @@ function JmStyles() {
       [data-widget="deepstake"] .jm-cell { min-width: 0; }
 
       [data-widget="deepstake"] .jm-label {
-        font-size: 16px;
+        font-size: 13px;
         font-weight: 600;
         margin-bottom: 6px;
       }
 
       [data-widget="deepstake"] .jm-validator,
       [data-widget="deepstake"] .jm-value {
-        font-size: 16px;
+        font-size: 13px;
         font-weight: 400;
         line-height: 1.4;
         overflow-wrap: anywhere;
@@ -245,9 +245,9 @@ function JmStyles() {
       [data-widget="deepstake"] .jm-tooltip {
         display: inline-block;
         position: relative;
-        width: 16px;
-        height: 16px;
-        margin-left: 8px;
+        width: 13px;
+        height: 13px;
+        margin-left: 6px;
         flex-shrink: 0;
         background-image: ${cssImageUrl('/images/q_mark.png')};
         background-size: contain;
@@ -274,8 +274,8 @@ function JmStyles() {
       }
 
       [data-widget="deepstake"] .jm-note {
-        margin: 8px 0 0;
-        font-size: 12px;
+        margin: 6px 0 0;
+        font-size: 11px;
         line-height: 1.4;
       }
 
@@ -294,7 +294,7 @@ function JmStyles() {
       [data-widget="deepstake"] .jm-unstake p {
         margin: 0 0 10px;
         color: #777;
-        font-size: 13px;
+        font-size: 11px;
         line-height: 1.5;
       }
 
@@ -308,7 +308,7 @@ function JmStyles() {
         font-weight: 500;
         width: 120px;
         text-align: center;
-        font-size: 16px;
+        font-size: 13px;
       }
 
       [data-widget="deepstake"] .jm-jupiter:hover { opacity: 0.8; }

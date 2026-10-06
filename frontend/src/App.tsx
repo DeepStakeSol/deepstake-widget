@@ -449,6 +449,13 @@ function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
         [data-widget="deepstake"] .tabs-trigger.tab-vault[data-state="active"] {
           background-image: ${cssImageUrl("/images/vault_stake_selected.png")};
         }
+
+        [data-widget="deepstake"] .tabs-trigger.tab-jpool {
+          background-image: ${cssImageUrl("/images/jpool_stake.png")};
+        }
+        [data-widget="deepstake"] .tabs-trigger.tab-jpool[data-state="active"] {
+          background-image: ${cssImageUrl("/images/jpool_stake_selected.png")};
+        }
         
         /* Four tabs share the same 640 px widget: narrower triggers, art
            anchored left and clipped by the rounded corners. */
@@ -465,6 +472,7 @@ function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
 
         /* TEMP(JPOOL-TMP-03): no JPool tab art yet; flat colours matching the
            other tabs until the design assets arrive. */
+        /*
         [data-widget="deepstake"] .tabs-trigger.tab-jpool {
           background-image: none;
           background-color: #CBCAD0;
@@ -472,6 +480,7 @@ function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
         [data-widget="deepstake"] .tabs-trigger.tab-jpool[data-state="active"] {
           background-color: #5A5A62;
         }
+          */
 
         [data-widget="deepstake"][data-theme="dark"] .tabs-trigger {
           background-color: #9f9fac00;
