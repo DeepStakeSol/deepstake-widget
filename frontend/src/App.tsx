@@ -470,28 +470,9 @@ function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
           overflow: hidden;
         }
 
-        /* TEMP(JPOOL-TMP-03): no JPool tab art yet; flat colours matching the
-           other tabs until the design assets arrive. */
-        /*
-        [data-widget="deepstake"] .tabs-trigger.tab-jpool {
-          background-image: none;
-          background-color: #CBCAD0;
-        }
-        [data-widget="deepstake"] .tabs-trigger.tab-jpool[data-state="active"] {
-          background-color: #5A5A62;
-        }
-          */
-
         [data-widget="deepstake"][data-theme="dark"] .tabs-trigger {
           background-color: #9f9fac00;
           color: #9F9FAC;
-        }
-
-        [data-widget="deepstake"][data-theme="dark"] .tabs-trigger.tab-jpool {
-          background-color: #0D1625;
-        }
-        [data-widget="deepstake"][data-theme="dark"] .tabs-trigger.tab-jpool[data-state="active"] {
-          background-color: #D9D9D9;
         }
 
         [data-widget="deepstake"][data-theme="dark"] .tabs-trigger[data-state="active"] {
@@ -518,6 +499,13 @@ function StakingApp({ enabledTabs }: { enabledTabs: TabConfig[] }) {
         }
         [data-widget="deepstake"][data-theme="dark"] .tab-vault[data-state="active"] {
           background-image: ${cssImageUrl("/images/vault_stake_selected_dk.png")};
+        }
+
+        [data-widget="deepstake"][data-theme="dark"] .tab-jpool {
+          background-image: ${cssImageUrl("/images/jpool_stake_dk.png")};
+        }
+        [data-widget="deepstake"][data-theme="dark"] .tab-jpool[data-state="active"] {
+          background-image: ${cssImageUrl("/images/jpool_stake_selected_dk.png")};
         }
 
         [data-widget="deepstake"] .rt-BaseDialogContent {
