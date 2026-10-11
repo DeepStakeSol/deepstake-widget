@@ -2,6 +2,26 @@
 
 All notable changes to DeepStake Widget are documented here. This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.0.0] - 2026-10-13
+
+### Added
+
+- JPool tab ("Direct staking JPool", opt-in via `"tabs": [..., "jpool"]`, mainnet only): deposits SOL into the JPool stake pool for JSOL with a `direct:<vote_account>` memo, so JPool counts the deposit as direct stake for the widget's validator.
+- Optional wallet binding after a deposit and from the Manage view: the wallet signs a JPool `bindWallet` message and the backend forwards it to JPool (`POST /api/jpool/bind`) with rate limiting.
+- JPool Manage view: JSOL balance, the amount JPool counts for the validator, the wallet's binding status.
+- Eligibility check before the tab is shown (`GET /api/jpool/eligibility`): the tab is hidden only when JPool marks the validator as blocked or superminority; any failure shows the tab.
+- Backend transaction relay (`POST /api/transaction/send`), used by the JPool tab.
+- JPool tab art for the dark and light themes.
+
+### Changed
+
+- `tabs` accepts `jpool`; the defaults stay `native`, `blaze`, `vault`.
+- Frontend and backend packages are at version `2.0.0`.
+
+### Fixed
+
+- The unselected Native tab showed the BlazeStake icon in the light theme.
+
 ## [1.1.0] - Unreleased
 
 ### Added

@@ -1,6 +1,6 @@
 # Workspace instructions for AI coding assistants
 
-This is the **frontend** sub-package of the `deepstake-widget` monorepo. See `/CLAUDE.md` at the repo root for the full architecture overview.
+This is the **frontend** sub-package of the `deepstake-widget` monorepo. See the root `README.md` for the full architecture overview.
 
 ## This package
 

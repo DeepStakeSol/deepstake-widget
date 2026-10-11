@@ -30,7 +30,7 @@ DeepStake hosts the backend and widget bundle. You only add a snippet to your pa
 3. Keep only the tabs you want. Enable `blaze` and `vault` only when your validator is eligible for BlazeStake CLS and The Vault direct stake. Add `jpool` to offer JPool direct staking (mainnet only; see [JPool Tab](#jpool-tab)).
 4. Open the page over HTTPS and check that your validator name, commission, and APY appear.
 
-When omitted, `theme` defaults to `dark`, `network` defaults to `mainnet`, and `tabs` defaults to `native`, `blaze` and `vault` (minus tabs the resolved network does not support). `jpool` is shown only when listed explicitly until release 2.0.0. Invalid configuration renders a visible error instead of a blank area and logs the reason with the `[DeepStake widget]` prefix.
+When omitted, `theme` defaults to `dark`, `network` defaults to `mainnet`, and `tabs` defaults to `native`, `blaze` and `vault` (minus tabs the resolved network does not support). `jpool` is opt-in: it is shown only when listed explicitly. Invalid configuration renders a visible error instead of a blank area and logs the reason with the `[DeepStake widget]` prefix.
 
 Each valid widget instance sends one anonymous event when it mounts. See [Widget Mount Telemetry](#widget-mount-telemetry). Add `"telemetry": false` to the options to opt out.
 
@@ -173,7 +173,7 @@ For production, replace the script URL with your public backend URL:
 | `vote_account` | Yes | Solana vote account address | Validator vote account that native staking targets. |
 | `theme` | No | `light`, `dark` | Widget theme. Defaults to `dark`. Unknown values also fall back to `dark`. |
 | `network` | No | `mainnet`, `devnet` | Solana cluster used by API calls, wallet chain checks, and explorer links. Overrides `VITE_NEXT_PUBLIC_NETWORK_ENV`. |
-| `tabs` | No | `native`, `blaze`, `vault`, `jpool` | Top-level staking tabs to show. Defaults to `native`, `blaze`, `vault` minus tabs unsupported on the selected network. `jpool` is opt-in: it appears only when listed, until 2.0.0 makes it a default. |
+| `tabs` | No | `native`, `blaze`, `vault`, `jpool` | Top-level staking tabs to show. Defaults to `native`, `blaze`, `vault` minus tabs unsupported on the selected network. `jpool` is opt-in: it appears only when listed. |
 | `telemetry` | No | `true`, `false` | Mount telemetry is enabled by default. Set to `false` to opt out. |
 | `validator_name` | No | String | Overrides the validator name returned by the backend profile. |
 | `validator_description` | No | String | Overrides the validator description returned by the backend profile. |
@@ -184,6 +184,8 @@ Vault and JPool are mainnet-only. On devnet, the widget hides them and logs a wa
 ### JPool Tab
 
 `"tabs": [..., "jpool"]` adds a "Direct staking JPool" tab on mainnet. A deposit sends SOL into the JPool stake pool and returns JSOL, a liquid staking token. Each deposit carries a `direct:<vote_account>` memo, so JPool counts it as direct stake for the widget's validator. The Manage view shows the wallet's JSOL balance, the amount JPool counts for the validator, and the wallet's JPool binding. Unstaking happens in the JPool app or on a DEX; the widget only links to them.
+
+Enable the JPool tab only if your validator is in the JPool pool; direct stake to validators outside the pool is not confirmed by JPool.
 
 Before showing the tab, the widget asks the backend whether JPool accepts direct stake for the validator (`GET /api/jpool/eligibility?vote=<vote_account>&network=mainnet`). The tab is hidden only when JPool marks the validator as blocked or superminority, with the console line `[DeepStake widget] JPool tab hidden: <reason>`. If the check fails or takes longer than 2 seconds, the tab is shown. A widget configured with only `jpool` shows a short loader while the check runs. Telemetry reports the requested tabs, including a `jpool` tab that eligibility later hides.
 
@@ -429,7 +431,7 @@ Used by Docker Compose for frontend and backend container configuration.
 | `IMAGE_URL_PREFIX` | `https://your-domain.example/api` | Optional prefix for local `/images/...` widget assets loaded from the backend image file server. Leave empty for same-origin assets. |
 | `METRICS_BEARER_TOKEN` | Random secret | Passed to the backend container to protect `/api/metrics`. |
 | `VITE_TELEMETRY_ENDPOINT` | `https://deepstake.info/api/telemetry` | Absolute telemetry collector URL embedded into the widget build. Defaults to the listed production URL. |
-| `VITE_WIDGET_VERSION` | Empty | Optional override. Leave empty in production so `frontend/package.json` supplies `1.1.0` to the browser API and telemetry. |
+| `VITE_WIDGET_VERSION` | Empty | Optional override. Leave empty in production so `frontend/package.json` supplies `2.0.0` to the browser API and telemetry. |
 | `TELEMETRY_STATS_TOKEN` | Separate random secret | Passed to the backend container to protect `/api/telemetry/stats`. |
 | `TELEMETRY_OWN_HOSTS` | `deepstake.info` | Comma-separated own hostnames, including their subdomains, for detailed telemetry classification. |
 | `REDIS_URL` | Empty | Optional Compose override; empty uses `redis://redis:6379`. |
@@ -808,7 +810,7 @@ Current state:
 - [x] Native staking
 - [x] BlazeStake directed staking
 - [x] Vault directed staking
-- [x] JPool direct staking (opt-in until 2.0.0)
+- [x] JPool direct staking (opt-in)
 - [x] Dark and light themes
 - [x] Widget embedding through an IIFE script
 - [x] Backend-served widget bundle from shared disk

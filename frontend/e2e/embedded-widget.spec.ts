@@ -432,7 +432,7 @@ test("delayed and duplicate scripts share mounted roots and expose the browser A
   await page.evaluate(() => window.DeepStakeWidget.mount());
   await expect(page.locator(".sw-container")).toHaveCount(2);
   await expect.poll(() => telemetryPayloads.length).toBe(3);
-  expect(await page.evaluate(() => window.DeepStakeWidget.version)).toBe("1.1.0");
+  expect(await page.evaluate(() => window.DeepStakeWidget.version)).toBe("2.0.0");
   expect(consoleErrors).toEqual([]);
 });
 
@@ -551,7 +551,7 @@ test("a successful mount sends one normalized telemetry event", async ({ page })
     network: "devnet",
     tabs: ["native", "blaze"],
     theme: "light",
-    version: "1.1.0",
+    version: "2.0.0",
   });
   expect(consoleErrors).toEqual([]);
 });
