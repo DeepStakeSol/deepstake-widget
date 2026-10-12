@@ -4,6 +4,10 @@ All notable changes to DeepStake Widget are documented here. This project follow
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/smoke.sh`: post-deploy smoke test (health, stake minimum, widget bundle and its backend URL, no RPC endpoint or API key in the bundle, relay routing, metrics auth). Exits non-zero on the first failure.
+
 ### Changed
 
 - `GET /api/health` now checks dependencies: a real mainnet `getLatestBlockhash` (3 s timeout), a Redis ping, and whether required variables are set (no values). Results are cached for 30 s. A missing or unreachable mainnet RPC returns `503` (`"status":"degraded"`), so the production container turns `unhealthy`; a Redis failure is `degraded` with `200`.

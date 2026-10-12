@@ -591,6 +591,14 @@ curl -H 'Authorization: Bearer YOUR_PRIVATE_METRICS_TOKEN' http://127.0.0.1:3000
 curl -H 'Authorization: Bearer YOUR_DIFFERENT_PRIVATE_STATS_TOKEN' 'http://127.0.0.1:3000/api/telemetry/stats?detail=1'
 ```
 
+After every deploy, run the smoke test against the public domain. It exits non-zero on the first failed check:
+
+```bash
+BASE=https://your-domain.example ./scripts/smoke.sh
+```
+
+It checks that `/api/health` reports `"status":"ok"`, the stake minimum answers, the widget bundle is served and was built with `VITE_BACKEND_URL` (default `$BASE/api`; override with `BACKEND_URL`), the bundle contains no RPC endpoint or API key, the transaction relay is routed (an empty body returns `400 INVALID_TRANSACTION`), and `/api/metrics` returns `401` without a token. Set `FORBIDDEN_PATTERN` to the host of your private RPC to check for it specifically. The script spends no SOL and needs no secrets.
+
 Use an nginx prefix location that is not overridden by static `.js` regex locations:
 
 ```nginx
