@@ -4,6 +4,10 @@ All notable changes to DeepStake Widget are documented here. This project follow
 
 ## [Unreleased]
 
+### Changed
+
+- `GET /api/health` now checks dependencies: a real mainnet `getLatestBlockhash` (3 s timeout), a Redis ping, and whether required variables are set (no values). Results are cached for 30 s. A missing or unreachable mainnet RPC returns `503` (`"status":"degraded"`), so the production container turns `unhealthy`; a Redis failure is `degraded` with `200`.
+
 ### Security
 
 - The widget bundle no longer contains an RPC endpoint. Native, Blaze and Vault stakes now go through the backend relay (`POST /api/transaction/send`), as JPool already did; `VITE_*_RPC_ENDPOINT` is removed. Blaze and Vault no longer simulate in the browser before signing: the relay simulates the signed transaction.

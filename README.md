@@ -504,8 +504,13 @@ Used by the Next.js backend.
 
 ## Observability
 
-The backend exposes `GET /api/health` for container liveness and protected
-Prometheus metrics at `GET /api/metrics`. Metrics cover validator-profile
+The backend exposes `GET /api/health` and protected Prometheus metrics at
+`GET /api/metrics`. The health route makes a real mainnet `getLatestBlockhash`
+call (3-second timeout), pings Redis, and reports which required variables are
+set, without their values. The result is cached for 30 seconds. A missing or
+unreachable mainnet RPC returns `503` with `"status":"degraded"`, which also
+marks the production backend container `unhealthy`. Redis failures report
+`degraded` with `200`, because the widget works without Redis. Metrics cover validator-profile
 status and latency, provider outcomes, validator and wallet cache operations, field freshness, and
 background refreshes. Validator profile failures are logged as one-line JSON.
 
