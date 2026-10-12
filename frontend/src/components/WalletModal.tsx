@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useContext, useEffect } from "react";
 import {
   useWallets,
@@ -11,7 +9,6 @@ import { SelectedWalletAccountContext } from "../context/SelectedWalletAccountCo
 import { Button, Flex, Text, Card, Link } from "@radix-ui/themes";
 import { StandardConnect, StandardDisconnect } from "@wallet-standard/core";
 import { ExternalLinkIcon } from "@radix-ui/react-icons";
-import Image from "next/image";
 import { useBalanceCheck } from "../context/BalanceCheckContext";
 import { useStakingModal } from "../context/StakingModalContext";
 import { createStyleInjector } from "../utils/styleInjector";
@@ -287,7 +284,7 @@ function WalletConnectItem({
         fontWeight: "500"
       }}
     >
-      <Image
+      <img
         src={wallet.icon}
         alt={wallet.name}
         width={32}
