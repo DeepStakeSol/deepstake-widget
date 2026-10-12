@@ -1,10 +1,9 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
-import { nodePolyfills } from "vite-plugin-node-polyfills";
 import packageJson from "./package.json";
 
 export default defineConfig({
-  plugins: [react(), nodePolyfills()],
+  plugins: [react()],
   envPrefix: ["VITE_", "DISABLE_BACKEND_PREFIX", "IMAGE_URL_PREFIX"],
   define: {
     "process.env": {},

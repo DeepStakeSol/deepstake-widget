@@ -4,6 +4,7 @@ import { useWalletAccountTransactionSigner } from '@solana/react'
 import {
   type Base64EncodedWireTransaction,
   getBase64EncodedWireTransaction,
+  getBase64Encoder,
   getTransactionDecoder,
 } from '@solana/kit'
 import { getCurrentChain } from '../../utils/config'
@@ -131,7 +132,7 @@ export function StakeButtonVault2({
           throw new Error(`Transaction simulation failed: ${JSON.stringify(simResult.value.err)}`)
         }
 
-        const txBytes = Uint8Array.from(Buffer.from(serializedTxBase64, 'base64'))
+        const txBytes = getBase64Encoder().encode(serializedTxBase64)
         const decodedTransaction = getTransactionDecoder().decode(txBytes)
         const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction])
         const signature = await rpc

@@ -6,6 +6,7 @@ import { useStakingModal } from '../../context/StakingModalContext'
 import {
   type Base64EncodedWireTransaction,
   getBase64EncodedWireTransaction,
+  getBase64Encoder,
   getTransactionDecoder,
 } from '@solana/kit'
 import { getCurrentChain } from '../../utils/config'
@@ -90,7 +91,7 @@ export function StakeButtonBlaze({
           throw new Error(`Transaction simulation failed: ${JSON.stringify(simResult.value.err)}`)
         }
 
-        const txBytes = Uint8Array.from(Buffer.from(txBase64, 'base64'))
+        const txBytes = getBase64Encoder().encode(txBase64)
         const decodedTransaction = getTransactionDecoder().decode(txBytes)
         const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction])
         const signature = await rpc
