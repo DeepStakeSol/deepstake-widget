@@ -51,7 +51,7 @@ export function StakeButtonBlaze({
   onAppliedStakesLoaded,
 }: StakeButtonProps) {
   const { showSuccessModal, hideSuccessModal } = useStakingModal()
-  const currentChain = getCurrentChain()
+  const currentChain = getCurrentChain(network)
   const walletSigner = useWalletAccountTransactionSigner(account, currentChain)
 
   const [isSubmittingTransaction, setIsSubmittingTransaction] = useState(false)

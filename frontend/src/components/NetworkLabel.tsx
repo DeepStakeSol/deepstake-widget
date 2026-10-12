@@ -1,8 +1,9 @@
 import { Box, Text } from "@radix-ui/themes";
-import { getNetworkIdentifier } from "../utils/config";
+import { useNetwork } from "../context/NetworkContext";
 
 export function NetworkLabel() {
-  const isDevnet = getNetworkIdentifier() === "devnet";
+  const { network } = useNetwork();
+  const isDevnet = network === "devnet";
   return (
     <Box
       style={{

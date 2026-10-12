@@ -55,7 +55,7 @@ export function StakeButtonJpool({
   onManageLoaded,
   onSuccess,
 }: Props) {
-  const walletSigner = useWalletAccountTransactionSigner(account, getCurrentChain())
+  const walletSigner = useWalletAccountTransactionSigner(account, getCurrentChain(network))
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [completed, setCompleted] = useState<JpoolCompletion | undefined>()

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { UiWalletAccount } from '@wallet-standard/react'
 import { useJpoolBind } from '../../hooks/useJpoolBind'
 import { getExplorerTxUrl } from '../../utils/config'
+import { useNetwork } from '../../context/NetworkContext'
 import { getImageUrl } from '../../utils/imageUrl'
 import {
   getJpoolBindCapability,
@@ -59,6 +60,7 @@ function useWidgetRoot(anchor: RefObject<HTMLElement | null>) {
 // shared SuccessModalShell exists; the shared success modal is untouched.
 export function JpoolCompletionDialog(props: JpoolCompletionDialogProps) {
   const { completed, validatorName, onClose } = props
+  const { network } = useNetwork()
   const anchor = useRef<HTMLSpanElement>(null)
   const root = useWidgetRoot(anchor)
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -105,7 +107,7 @@ export function JpoolCompletionDialog(props: JpoolCompletionDialogProps) {
           {(['solana-explorer', 'solscan', 'orbmarkets'] as const).map((explorer) => (
             <a
               key={explorer}
-              href={getExplorerTxUrl({ signature: completed.signature, explorer })}
+              href={getExplorerTxUrl({ signature: completed.signature, explorer, network })}
               target="_blank"
               rel="noopener noreferrer"
               className="sol-links"

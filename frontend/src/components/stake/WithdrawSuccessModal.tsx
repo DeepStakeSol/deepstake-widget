@@ -15,6 +15,7 @@ import {
   getExplorerTxUrl
 } from "../../utils/config";
 import { getImageUrl } from "../../utils/imageUrl";
+import { useNetwork } from "../../context/NetworkContext";
 
 interface WithdrawSuccessModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export function WithdrawSuccessModal({
   stakeAccount,
   signature
 }: WithdrawSuccessModalProps) {
+  const { network } = useNetwork();
   return (
     
       <Dialog.Root 
@@ -112,6 +114,7 @@ export function WithdrawSuccessModal({
                     href={getExplorerTxUrl({
                       signature: signature,
                       explorer: "solana-explorer",
+                      network
                     })}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -123,6 +126,7 @@ export function WithdrawSuccessModal({
                     href={getExplorerTxUrl({
                       signature: signature,
                       explorer: "solscan",
+                      network
                     })}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -135,6 +139,7 @@ export function WithdrawSuccessModal({
                     href={getExplorerTxUrl({
                       signature: signature,
                       explorer: "orbmarkets",
+                      network
                     })}
                     target="_blank"
                     rel="noopener noreferrer"

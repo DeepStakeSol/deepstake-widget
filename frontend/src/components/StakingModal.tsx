@@ -3,10 +3,12 @@
 import { Flex, Text } from "@radix-ui/themes";
 import { useStakingModal } from "../context/StakingModalContext";
 import { getExplorerTxUrl } from "../utils/config";
+import { useNetwork } from "../context/NetworkContext";
 import { getImageUrl } from "../utils/imageUrl";
 
 export function StakingModal() {
   const { isShowing, isTransactionShowing, successData, hideSuccessModal } = useStakingModal();
+  const { network } = useNetwork();
 
   if (!isShowing && !isTransactionShowing && !successData) {
     return null;
@@ -220,7 +222,8 @@ export function StakingModal() {
                     <a
                       href={getExplorerTxUrl({
                         signature: successData.signature,
-                        explorer: "solana-explorer"
+                        explorer: "solana-explorer",
+                        network
                       })}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -231,7 +234,8 @@ export function StakingModal() {
                     <a
                       href={getExplorerTxUrl({
                         signature: successData.signature,
-                        explorer: "solscan"
+                        explorer: "solscan",
+                        network
                       })}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -242,7 +246,8 @@ export function StakingModal() {
                     <a
                       href={getExplorerTxUrl({
                         signature: successData.signature,
-                        explorer: "orbmarkets"
+                        explorer: "orbmarkets",
+                        network
                       })}
                       target="_blank"
                       rel="noopener noreferrer"

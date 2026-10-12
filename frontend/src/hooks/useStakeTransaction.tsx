@@ -55,7 +55,7 @@ export function useStakeTransaction({
   onSuccess,
   onDataLoaded,
 }: UseStakeTransactionOptions) {
-  const currentChain = getCurrentChain()
+  const currentChain = getCurrentChain(network)
   const walletSigner = useWalletAccountTransactionSigner(account, currentChain)
 
   const options = useOptions()

@@ -60,9 +60,10 @@ export function getConfiguredNetwork(options?: Options | null): NetworkType {
   return DEFAULT_NETWORK;
 }
 
-function getNetworkConfig(): NetworkConfig {
-  const currentNetwork = getConfiguredNetwork();
-  return networks[currentNetwork];
+// Each widget instance carries its own network, so the helpers below take it
+// explicitly instead of reading a page-wide value. Unknown values map to mainnet.
+function getNetworkConfig(network: string): NetworkConfig {
+  return isValidNetwork(network) ? networks[network] : networks[DEFAULT_NETWORK];
 }
 
 export function getValidatorAddress(options: Options | null): Address {
@@ -74,24 +75,27 @@ export function getValidatorAddress(options: Options | null): Address {
   return address(validatorAddress);
 }
 
-export function getCurrentChain(): `solana:${string}` {
-  return `solana:${getNetworkConfig().identifier}`;
+export function getCurrentChain(network: string): `solana:${string}` {
+  return `solana:${getNetworkConfig(network).identifier}`;
 }
 
 interface ExplorerTxUrlParams {
   signature: string;
   explorer: "solana-explorer" | "solscan" | "orbmarkets";
+  network: string;
 }
 interface ExplorerAccountUrlParams {
   account: string;
   explorer: "solana-explorer" | "solscan" | "orbmarkets";
+  network: string;
 }
 
 export function getExplorerTxUrl({
   signature,
-  explorer
+  explorer,
+  network
 }: ExplorerTxUrlParams): string {
-  const networkConfig = getNetworkConfig();
+  const networkConfig = getNetworkConfig(network);
   let baseUrl: string;
   switch (explorer) {
     case "solana-explorer":
@@ -113,15 +117,12 @@ export function getExplorerTxUrl({
   return `${baseUrl}${signature}${clusterExtension}`;
 }
 
-export function getNetworkIdentifier(): NetworkType {
-  return getNetworkConfig().identifier;
-}
-
 export function getExplorerAccountUrl({
   account,
-  explorer
+  explorer,
+  network
 }: ExplorerAccountUrlParams): string {
-  const networkConfig = getNetworkConfig();
+  const networkConfig = getNetworkConfig(network);
   let baseUrl: string;
   switch (explorer) {
     case "solana-explorer":

@@ -8,8 +8,18 @@ import type { JpoolCompletion } from '../../utils/jpoolCopy'
 const mocks = vi.hoisted(() => ({ hook: vi.fn(), bind: vi.fn() }))
 vi.mock('../../hooks/useJpoolBind', () => ({ useJpoolBind: mocks.hook }))
 vi.mock('../../utils/config', () => ({
-  getExplorerTxUrl: ({ signature, explorer }: { signature: string; explorer: string }) =>
-    `https://${explorer}.example/tx/${signature}`,
+  getExplorerTxUrl: ({
+    signature,
+    explorer,
+    network,
+  }: {
+    signature: string
+    explorer: string
+    network: string
+  }) => `https://${explorer}.example/tx/${signature}?network=${network}`,
+}))
+vi.mock('../../context/NetworkContext', () => ({
+  useNetwork: () => ({ network: 'devnet' }),
 }))
 
 import { JpoolCompletionDialog, type JpoolCompletionDialogProps } from './JpoolCompletionDialog'
@@ -83,7 +93,7 @@ describe('JpoolCompletionDialog shell', () => {
     )
     const links = within(dialog).getAllByRole('link')
     expect(links.map((link) => link.textContent)).toEqual(['Explorer', 'Solscan', 'Orb'])
-    expect(links[1]).toHaveAttribute('href', 'https://solscan.example/tx/sig-1')
+    expect(links[1]).toHaveAttribute('href', 'https://solscan.example/tx/sig-1?network=devnet')
   })
 
   it('updates the registration line', () => {

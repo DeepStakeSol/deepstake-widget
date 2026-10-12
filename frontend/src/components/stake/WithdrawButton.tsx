@@ -35,7 +35,7 @@ export function WithdrawButton({
 }: WithdrawButtonProps) {
   const { showTransactionModal, hideTransactionModal, showSuccessModal, hideSuccessModal } =
     useStakingModal()
-  const currentChain = getCurrentChain()
+  const currentChain = getCurrentChain(network)
   const transactionSendingSigner = useWalletAccountTransactionSendingSigner(account, currentChain)
   const [isSendingTX, setIsSendingTX] = useState(false)
   const [txSignature, setTxSignature] = useState<string | undefined>()

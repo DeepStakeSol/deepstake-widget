@@ -23,6 +23,10 @@ vi.mock("../context/StakingModalContext", () => ({
   }),
 }));
 
+vi.mock("../context/NetworkContext", () => ({
+  useNetwork: () => ({ network: "devnet" }),
+}));
+
 describe("StakingModal", () => {
   beforeEach(() => {
     hideSuccessModalMock.mockClear();
@@ -68,6 +72,10 @@ describe("StakingModal", () => {
     expect(screen.getByAltText("staking logo")).toBeInTheDocument();
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.textContent)).toEqual(["Explorer", "Solscan", "Orb"]);
-    links.forEach((link) => expect(link.getAttribute("href")).toContain("sig-shared"));
+    links.forEach((link) => {
+      expect(link.getAttribute("href")).toContain("sig-shared");
+      // The widget's own network, not the build default, picks the cluster.
+      expect(link.getAttribute("href")).toMatch(/\?cluster=devnet$/);
+    });
   });
 });
