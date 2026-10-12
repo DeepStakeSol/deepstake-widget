@@ -32,8 +32,7 @@ import {
   invalidateLSTBalanceCache,
   invalidateSolBalanceCache,
 } from '../../utils/api'
-
-const VSOL_MINT = 'vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7'
+import { VSOL_MINT } from '../../utils/managePrefetch'
 
 export function StakeButtonVault2({
   network,
@@ -76,7 +75,7 @@ export function StakeButtonVault2({
         const balanceLamports = Math.floor(parseFloat(balance.toString()) * LAMPORTS_PER_SOL)
 
         const fetchVaultTransaction = async () => {
-          const mint = import.meta.env.VITE_VAULT_MINT
+          const mint = VSOL_MINT
           const target = voteIdentity
           const useExternalApi = import.meta.env.VITE_VAULT_USE_EXTERNAL_API === 'true'
 

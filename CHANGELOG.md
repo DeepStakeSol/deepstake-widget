@@ -8,6 +8,7 @@ All notable changes to DeepStake Widget are documented here. This project follow
 
 - The widget bundle no longer contains an RPC endpoint. Native, Blaze and Vault stakes now go through the backend relay (`POST /api/transaction/send`), as JPool already did; `VITE_*_RPC_ENDPOINT` is removed. Blaze and Vault no longer simulate in the browser before signing: the relay simulates the signed transaction.
 - `POST /api/transaction/send` is limited to 20 requests per minute per client IP (`429 RATE_LIMITED` with `Retry-After`). The limiter is skipped when Redis is unavailable.
+- Vault stakes use the built-in vSOL mint instead of the build-time `VITE_VAULT_MINT`, which the production Compose builder never received; a clean production build no longer sends `mint=undefined`.
 - Removed the unused Next.js dependency from the frontend; wallet icons use a native `<img>`. Also removed the unused `node-fetch`, `tweetnacl`, and `bs58` dependencies.
 - Removed Node polyfills (`vite-plugin-node-polyfills`) from the widget bundle; Blaze and Vault transactions are decoded with `@solana/kit`. The bundle shrinks from 977 KB to 890 KB.
 - Backend Next.js upgraded from 15.1.11 to 15.5.27 (with `eslint-config-next` and `@next/eslint-plugin-next`), removing the critical production advisory.
