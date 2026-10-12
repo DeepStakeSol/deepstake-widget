@@ -1,5 +1,5 @@
 import { shortenAddress } from "../../utils/solana/address";
-import { PRIORITY_FEE_BUFFER, STAKE_PROGRAM, LAMPORTS_PER_SOL, PRIORITY_FEE_BUFFER_LAMPORTS, UI_DECIMALS, UI_SCALE } from "../../utils/constants";
+import { PRIORITY_FEE_BUFFER, STAKE_PROGRAM } from "../../utils/constants";
 import { WalletDisconnectButton } from "../WalletDisconnectButton";
 import { cssImageUrl } from "../../utils/imageUrl";
 
