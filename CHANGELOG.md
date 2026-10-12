@@ -2,6 +2,17 @@
 
 All notable changes to DeepStake Widget are documented here. This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Security
+
+- Removed the unused Next.js dependency from the frontend; wallet icons use a native `<img>`. Also removed the unused `node-fetch`, `tweetnacl`, and `bs58` dependencies.
+- Removed Node polyfills (`vite-plugin-node-polyfills`) from the widget bundle; Blaze and Vault transactions are decoded with `@solana/kit`. The bundle shrinks from 977 KB to 890 KB.
+- Backend Next.js upgraded from 15.1.11 to 15.5.27 (with `eslint-config-next` and `@next/eslint-plugin-next`), removing the critical production advisory.
+- Dev tooling lockfiles refreshed with non-breaking fixes; Vitest updated to 4.1.11.
+- Added weekly Dependabot updates and a CI workflow (typecheck, tests, build, and a critical-level production audit) for both packages.
+- Known residual: the PostCSS advisory pinned inside Next.js 15 remains in the backend until it is fixed upstream; `braces` reaches the backend only through Next's ESLint plugin (dev only).
+
 ## [2.0.0] - 2026-10-13
 
 ### Added

@@ -4,6 +4,7 @@ Open-source embeddable Solana staking widget for validators.
 
 DeepStake Widget is a JavaScript widget that can be embedded on a validator website with a single script tag. It gives delegators a staking interface without sending them away from the validator site.
 
+[![CI](https://github.com/DeepStakeSol/deepstake-widget/actions/workflows/ci.yml/badge.svg)](https://github.com/DeepStakeSol/deepstake-widget/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ## Quick start for validators
