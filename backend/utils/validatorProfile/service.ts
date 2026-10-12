@@ -55,8 +55,8 @@ const CACHE_GROUP_ANCHOR_FIELDS: Record<
 };
 
 const FIELD_PRECEDENCE: Record<ProfileField, string[]> = {
-  name: ["stakewiz", "validators-app"],
-  description: ["stakewiz", "validators-app"],
+  name: ["stakewiz", "validators-app", "solana-validator-info"],
+  description: ["stakewiz", "validators-app", "solana-validator-info"],
   estimatedApyPercent: ["stakewiz"],
   commissionPercent: ["solana-rpc", "stakewiz", "validators-app"],
   mevCommissionPercent: ["jito", "stakewiz"],

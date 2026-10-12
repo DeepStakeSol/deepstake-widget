@@ -47,6 +47,27 @@ describe("validator profile aggregation", () => {
     expect(profile.fields.logoUrl.source).toBeNull();
   });
 
+  it("uses on-chain validator-info for name only after Stakewiz and Validators.app", async () => {
+    const onChain = provider("solana-validator-info", {
+      name: "On-chain name",
+      description: "On-chain details",
+    });
+
+    const devnet = await getValidatorProfile("devnet", "vote", [onChain]);
+    expect(devnet).toMatchObject({
+      name: "On-chain name",
+      description: "On-chain details",
+    });
+    expect(devnet.fields.name.source).toBe("solana-validator-info");
+
+    const mainnet = await getValidatorProfile("mainnet", "vote", [
+      onChain,
+      provider("stakewiz", { name: "Stakewiz name" }),
+    ]);
+    expect(mainnet.name).toBe("Stakewiz name");
+    expect(mainnet.fields.name.source).toBe("stakewiz");
+  });
+
   it("returns a partial profile and preserves zero values", async () => {
     const failingProvider: ValidatorProfileProvider = vi
       .fn()

@@ -10,10 +10,41 @@ vi.mock("@/utils/solana/rpc", () => ({
 import {
   fetchJitoProfile,
   fetchSolanaProfile,
+  fetchSolanaValidatorInfoProfile,
   fetchStakewizProfile,
   fetchValidatorsAppProfile,
+  parseValidatorInfoAccount,
   validatorProfileProviderConfigs,
 } from "./providers";
+
+// DeepStake validator-info Config accounts, read from the chain on 2026-10-12
+// (`getProgramAccounts Config111…` with memcmp on the identity). The real
+// accounts are 643 bytes; the zero padding after the JSON is trimmed here.
+const DEVNET_IDENTITY = "deepEMPe2gRjCPQ4E1VzmbDTNXt7skZie7vJbWKnpUH";
+const DEVNET_VALIDATOR_INFO =
+  "AgdRlwF0SPKsXcI8nrx6x4wKJyV6xhRFjeCk8W+AAAAAAAlje3sGRC9xFVaAjtc4i3flpm/B1n2PDNTh24XgersSAY8AAAAAAAAAeyJkZXRhaWxzIjoiSWYgeW91IGtub3csIHlvdSBrbm93IiwiaWNvblVybCI6Imh0dHBzOi8vZGVlcHN0YWtlLmluZm8vZGVlcHN0YWtlX2xvZ28ucG5nIiwibmFtZSI6IkRlZXBTdGFrZSIsIndlYnNpdGUiOiJodHRwczovL2RlZXBzdGFrZS5pbmZvIn0=";
+const MAINNET_IDENTITY = "DeepM3FDWaAb7o53rvyZk5YvHLG3FvDiVXJLRY78z51p";
+const MAINNET_VALIDATOR_INFO =
+  "AgdRlwF0SPKsXcI8nrx6x4wKJyV6xhRFjeCk8W+AAAAAALvxffj+Qb6wVO/BXDxBqbf1sYteh5mCX+YdESMJY3eXAY8AAAAAAAAAeyJkZXRhaWxzIjoiSWYgeW91IGtub3csIHlvdSBrbm93IiwiaWNvblVybCI6Imh0dHBzOi8vZGVlcHN0YWtlLmluZm8vZGVlcHN0YWtlX2xvZ28ucG5nIiwibmFtZSI6IkRlZXBTdGFrZSIsIndlYnNpdGUiOiJodHRwczovL2RlZXBzdGFrZS5pbmZvIn0=";
+const DEEPSTAKE_INFO = {
+  name: "DeepStake",
+  details: "If you know, you know",
+  website: "https://deepstake.info",
+  iconUrl: "https://deepstake.info/deepstake_logo.png",
+};
+
+function bytes(base64: string): Uint8Array {
+  return Uint8Array.from(Buffer.from(base64, "base64"));
+}
+
+function validatorInfoAccount(json: string, identityBytes = bytes(DEVNET_VALIDATOR_INFO)) {
+  const body = new TextEncoder().encode(json);
+  const data = new Uint8Array(75 + body.length);
+  data.set(identityBytes.subarray(0, 67));
+  new DataView(data.buffer).setBigUint64(67, BigInt(body.length), true);
+  data.set(body, 75);
+  return data;
+}
 
 function response(body: unknown, status = 200): Response {
   return {
@@ -56,6 +87,7 @@ describe("validator profile providers", () => {
       jito: 8_000,
       "solana-rpc": 8_000,
       "validators-app": 5_000,
+      "solana-validator-info": 8_000,
     });
   });
 
@@ -172,5 +204,147 @@ describe("validator profile providers", () => {
     await expect(fetchJitoProfile(context())).rejects.toThrow(
       "Unexpected Jito response format"
     );
+  });
+
+  describe("on-chain validator-info", () => {
+    it.each([
+      ["devnet", DEVNET_VALIDATOR_INFO, DEVNET_IDENTITY],
+      ["mainnet", MAINNET_VALIDATOR_INFO, MAINNET_IDENTITY],
+    ])("parses the real DeepStake %s account", (_network, data, identity) => {
+      expect(parseValidatorInfoAccount(bytes(data), identity)).toEqual(
+        DEEPSTAKE_INFO
+      );
+    });
+
+    it("ignores the zero padding after the JSON", () => {
+      const padded = new Uint8Array(643);
+      padded.set(bytes(DEVNET_VALIDATOR_INFO));
+      expect(parseValidatorInfoAccount(padded, DEVNET_IDENTITY)).toEqual(
+        DEEPSTAKE_INFO
+      );
+    });
+
+    it("rejects records for another identity, unsigned or malformed", () => {
+      const data = bytes(DEVNET_VALIDATOR_INFO);
+      expect(parseValidatorInfoAccount(data, MAINNET_IDENTITY)).toBeNull();
+
+      const unsigned = data.slice();
+      unsigned[66] = 0;
+      expect(parseValidatorInfoAccount(unsigned)).toBeNull();
+
+      const notValidatorInfo = data.slice();
+      notValidatorInfo[1] ^= 0xff;
+      expect(parseValidatorInfoAccount(notValidatorInfo)).toBeNull();
+
+      expect(parseValidatorInfoAccount(data.subarray(0, 120))).toBeNull();
+
+      const oversized = data.slice();
+      new DataView(oversized.buffer).setBigUint64(67, 2n ** 40n, true);
+      expect(parseValidatorInfoAccount(oversized)).toBeNull();
+
+      expect(parseValidatorInfoAccount(validatorInfoAccount("not json"))).toBeNull();
+      expect(parseValidatorInfoAccount(validatorInfoAccount("[1]"))).toBeNull();
+    });
+
+    it("keeps only https links", () => {
+      expect(
+        parseValidatorInfoAccount(
+          validatorInfoAccount(
+            JSON.stringify({
+              name: "Validator",
+              iconUrl: "javascript:alert(1)",
+              website: "http://example.com",
+            })
+          )
+        )
+      ).toEqual({ name: "Validator", details: null, website: null, iconUrl: null });
+    });
+
+    it("reads name, details and icon through the vote account identity", async () => {
+      vi.mocked(fetch)
+        .mockResolvedValueOnce(
+          response({
+            result: {
+              current: [{ votePubkey: "vote", nodePubkey: DEVNET_IDENTITY }],
+              delinquent: [],
+            },
+          })
+        )
+        .mockResolvedValueOnce(
+          response({
+            result: [
+              {
+                pubkey: "HyuuYUVccp7i6FbuUiewjaP63m1s3MbQSspzB66SDUDg",
+                account: { data: [DEVNET_VALIDATOR_INFO, "base64"] },
+              },
+            ],
+          })
+        );
+
+      await expect(
+        fetchSolanaValidatorInfoProfile(context("devnet"))
+      ).resolves.toMatchObject({
+        source: "solana-validator-info",
+        values: {
+          name: "DeepStake",
+          description: "If you know, you know",
+          logoUrl: "https://deepstake.info/deepstake_logo.png",
+        },
+      });
+
+      const [endpoint, init] = vi.mocked(fetch).mock.calls[1];
+      expect(endpoint).toBe("https://devnet-rpc.example");
+      expect(JSON.parse(String(init?.body))).toMatchObject({
+        method: "getProgramAccounts",
+        params: [
+          "Config1111111111111111111111111111111111111",
+          {
+            encoding: "base64",
+            filters: [
+              {
+                memcmp: {
+                  offset: 1,
+                  bytes: "Va1idator1nfo111111111111111111111111111111",
+                },
+              },
+              { memcmp: { offset: 34, bytes: DEVNET_IDENTITY } },
+            ],
+          },
+        ],
+      });
+    });
+
+    it("returns null for an unknown vote account or no published info", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        response({ result: { current: [], delinquent: [] } })
+      );
+      await expect(
+        fetchSolanaValidatorInfoProfile(context("devnet"))
+      ).resolves.toBeNull();
+      expect(fetch).toHaveBeenCalledTimes(1);
+
+      vi.mocked(fetch)
+        .mockResolvedValueOnce(
+          response({
+            result: {
+              current: [],
+              delinquent: [{ votePubkey: "vote", nodePubkey: DEVNET_IDENTITY }],
+            },
+          })
+        )
+        .mockResolvedValueOnce(response({ result: [] }));
+      await expect(
+        fetchSolanaValidatorInfoProfile(context("devnet"))
+      ).resolves.toBeNull();
+    });
+
+    it("rejects RPC errors so the service records a failure", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        response({ error: { code: -32601, message: "Method not found" } })
+      );
+      await expect(
+        fetchSolanaValidatorInfoProfile(context("devnet"))
+      ).rejects.toThrow("Unexpected Solana RPC response format");
+    });
   });
 });
