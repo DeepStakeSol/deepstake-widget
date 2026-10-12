@@ -1,6 +1,7 @@
 import packageJson from "@/package.json";
 import { getRedisClient, isRedisConfigured } from "@/utils/redis";
 import { createRpcConnection, getRpcEndpoint } from "@/utils/solana/rpc";
+import { withTimeout } from "@/utils/timeout";
 
 const RPC_TIMEOUT_MS = 3_000;
 const REDIS_TIMEOUT_MS = 1_000;
@@ -30,17 +31,11 @@ function isSet(name: string): boolean {
   return Boolean(process.env[name]?.trim());
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error("timeout")), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
-
 // Error details are only logged: an RPC error can echo the endpoint URL, which
 // may carry an API key.
-async function checkRpcMainnet(): Promise<HealthReport["checks"]["rpc_mainnet"]> {
+async function checkRpcMainnet(): Promise<
+  HealthReport["checks"]["rpc_mainnet"]
+> {
   if (!getRpcEndpoint("mainnet")) return { ok: false };
   const startedAt = Date.now();
   try {

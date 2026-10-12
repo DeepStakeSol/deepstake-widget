@@ -499,6 +499,9 @@ Used by the Next.js backend.
 | `TELEMETRY_OWN_HOSTS` | No | Comma-separated own hostnames; defaults to `deepstake.info`. Compose reads it from the root `.env`. |
 | `IMAGES_DIR` | No | Filesystem path served by `/api/images/`; Docker sets this to `/images`. |
 | `JPOOL_ELIGIBILITY_REQUIRE_MEMBERSHIP` | No | `true` also hides the JPool tab for validators outside the JPool pool (`isJpoolValidator: false`). Default `false`: only blocked or superminority validators are hidden. |
+| `SELFTEST_TOKEN` | For `/api/selftest` | Bearer token required by `POST /api/selftest`; the route returns 503 when unset. |
+| `SELFTEST_WALLET` | For `/api/selftest` | Address (no key) of a mainnet wallet holding more than the stake minimum plus fees; the selftest stakes from it in simulation only. |
+| `SELFTEST_VOTE_ACCOUNT` | No | Vote account the selftest stakes to. Defaults to `NEXT_PUBLIC_VALIDATOR_ADDRESS`. |
 
 `backend/.env` supplies RPC endpoints, validator address, and optional provider token to production Compose. Compose overrides Redis, token, telemetry-host, and filesystem-path settings from the root `.env` or its service configuration. For a direct backend run, `backend/.env` can supply those settings. `frontend/.env.example` lists optional browser-side network and protocol overrides (never an RPC URL); Compose uses root `.env` for its build arguments.
 
@@ -513,6 +516,17 @@ marks the production backend container `unhealthy`. Redis failures report
 `degraded` with `200`, because the widget works without Redis. Metrics cover validator-profile
 status and latency, provider outcomes, validator and wallet cache operations, field freshness, and
 background refreshes. Validator profile failures are logged as one-line JSON.
+
+`POST /api/selftest` (header `Authorization: Bearer <SELFTEST_TOKEN>`) checks the
+backend stake path end to end without spending SOL. It builds a real mainnet native
+stake of the current minimum from `SELFTEST_WALLET` to `SELFTEST_VOTE_ACCOUNT`, using
+the same code as `/api/stake/generate`, then simulates it with `sigVerify: false` and
+`replaceRecentBlockhash: true`. Nothing is signed or sent, and the server holds no
+key. It returns `200 { ok: true, network, minimumSol, unitsConsumed, elapsedMs }` or
+`503 { ok: false, network, stage, error, elapsedMs }`, where `stage` is `config`,
+`generate` or `simulate`. Errors never include the RPC URL or API key. Requests are
+limited to 10 per minute per client IP, counted before the token check. The limit is
+skipped when Redis is unavailable.
 
 Prometheus/Grafana are managed outside this repository. Alert rules are in
 `ops/prometheus/validator-profile-alerts.yml`; scrape configuration, failure
