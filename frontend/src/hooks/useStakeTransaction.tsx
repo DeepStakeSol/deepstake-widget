@@ -12,14 +12,13 @@ import {
 } from '@solana/kit'
 import { getCurrentChain, getValidatorAddress } from '../utils/config'
 import { useOptions } from '../options'
-import { createRpcConnection } from '../utils/solana/rpc'
 import { LAMPORTS_PER_SOL } from '../utils/constants'
 import { formatLamportsAsSol } from '../utils/backendRequest'
 import { GetStakeAccountResponse } from '../utils/solana/stake/get-stake-accounts'
 import {
   generateStakeTransaction,
   fetchStakeAccounts,
-  confirmTransaction,
+  sendAndConfirmTransaction,
   invalidateSolBalanceCache,
 } from '../utils/api'
 
@@ -104,18 +103,16 @@ export function useStakeTransaction({
         const decodedTransaction = transactionDecoder.decode(transactionBytes)
         const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction])
         const fullySignedTx = await partiallySignTransaction([newAccount.keyPair], walletSignedTx)
-        const rpc = createRpcConnection(network)
-        const wireTransaction = getBase64EncodedWireTransaction(fullySignedTx)
-        const signature = await rpc.sendTransaction(wireTransaction, { encoding: 'base64' }).send()
-
-        // Call the new confirmation API endpoint
-        await confirmTransaction(network, {
-          txid: signature,
-          targetCommitment: 'confirmed',
-          timeout: 30000,
-          interval: 1000,
-          cacheMutation: { walletAddress: account.address, mutation: 'native-stake' },
-        })
+        const signature = await sendAndConfirmTransaction(
+          network,
+          getBase64EncodedWireTransaction(fullySignedTx),
+          {
+            targetCommitment: 'confirmed',
+            timeout: 30000,
+            interval: 1000,
+            cacheMutation: { walletAddress: account.address, mutation: 'native-stake' },
+          }
+        )
 
         invalidateSolBalanceCache(account.address, network)
         setLastSignature(signature)

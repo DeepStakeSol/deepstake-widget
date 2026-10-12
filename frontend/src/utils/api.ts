@@ -1,7 +1,7 @@
 // Centralized API helpers for backend endpoints
 import { GetStakeAccountResponse } from './solana/stake/get-stake-accounts'
 import { Base64EncodedWireTransaction } from '@solana/kit'
-import { fetchBackendJson } from './backendRequest'
+import { BackendRequestError, fetchBackendJson } from './backendRequest'
 import { cachedRequest, deduplicatedRequest, invalidateRequestCacheByPrefix } from './requestCache'
 
 const SHORT_WALLET_CACHE_TTL_MS = 30_000
@@ -278,9 +278,8 @@ export type WalletMutation =
   | 'vault-stake'
   | 'jpool-stake'
 
-// Backend simulate + relay of a fully signed transaction (finding N1).
-// TEMP(JPOOL-TMP-10): only the JPool tab uses it; the other tabs still send
-// through a browser RPC connection.
+// Backend simulate + relay of a fully signed transaction (finding N1). The
+// widget has no RPC endpoint of its own, so every tab sends through here.
 export async function sendSignedTransaction(
   network: string,
   transaction: Base64EncodedWireTransaction
@@ -311,4 +310,38 @@ export async function confirmTransaction(
   if (data.error) {
     throw new Error(data.error)
   }
+}
+
+// Relays a fully signed transaction and confirms its signature. When the relay
+// fails after sending, the bytes may still have landed: that signature is
+// confirmed before the send failure is reported, so the user is not invited
+// to sign a second transaction.
+export async function sendAndConfirmTransaction(
+  network: string,
+  transaction: Base64EncodedWireTransaction,
+  options: Omit<ConfirmTxOptions, 'txid'>
+): Promise<string> {
+  let signature: string
+  let sendError: BackendRequestError | undefined
+  try {
+    signature = await sendSignedTransaction(network, transaction)
+  } catch (error) {
+    if (
+      error instanceof BackendRequestError &&
+      error.code === 'TRANSACTION_SEND_FAILED' &&
+      error.signature
+    ) {
+      signature = error.signature
+      sendError = error
+    } else {
+      throw error
+    }
+  }
+
+  try {
+    await confirmTransaction(network, { ...options, txid: signature })
+  } catch (error) {
+    throw sendError ?? error
+  }
+  return signature
 }

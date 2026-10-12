@@ -75,7 +75,7 @@ DeepStake backend
 Solana / protocol APIs
 ```
 
-The backend is required because several Solana RPC and protocol calls should not be made directly from the browser. In the Docker setup, the frontend build is written to `./shared`, and the backend serves that folder under `/api/w/`.
+The backend is required because the widget makes no Solana RPC calls of its own. Every signed transaction is simulated and relayed by the backend (`POST /api/transaction/send`, limited to 20 requests per minute per client IP; the limit is skipped when Redis is unavailable), so the bundle never contains an RPC URL or API key. Unstake and withdraw are sent by the wallet itself. In the Docker setup, the frontend build is written to `./shared`, and the backend serves that folder under `/api/w/`.
 
 ## Requirements
 
@@ -189,8 +189,6 @@ Vault and JPool are mainnet-only. On devnet, the widget hides them and logs a wa
 Enable the JPool tab only if your validator is in the JPool pool; direct stake to validators outside the pool is not confirmed by JPool.
 
 Before showing the tab, the widget asks the backend whether JPool accepts direct stake for the validator (`GET /api/jpool/eligibility?vote=<vote_account>&network=mainnet`). The tab is hidden only when JPool marks the validator as blocked or superminority, with the console line `[DeepStake widget] JPool tab hidden: <reason>`. If the check fails or takes longer than 2 seconds, the tab is shown. A widget configured with only `jpool` shows a short loader while the check runs. Telemetry reports the requested tabs, including a `jpool` tab that eligibility later hides.
-
-JPool transactions are simulated and relayed by the backend (`POST /api/transaction/send`), so the JPool tab needs no browser-side RPC endpoint.
 
 Wallet binding goes through `POST /api/jpool/bind?network=mainnet` with the body `{ wallet, signature, message }`. The backend checks the signed message (compact JSON, `action: "bindWallet"`, the same wallet, a timestamp no older than 5 minutes). It verifies the Ed25519 signature before forwarding the request to JPool. Requests are limited to 10 per minute per client IP (from nginx's `X-Real-IP`) and 10 per minute per wallet. The route requires Redis and returns `503` without it. JPool never overwrites an existing binding: a wallet bound to another validator gets `409 JPOOL_BOUND_ELSEWHERE`, and the user changes the binding in the JPool app.
 
@@ -502,7 +500,7 @@ Used by the Next.js backend.
 | `IMAGES_DIR` | No | Filesystem path served by `/api/images/`; Docker sets this to `/images`. |
 | `JPOOL_ELIGIBILITY_REQUIRE_MEMBERSHIP` | No | `true` also hides the JPool tab for validators outside the JPool pool (`isJpoolValidator: false`). Default `false`: only blocked or superminority validators are hidden. |
 
-`backend/.env` supplies RPC endpoints, validator address, and optional provider token to production Compose. Compose overrides Redis, token, telemetry-host, and filesystem-path settings from the root `.env` or its service configuration. For a direct backend run, `backend/.env` can supply those settings. `frontend/.env.example` lists optional browser-side network, RPC, and protocol overrides; Compose uses root `.env` for its build arguments.
+`backend/.env` supplies RPC endpoints, validator address, and optional provider token to production Compose. Compose overrides Redis, token, telemetry-host, and filesystem-path settings from the root `.env` or its service configuration. For a direct backend run, `backend/.env` can supply those settings. `frontend/.env.example` lists optional browser-side network and protocol overrides (never an RPC URL); Compose uses root `.env` for its build arguments.
 
 ## Observability
 

@@ -287,4 +287,72 @@ describe('API helpers', () => {
       signature: 'sig',
     })
   })
+
+  it('sends and confirms with the caller options', async () => {
+    const fetchMock = vi.mocked(fetch)
+    fetchMock
+      .mockReturnValueOnce(mockJsonResponse({ signature: 'sig' }))
+      .mockReturnValueOnce(mockJsonResponse({ success: true }))
+    const { sendAndConfirmTransaction } = await loadApi()
+
+    await expect(
+      sendAndConfirmTransaction('devnet', 'AQID' as never, { targetCommitment: 'confirmed' })
+    ).resolves.toBe('sig')
+    const [url, init] = fetchMock.mock.calls[1]
+    expect(url).toBe('https://backend.example/api/transaction/confirm?network=devnet')
+    expect(JSON.parse(init?.body as string)).toEqual({ targetCommitment: 'confirmed', txid: 'sig' })
+  })
+
+  it('confirms the returned signature when the relay fails after sending', async () => {
+    const fetchMock = vi.mocked(fetch)
+    fetchMock
+      .mockReturnValueOnce(
+        mockJsonResponse(
+          { error: 'send failed', code: 'TRANSACTION_SEND_FAILED', signature: 'sig-maybe' },
+          { ok: false, status: 502 }
+        )
+      )
+      .mockReturnValueOnce(mockJsonResponse({ success: true }))
+    const { sendAndConfirmTransaction } = await loadApi()
+
+    await expect(sendAndConfirmTransaction('mainnet', 'AQID' as never, {})).resolves.toBe(
+      'sig-maybe'
+    )
+    expect(JSON.parse(fetchMock.mock.calls[1][1]?.body as string)).toEqual({ txid: 'sig-maybe' })
+  })
+
+  it('reports the send failure when that signature does not confirm', async () => {
+    vi.mocked(fetch)
+      .mockReturnValueOnce(
+        mockJsonResponse(
+          { error: 'send failed', code: 'TRANSACTION_SEND_FAILED', signature: 'sig-maybe' },
+          { ok: false, status: 502 }
+        )
+      )
+      .mockReturnValueOnce(
+        mockJsonResponse({ error: 'Failed to confirm transaction' }, { ok: false, status: 500 })
+      )
+    const { sendAndConfirmTransaction } = await loadApi()
+
+    await expect(sendAndConfirmTransaction('mainnet', 'AQID' as never, {})).rejects.toMatchObject({
+      code: 'TRANSACTION_SEND_FAILED',
+      signature: 'sig-maybe',
+    })
+  })
+
+  it('does not confirm when the relay rejects the transaction', async () => {
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockReturnValueOnce(
+      mockJsonResponse(
+        { error: 'simulation failed', code: 'TRANSACTION_SIMULATION_FAILED' },
+        { ok: false, status: 400 }
+      )
+    )
+    const { sendAndConfirmTransaction } = await loadApi()
+
+    await expect(sendAndConfirmTransaction('mainnet', 'AQID' as never, {})).rejects.toMatchObject({
+      code: 'TRANSACTION_SIMULATION_FAILED',
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
 })

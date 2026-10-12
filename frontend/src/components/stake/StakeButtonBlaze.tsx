@@ -4,15 +4,13 @@ import { useWalletAccountTransactionSigner } from '@solana/react'
 import { StakeButtonBase } from './StakeButtonBase'
 import { useStakingModal } from '../../context/StakingModalContext'
 import {
-  type Base64EncodedWireTransaction,
   getBase64EncodedWireTransaction,
   getBase64Encoder,
   getTransactionDecoder,
 } from '@solana/kit'
 import { getCurrentChain } from '../../utils/config'
-import { createRpcConnection } from '../../utils/solana/rpc'
 import {
-  confirmTransaction,
+  sendAndConfirmTransaction,
   fetchBlazeAppliedStakes,
   fetchLSTBalance,
   generateBlazeStakeTransaction,
@@ -78,33 +76,19 @@ export function StakeButtonBlaze({
           voteIdentity,
         })
 
-        const rpc = createRpcConnection(network)
-
-        const simResult = await rpc
-          .simulateTransaction(txBase64 as Base64EncodedWireTransaction, {
-            encoding: 'base64',
-            sigVerify: false,
-            commitment: 'processed',
-          })
-          .send()
-        if (simResult.value.err) {
-          throw new Error(`Transaction simulation failed: ${JSON.stringify(simResult.value.err)}`)
-        }
-
         const txBytes = getBase64Encoder().encode(txBase64)
         const decodedTransaction = getTransactionDecoder().decode(txBytes)
         const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction])
-        const signature = await rpc
-          .sendTransaction(getBase64EncodedWireTransaction(walletSignedTx), { encoding: 'base64' })
-          .send()
-
-        await confirmTransaction(network, {
-          txid: signature,
-          targetCommitment: 'confirmed',
-          timeout: 30000,
-          interval: 1000,
-          cacheMutation: { walletAddress: account.address, mutation: 'blaze-stake' },
-        })
+        const signature = await sendAndConfirmTransaction(
+          network,
+          getBase64EncodedWireTransaction(walletSignedTx),
+          {
+            targetCommitment: 'confirmed',
+            timeout: 30000,
+            interval: 1000,
+            cacheMutation: { walletAddress: account.address, mutation: 'blaze-stake' },
+          }
+        )
 
         invalidateSolBalanceCache(account.address, network)
         invalidateLSTBalanceCache(account.address, network, BSOL_MINT)

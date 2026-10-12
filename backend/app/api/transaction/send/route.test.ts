@@ -23,7 +23,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MAX_SEND_BODY_BYTES } from "@/utils/solana/send";
 
-const { rpcState, simulateMock, sendMock } = vi.hoisted(() => ({
+const { rpcState, simulateMock, sendMock, redisState, evalMock } = vi.hoisted(() => ({
   rpcState: {
     endpoint: "https://rpc.example" as string,
     simulation: { err: null as unknown, logs: [] as string[] | null },
@@ -32,7 +32,17 @@ const { rpcState, simulateMock, sendMock } = vi.hoisted(() => ({
     sentSignature: null as string | null
   },
   simulateMock: vi.fn(),
-  sendMock: vi.fn()
+  sendMock: vi.fn(),
+  redisState: { configured: true, down: false },
+  evalMock: vi.fn()
+}));
+
+vi.mock("@/utils/redis", () => ({
+  isRedisConfigured: () => redisState.configured,
+  getRedisClient: async () => {
+    if (redisState.down) throw new Error("Redis connection is in cooldown");
+    return { eval: evalMock };
+  }
 }));
 
 vi.mock("@/utils/solana/rpc", () => ({
@@ -152,7 +162,49 @@ describe("POST /api/transaction/send", () => {
           ? Promise.reject(rpcState.sendError)
           : Promise.resolve(rpcState.sentSignature)
     }));
+    redisState.configured = true;
+    redisState.down = false;
+    evalMock.mockReset().mockResolvedValue([1, 60_000]);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  });
+
+  describe("rate limit", () => {
+    it("counts each request per client IP", async () => {
+      const { wire } = await signedTransaction([memo("x")]);
+      await post({ transaction: wire }, { headers: { "x-real-ip": "203.0.113.7" } });
+      expect(evalMock).toHaveBeenCalledWith(expect.any(String), {
+        keys: ["rate-limit:v1:tx-send:ip:203.0.113.7"],
+        arguments: ["60000"]
+      });
+    });
+
+    it("returns 429 with Retry-After before touching the RPC", async () => {
+      evalMock.mockResolvedValue([21, 42_000]);
+      const { wire } = await signedTransaction([memo("x")]);
+      const response = await POST(request({ transaction: wire }));
+      expect(response.status).toBe(429);
+      expect(response.headers.get("Retry-After")).toBe("42");
+      expect(await response.json()).toEqual({
+        error: "Too many transactions. Please wait a minute and try again.",
+        code: "RATE_LIMITED",
+        retryAfterSeconds: 42
+      });
+      expect(simulateMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["unavailable", { configured: true, down: true }],
+      ["not configured", { configured: false, down: false }]
+    ])("still relays when Redis is %s", async (_label, state) => {
+      Object.assign(redisState, state);
+      const { wire, signature } = await signedTransaction([memo("x")]);
+      rpcState.sentSignature = signature;
+      expect(await post({ transaction: wire })).toEqual({
+        status: 200,
+        body: { signature }
+      });
+    });
   });
 
   describe("input validation", () => {

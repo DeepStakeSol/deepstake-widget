@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   generateMock: vi.fn(),
   manageMock: vi.fn(),
   sendMock: vi.fn(),
-  confirmMock: vi.fn(),
   invalidateMock: vi.fn(),
   dialogProps: vi.fn(),
 }))
@@ -37,9 +36,8 @@ vi.mock('./JpoolCompletionDialog', () => ({
   },
 }))
 vi.mock('../../utils/api', () => ({
-  confirmTransaction: mocks.confirmMock,
   invalidateSolBalanceCache: mocks.invalidateMock,
-  sendSignedTransaction: mocks.sendMock,
+  sendAndConfirmTransaction: mocks.sendMock,
 }))
 vi.mock('../../utils/jpool', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../utils/jpool')>()),
@@ -143,7 +141,6 @@ describe('StakeButtonJpool', () => {
     })
     mocks.signMock.mockResolvedValue(['signed'])
     mocks.sendMock.mockResolvedValue('sig-1')
-    mocks.confirmMock.mockResolvedValue(undefined)
     mocks.manageMock.mockResolvedValue(manageWith(['1']))
   })
 
@@ -170,9 +167,7 @@ describe('StakeButtonJpool', () => {
       stakeLamports: BigInt(10_000_000),
     })
     expect(mocks.signMock).toHaveBeenCalledWith(['decoded(bytes(unsigned))'])
-    expect(mocks.sendMock).toHaveBeenCalledWith('mainnet', 'wire(signed)')
-    expect(mocks.confirmMock).toHaveBeenCalledWith('mainnet', {
-      txid: 'sig-1',
+    expect(mocks.sendMock).toHaveBeenCalledWith('mainnet', 'wire(signed)', {
       targetCommitment: 'confirmed',
       timeout: 30000,
       interval: 1000,
@@ -299,7 +294,7 @@ describe('StakeButtonJpool', () => {
     expect(lastDialog().manageFailed).toBe(false)
   })
 
-  it('confirms the returned signature when the relay fails after sending', async () => {
+  it('reports a send failure whose signature did not confirm', async () => {
     mocks.sendMock.mockRejectedValue(
       new BackendRequestError('send failed', {
         status: 502,
@@ -307,24 +302,6 @@ describe('StakeButtonJpool', () => {
         signature: 'sig-maybe',
       })
     )
-    renderButton()
-    await clickStake()
-    expect(mocks.confirmMock).toHaveBeenCalledWith(
-      'mainnet',
-      expect.objectContaining({ txid: 'sig-maybe' })
-    )
-    expect(lastDialog().completed.signature).toBe('sig-maybe')
-  })
-
-  it('reports the send failure when that signature does not confirm', async () => {
-    mocks.sendMock.mockRejectedValue(
-      new BackendRequestError('send failed', {
-        status: 502,
-        code: 'TRANSACTION_SEND_FAILED',
-        signature: 'sig-maybe',
-      })
-    )
-    mocks.confirmMock.mockRejectedValue(new Error('timeout'))
     renderButton()
     await clickStake()
     expect(screen.getByRole('alert')).toHaveTextContent(

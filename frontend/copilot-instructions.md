@@ -57,7 +57,7 @@ Three tabs in `App.tsx`:
 - `validator.ts` — `fetchValidatorProfile()` / `applyValidatorOverrides()` / `ValidatorProfile`
 - `blaze.ts` — BlazeStake pool helpers
 - `price.ts` — SOL price fetching
-- `rpc.ts`, `balance.ts`, `address.ts`, `status.ts` — low-level RPC helpers
+- `balance.ts`, `address.ts` — low-level helpers (the widget has no RPC endpoint; transactions go through `sendAndConfirmTransaction` in `utils/api.ts`)
 - `stake/` — stake account parsing: `get-stake-accounts.ts`, `stake-filters.ts`, `stake-instructions.ts`, `struct.ts`
 
 ## Vault manage feature (`VaultBindingBlock`)

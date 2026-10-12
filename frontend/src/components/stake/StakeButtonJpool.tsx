@@ -10,9 +10,8 @@ import { getCurrentChain } from '../../utils/config'
 import { StakeButtonBase } from './StakeButtonBase'
 import { BackendRequestError } from '../../utils/backendRequest'
 import {
-  confirmTransaction,
   invalidateSolBalanceCache,
-  sendSignedTransaction,
+  sendAndConfirmTransaction,
 } from '../../utils/api'
 import {
   directStakeKeys,
@@ -141,36 +140,16 @@ export function StakeButtonJpool({
         const decoded = getTransactionDecoder().decode(getBase64Encoder().encode(transaction))
         const [signed] = await walletSigner.modifyAndSignTransactions([decoded])
 
-        let signature: string
-        let sendError: BackendRequestError | undefined
-        try {
-          signature = await sendSignedTransaction(network, getBase64EncodedWireTransaction(signed))
-        } catch (error) {
-          // The bytes may still have landed: confirm the signature before
-          // reporting a failure that invites a second deposit.
-          if (
-            error instanceof BackendRequestError &&
-            error.code === 'TRANSACTION_SEND_FAILED' &&
-            error.signature
-          ) {
-            signature = error.signature
-            sendError = error
-          } else {
-            throw error
-          }
-        }
-
-        try {
-          await confirmTransaction(network, {
-            txid: signature,
+        const signature = await sendAndConfirmTransaction(
+          network,
+          getBase64EncodedWireTransaction(signed),
+          {
             targetCommitment: 'confirmed',
             timeout: 30000,
             interval: 1000,
             cacheMutation: { walletAddress: account.address, mutation: 'jpool-stake' },
-          })
-        } catch (error) {
-          throw sendError ?? error
-        }
+          }
+        )
 
         invalidateSolBalanceCache(account.address, network)
         if (runId.current !== run) return

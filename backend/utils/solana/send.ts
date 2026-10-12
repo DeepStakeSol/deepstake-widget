@@ -37,7 +37,8 @@ export type TransactionSendErrorCode =
   | "TRANSACTION_INSUFFICIENT_FUNDS"
   | "TRANSACTION_SIMULATION_FAILED"
   | "TRANSACTION_SEND_FAILED"
-  | "RPC_UNAVAILABLE";
+  | "RPC_UNAVAILABLE"
+  | "RATE_LIMITED";
 
 // JPool codes are reused when a failure is attributed to a JPool deposit, so
 // the frontend maps one code set for both generate and send.
@@ -60,7 +61,8 @@ const SEND_ERROR_MESSAGES: Record<TransactionSendErrorCode, string> = {
     "Insufficient SOL balance to pay for this transaction",
   TRANSACTION_SIMULATION_FAILED: "Transaction simulation failed",
   TRANSACTION_SEND_FAILED: "Failed to send transaction",
-  RPC_UNAVAILABLE: "Solana RPC is temporarily unavailable"
+  RPC_UNAVAILABLE: "Solana RPC is temporarily unavailable",
+  RATE_LIMITED: "Too many transactions. Please wait a minute and try again."
 };
 
 export function getSendErrorMessage(code: SendRouteErrorCode): string {

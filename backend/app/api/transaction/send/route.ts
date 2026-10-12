@@ -8,6 +8,8 @@ import {
   type Base64EncodedWireTransaction
 } from "@solana/kit";
 
+import { clientIp, consumeRateLimit } from "@/utils/rateLimit";
+import { getRedisClient, isRedisConfigured } from "@/utils/redis";
 import { createRpcConnection, getRpcEndpoint } from "@/utils/solana/rpc";
 import {
   decodeSignedTransaction,
@@ -18,9 +20,37 @@ import {
 import { parseWalletNetwork } from "@/utils/walletData/network";
 
 const LOG_LABEL = "Transaction send error:";
+// Every widget tab relays through this route, so the limit is per IP and sized
+// well above one person staking; it only caps scripted use of our RPC credits.
+const RATE_LIMIT = 20;
+const RATE_WINDOW_MS = 60_000;
+const RATE_KEY_PREFIX = "rate-limit:v1:tx-send";
 
-// TEMP(JPOOL-TMP-10): only the JPool tab relays through this route; Native,
-// Blaze and Vault still simulate and send through the browser RPC.
+// Unlike /jpool/bind, the limiter fails open: a Redis outage must not stop
+// staking.
+async function limit(request: NextRequest): Promise<void> {
+  if (!isRedisConfigured()) return;
+  let result;
+  try {
+    result = await consumeRateLimit(
+      await getRedisClient(),
+      `${RATE_KEY_PREFIX}:ip:${clientIp(request.headers)}`,
+      RATE_LIMIT,
+      RATE_WINDOW_MS
+    );
+  } catch (error) {
+    console.warn(
+      "Transaction send rate limit skipped:",
+      error instanceof Error ? error.message : error
+    );
+    return;
+  }
+  if (!result.allowed) {
+    throw new TransactionSendError("RATE_LIMITED", 429, {
+      retryAfterSeconds: result.retryAfterSeconds
+    });
+  }
+}
 
 async function readTransaction(
   request: NextRequest
@@ -76,6 +106,13 @@ function rpcRejection(error: unknown): TransactionSendError | null {
 }
 
 function errorResponse(error: unknown, signature?: string) {
+  if (error instanceof TransactionSendError && error.code === "RATE_LIMITED") {
+    const { retryAfterSeconds } = error.details as { retryAfterSeconds: number };
+    return NextResponse.json(
+      { error: error.message, code: error.code, retryAfterSeconds },
+      { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } }
+    );
+  }
   if (error instanceof TransactionSendError) {
     const unmapped = error.code === "TRANSACTION_SIMULATION_FAILED";
     if (error.status >= 500 || unmapped) {
@@ -111,8 +148,8 @@ function errorResponse(error: unknown, signature?: string) {
 
 // POST /api/transaction/send?network=mainnet|devnet
 // Body: { transaction: "<base64 signed wire transaction>" }
-// Simulates with signature verification, relays the exact bytes and returns
-// { signature }. Confirmation and cache invalidation stay on
+// Rate-limited per IP (429 RATE_LIMITED with Retry-After). Simulates with
+// signature verification, relays the exact bytes and returns { signature }. Confirmation and cache invalidation stay on
 // /api/transaction/confirm.
 export async function POST(request: NextRequest) {
   let signature: string | undefined;
@@ -125,6 +162,8 @@ export async function POST(request: NextRequest) {
       : null;
     if (!network) throw new TransactionSendError("INVALID_NETWORK", 400);
 
+    // Per IP before reading the body.
+    await limit(request);
     const wireTransaction = await readTransaction(request);
     const decoded = decodeSignedTransaction(wireTransaction);
     signature = decoded.signature;

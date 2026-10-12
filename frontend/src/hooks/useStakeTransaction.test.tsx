@@ -3,8 +3,6 @@ import type { UiWalletAccount } from '@wallet-standard/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
-  confirmTransactionMock,
-  createRpcConnectionMock,
   fetchStakeAccountsMock,
   generateKeyPairSignerMock,
   generateStakeTransactionMock,
@@ -12,17 +10,12 @@ const {
   invalidateSolBalanceCacheMock,
   modifyAndSignTransactionsMock,
   partiallySignTransactionMock,
-  sendMock,
+  sendAndConfirmTransactionMock,
   useWalletAccountTransactionSignerMock,
 } = vi.hoisted(() => {
-  const sendMock = vi.fn()
   const modifyAndSignTransactionsMock = vi.fn()
 
   return {
-    confirmTransactionMock: vi.fn(),
-    createRpcConnectionMock: vi.fn(() => ({
-      sendTransaction: vi.fn(() => ({ send: sendMock })),
-    })),
     fetchStakeAccountsMock: vi.fn(),
     generateKeyPairSignerMock: vi.fn(),
     generateStakeTransactionMock: vi.fn(),
@@ -30,7 +23,7 @@ const {
     invalidateSolBalanceCacheMock: vi.fn(),
     modifyAndSignTransactionsMock,
     partiallySignTransactionMock: vi.fn(),
-    sendMock,
+    sendAndConfirmTransactionMock: vi.fn(),
     useWalletAccountTransactionSignerMock: vi.fn(() => ({
       modifyAndSignTransactions: modifyAndSignTransactionsMock,
     })),
@@ -60,15 +53,11 @@ vi.mock('../options', () => ({
   useOptions: vi.fn(() => ({ vote_account: 'vote-address' })),
 }))
 
-vi.mock('../utils/solana/rpc', () => ({
-  createRpcConnection: createRpcConnectionMock,
-}))
-
 vi.mock('../utils/api', () => ({
-  confirmTransaction: confirmTransactionMock,
   fetchStakeAccounts: fetchStakeAccountsMock,
   generateStakeTransaction: generateStakeTransactionMock,
   invalidateSolBalanceCache: invalidateSolBalanceCacheMock,
+  sendAndConfirmTransaction: sendAndConfirmTransactionMock,
 }))
 
 import { useStakeTransaction } from './useStakeTransaction'
@@ -105,8 +94,7 @@ describe('useStakeTransaction', () => {
     modifyAndSignTransactionsMock.mockResolvedValue(['wallet-signed-tx'])
     partiallySignTransactionMock.mockResolvedValue('fully-signed-tx')
     getBase64EncodedWireTransactionMock.mockReturnValue('wire-tx')
-    sendMock.mockResolvedValue('signature')
-    confirmTransactionMock.mockResolvedValue(undefined)
+    sendAndConfirmTransactionMock.mockResolvedValue('signature')
     fetchStakeAccountsMock.mockResolvedValue(refreshedAccounts)
     useWalletAccountTransactionSignerMock.mockReturnValue({
       modifyAndSignTransactions: modifyAndSignTransactionsMock,
@@ -166,10 +154,8 @@ describe('useStakeTransaction', () => {
     })
     expect(modifyAndSignTransactionsMock).toHaveBeenCalledWith(['decoded:bytes:server-wire-tx'])
     expect(partiallySignTransactionMock).toHaveBeenCalledWith(['keypair'], 'wallet-signed-tx')
-    expect(createRpcConnectionMock).toHaveBeenCalledWith('devnet')
-    expect(sendMock).toHaveBeenCalled()
-    expect(confirmTransactionMock).toHaveBeenCalledWith('devnet', {
-      txid: 'signature',
+    expect(getBase64EncodedWireTransactionMock).toHaveBeenCalledWith('fully-signed-tx')
+    expect(sendAndConfirmTransactionMock).toHaveBeenCalledWith('devnet', 'wire-tx', {
       targetCommitment: 'confirmed',
       timeout: 30000,
       interval: 1000,

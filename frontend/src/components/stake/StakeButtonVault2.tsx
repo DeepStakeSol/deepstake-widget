@@ -2,13 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { UiWalletAccount } from '@wallet-standard/react'
 import { useWalletAccountTransactionSigner } from '@solana/react'
 import {
-  type Base64EncodedWireTransaction,
   getBase64EncodedWireTransaction,
   getBase64Encoder,
   getTransactionDecoder,
 } from '@solana/kit'
 import { getCurrentChain } from '../../utils/config'
-import { createRpcConnection } from '../../utils/solana/rpc'
 import { StakeButtonBase } from './StakeButtonBase'
 import { useStakingModal } from '../../context/StakingModalContext'
 import { fetchBackendJson } from '../../utils/backendRequest'
@@ -29,7 +27,7 @@ interface StakeButtonProps {
 }
 
 import {
-  confirmTransaction,
+  sendAndConfirmTransaction,
   fetchVaultManage,
   invalidateLSTBalanceCache,
   invalidateSolBalanceCache,
@@ -119,38 +117,19 @@ export function StakeButtonVault2({
         }
         const { transaction: serializedTxBase64 } = fetchedTX
 
-        const rpc = createRpcConnection(network)
-
-        const simResult = await rpc
-          .simulateTransaction(serializedTxBase64 as Base64EncodedWireTransaction, {
-            encoding: 'base64',
-            sigVerify: false,
-            commitment: 'processed',
-          })
-          .send()
-        if (simResult.value.err) {
-          throw new Error(`Transaction simulation failed: ${JSON.stringify(simResult.value.err)}`)
-        }
-
         const txBytes = getBase64Encoder().encode(serializedTxBase64)
         const decodedTransaction = getTransactionDecoder().decode(txBytes)
         const [walletSignedTx] = await walletSigner.modifyAndSignTransactions([decodedTransaction])
-        const signature = await rpc
-          .sendTransaction(getBase64EncodedWireTransaction(walletSignedTx), { encoding: 'base64' })
-          .send()
-
-        // ===========================
-        // === CONFIRM TRANSACTION ===
-        // ===========================
-
-        // Call the new confirmation API endpoint
-        await confirmTransaction(network, {
-          txid: signature,
-          targetCommitment: 'confirmed',
-          timeout: 30000,
-          interval: 1000,
-          cacheMutation: { walletAddress: account.address, mutation: 'vault-stake' },
-        })
+        const signature = await sendAndConfirmTransaction(
+          network,
+          getBase64EncodedWireTransaction(walletSignedTx),
+          {
+            targetCommitment: 'confirmed',
+            timeout: 30000,
+            interval: 1000,
+            cacheMutation: { walletAddress: account.address, mutation: 'vault-stake' },
+          }
+        )
 
         invalidateSolBalanceCache(account.address, network)
         invalidateLSTBalanceCache(account.address, network, VSOL_MINT)

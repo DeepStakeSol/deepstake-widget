@@ -221,6 +221,7 @@ const JPOOL_ERROR_TEXT: Record<string, string> = {
   TRANSACTION_SIMULATION_FAILED:
     'The JPool deposit could not be simulated. Please try again later.',
   JPOOL_POOL_INVALID: 'JPool is temporarily unavailable. Please try again later.',
+  RATE_LIMITED: 'Too many transactions. Please wait a minute and try again.',
 }
 
 export const JPOOL_DEPOSIT_FAILED_TEXT = 'The JPool deposit failed. Please try again.'
