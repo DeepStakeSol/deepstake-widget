@@ -8,6 +8,7 @@ All notable changes to DeepStake Widget are documented here. This project follow
 
 - `scripts/smoke.sh`: post-deploy smoke test (health, stake minimum, widget bundle and its backend URL, no RPC endpoint or API key in the bundle, relay routing, metrics auth). Exits non-zero on the first failure.
 - `POST /api/selftest` (bearer `SELFTEST_TOKEN`): builds a mainnet native stake of the current minimum and a 0.01 SOL JPool deposit for `SELFTEST_WALLET` with the `/api/stake/generate` and `/api/jpool/stake/generate` code, and simulates both unsigned (`sigVerify: false`, `replaceRecentBlockhash: true`). `?check=native|jpool` runs one. Returns `200` when every check passes, otherwise `503` with each failing check's `stage` (`config`, `generate`, `simulate`). JPool's epoch update is reported as `skipped`, not a failure. Rate-limited to 10 requests per minute per IP. New backend variables: `SELFTEST_TOKEN`, `SELFTEST_WALLET`, `SELFTEST_VOTE_ACCOUNT`.
+- `ops/selftest-cron.sh` and `ops/selftest-runbook.md`: a cron job (every 15 minutes) runs the selftest on the host. A pass pings healthchecks.io (`HEALTHCHECKS_PING_URL`); a failure sends the failing checks to Telegram (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`), with a reminder every 3 hours and one recovery message. README gains a Monitoring section.
 
 ### Changed
 

@@ -434,6 +434,9 @@ Used by Docker Compose for frontend and backend container configuration.
 | `TELEMETRY_STATS_TOKEN` | Separate random secret | Passed to the backend container to protect `/api/telemetry/stats`. |
 | `TELEMETRY_OWN_HOSTS` | `deepstake.info` | Comma-separated own hostnames, including their subdomains, for detailed telemetry classification. |
 | `REDIS_URL` | Empty | Optional Compose override; empty uses `redis://redis:6379`. |
+| `HEALTHCHECKS_PING_URL` | `https://hc-ping.com/<uuid>` | Host only: pinged by `ops/selftest-cron.sh` after each passing selftest. Compose does not pass it to containers. |
+| `TELEGRAM_BOT_TOKEN` | Private | Host only: bot used by `ops/selftest-cron.sh` for failure alerts. Never commit it. |
+| `TELEGRAM_CHAT_ID` | Private | Host only: chat that receives the selftest alerts. |
 
 Default local setup:
 
@@ -544,6 +547,20 @@ drills, rollback steps, and the 30-day legacy exit gate are documented in
 
 Widget-adoption telemetry is intentionally separate from Prometheus backend
 health metrics. This iteration does not add nginx Referer logging or Plausible forwarding.
+
+## Monitoring
+
+Three levels, each catching a failure the others can miss:
+
+| Level | What | When | Alert |
+| --- | --- | --- | --- |
+| Deploy | `scripts/smoke.sh` against the public domain | After every deploy | The script exits non-zero (see [Production Deployment Behind Nginx](#production-deployment-behind-nginx)) |
+| Uptime | External monitor (UptimeRobot, Better Stack or healthchecks.io) on `GET https://<domain>/api/health` | Every 5 minutes | The service's Telegram integration |
+| Transactions | `ops/selftest-cron.sh` calls `POST /api/selftest` on the host | Every 15 minutes from cron | Telegram from the script on failure; healthchecks.io alerts when passing pings stop |
+
+The uptime monitor should require HTTP `200`. That catches a missing or unreachable mainnet RPC (`503`). Also matching the keyword `"status":"ok"` adds alerts for Redis outages, which report `degraded` with `200`.
+
+The selftest cron reads `SELFTEST_TOKEN` from `backend/.env` and `HEALTHCHECKS_PING_URL`, `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` from the root `.env`. It alerts on the first failure, reminds every 3 hours while failing, and announces recovery once. Setup, the crontab line, how to read an alert, and a failure drill are in [`ops/selftest-runbook.md`](ops/selftest-runbook.md).
 
 ## Network Selection
 
