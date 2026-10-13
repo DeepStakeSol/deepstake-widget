@@ -4,9 +4,15 @@ import {
   address,
   getAddressDecoder,
   isAddress,
-  type Address
+  type Address,
+  type Base64EncodedWireTransaction,
+  type Rpc,
+  type SolanaRpcApi
 } from "@solana/kit";
 
+import { LAMPORTS_PER_SOL } from "@/utils/constants";
+import { JpoolRouteError } from "@/utils/solana/jpool/errors";
+import { buildJpoolDepositTransaction } from "@/utils/solana/jpool/generate";
 import { createRpcConnection } from "@/utils/solana/rpc";
 import {
   buildNativeStakeTransaction,
@@ -16,27 +22,28 @@ import { getStakeMinimum } from "@/utils/solana/stake/minimum";
 import { withTimeout } from "@/utils/timeout";
 
 const SELFTEST_NETWORK = "mainnet";
-// Generous next to the 3 s target: a slow but working RPC must not page.
+// Per check. Generous next to the 3 s target: a slow but working RPC must not
+// page.
 const SELFTEST_TIMEOUT_MS = 10_000;
 const MAX_ERROR_LENGTH = 300;
+// JPool has no program minimum the widget enforces; a small deposit is enough
+// to exercise the pool, and SELFTEST_WALLET already holds the native minimum.
+export const JPOOL_SELFTEST_LAMPORTS = 10_000_000n;
 
+export const SELFTEST_CHECKS = ["native", "jpool"] as const;
+export type SelftestCheck = (typeof SELFTEST_CHECKS)[number];
 export type SelftestStage = "config" | "generate" | "simulate";
 
-export type SelftestResult =
-  | {
-      ok: true;
-      network: string;
-      minimumSol: number;
-      unitsConsumed: number | null;
-      elapsedMs: number;
-    }
-  | {
-      ok: false;
-      network: string;
-      stage: SelftestStage;
-      error: string;
-      elapsedMs: number;
-    };
+export type SelftestCheckResult =
+  | ({ ok: true; elapsedMs: number } & Record<string, unknown>)
+  | { ok: false; stage: SelftestStage; error: string; elapsedMs: number };
+
+export interface SelftestResult {
+  ok: boolean;
+  network: string;
+  elapsedMs: number;
+  checks: Partial<Record<SelftestCheck, SelftestCheckResult>>;
+}
 
 class SelftestFailure extends Error {
   constructor(
@@ -46,6 +53,10 @@ class SelftestFailure extends Error {
     super(message);
   }
 }
+
+// An expected, temporary state outside our control: the check passes with
+// `skipped` instead of paging.
+class SelftestSkip extends Error {}
 
 function jsonSafe(value: unknown): string {
   return JSON.stringify(value, (_key, nested) =>
@@ -87,6 +98,12 @@ function describeError(error: unknown): string {
       ? `${error.body.error}: ${jsonSafe(details.cause)}`
       : error.body.error;
   }
+  if (error instanceof JpoolRouteError) {
+    const details = error.details as { err?: unknown } | undefined;
+    return details?.err
+      ? `${error.code}: ${jsonSafe(details.err)}`
+      : `${error.code}: ${error.message}`;
+  }
   if (!(error instanceof Error)) return String(error);
   const cause = (error as { cause?: { code?: unknown } }).cause;
   return typeof cause?.code === "string"
@@ -116,68 +133,136 @@ function readConfig(): { wallet: Address; voteAccount: Address } {
   return { wallet: address(wallet), voteAccount: address(voteAccount) };
 }
 
-// Builds a real native stake transaction for SELFTEST_WALLET at the current
-// minimum, exactly as /api/stake/generate does, and simulates it without
-// signatures. Nothing is signed or sent; the server holds no key.
-export async function runNativeSelftest(): Promise<SelftestResult> {
+// Simulates the unsigned transaction as the wallet would send it. Nothing is
+// signed or sent; the server holds no key.
+async function simulateUnsigned(
+  rpc: Rpc<SolanaRpcApi>,
+  transaction: Base64EncodedWireTransaction
+): Promise<number | null> {
+  const { value } = await rpc
+    .simulateTransaction(transaction, {
+      encoding: "base64",
+      sigVerify: false,
+      replaceRecentBlockhash: true,
+      commitment: "confirmed"
+    })
+    .send();
+  if (value.err) {
+    const lastLog = value.logs?.at(-1);
+    throw new SelftestFailure(
+      "simulate",
+      jsonSafe(value.err) + (lastLog ? `: ${lastLog}` : "")
+    );
+  }
+  return value.unitsConsumed == null ? null : Number(value.unitsConsumed);
+}
+
+type SetStage = (stage: SelftestStage) => void;
+type CheckBody = (
+  config: { wallet: Address; voteAccount: Address },
+  setStage: SetStage
+) => Promise<Record<string, unknown>>;
+
+// Native stake at the current minimum, built exactly as /api/stake/generate.
+const nativeCheck: CheckBody = async ({ wallet, voteAccount }, setStage) => {
+  const rpc = createRpcConnection(SELFTEST_NETWORK);
+  const minimum = await getStakeMinimum(SELFTEST_NETWORK, rpc);
+  const transaction = await buildNativeStakeTransaction({
+    network: SELFTEST_NETWORK,
+    rpc,
+    stakeLamports: minimum.minimumStakeLamports,
+    authority: wallet,
+    // A fresh address with no key: the simulation skips signatures.
+    newAccount: getAddressDecoder().decode(randomBytes(32)),
+    voteAccount
+  });
+  setStage("simulate");
+  return {
+    minimumSol: minimum.minimumStakeSol,
+    unitsConsumed: await simulateUnsigned(rpc, transaction)
+  };
+};
+
+// JPool deposit with the direct-stake memo, built exactly as
+// /api/jpool/stake/generate.
+const jpoolCheck: CheckBody = async ({ wallet, voteAccount }, setStage) => {
+  let built;
+  try {
+    built = await buildJpoolDepositTransaction({
+      network: SELFTEST_NETWORK,
+      wallet,
+      voteAccount,
+      lamports: JPOOL_SELFTEST_LAMPORTS
+    });
+  } catch (error) {
+    // JPool refuses deposits until it updates the pool for a new epoch.
+    if (
+      error instanceof JpoolRouteError &&
+      error.code === "JPOOL_POOL_UPDATING"
+    ) {
+      throw new SelftestSkip(error.code);
+    }
+    throw error;
+  }
+  setStage("simulate");
+  const unitsConsumed = await simulateUnsigned(
+    createRpcConnection(SELFTEST_NETWORK),
+    built.transaction
+  );
+  return {
+    depositSol: Number(JPOOL_SELFTEST_LAMPORTS) / LAMPORTS_PER_SOL,
+    expectedJsol: built.expectedJsol.toString(),
+    unitsConsumed
+  };
+};
+
+const CHECKS: Record<SelftestCheck, CheckBody> = {
+  native: nativeCheck,
+  jpool: jpoolCheck
+};
+
+async function runCheck(body: CheckBody): Promise<SelftestCheckResult> {
   const startedAt = Date.now();
   let stage: SelftestStage = "config";
   try {
-    const { wallet, voteAccount } = readConfig();
+    const config = readConfig();
     stage = "generate";
-    const { minimumStakeSol, unitsConsumed } = await withTimeout(
-      (async () => {
-        const rpc = createRpcConnection(SELFTEST_NETWORK);
-        const minimum = await getStakeMinimum(SELFTEST_NETWORK, rpc);
-        const wireTransaction = await buildNativeStakeTransaction({
-          network: SELFTEST_NETWORK,
-          rpc,
-          stakeLamports: minimum.minimumStakeLamports,
-          authority: wallet,
-          // A fresh address with no key: the simulation skips signatures.
-          newAccount: getAddressDecoder().decode(randomBytes(32)),
-          voteAccount
-        });
-
-        stage = "simulate";
-        const { value } = await rpc
-          .simulateTransaction(wireTransaction, {
-            encoding: "base64",
-            sigVerify: false,
-            replaceRecentBlockhash: true,
-            commitment: "confirmed"
-          })
-          .send();
-        if (value.err) {
-          const lastLog = value.logs?.at(-1);
-          throw new SelftestFailure(
-            "simulate",
-            jsonSafe(value.err) + (lastLog ? `: ${lastLog}` : "")
-          );
-        }
-        return {
-          minimumStakeSol: minimum.minimumStakeSol,
-          unitsConsumed:
-            value.unitsConsumed == null ? null : Number(value.unitsConsumed)
-        };
-      })(),
+    const result = await withTimeout(
+      body(config, (next) => {
+        stage = next;
+      }),
       SELFTEST_TIMEOUT_MS
     );
-
-    return {
-      ok: true,
-      network: SELFTEST_NETWORK,
-      minimumSol: minimumStakeSol,
-      unitsConsumed,
-      elapsedMs: Date.now() - startedAt
-    };
+    return { ok: true, ...result, elapsedMs: Date.now() - startedAt };
   } catch (error) {
+    if (error instanceof SelftestSkip) {
+      return {
+        ok: true,
+        skipped: error.message,
+        elapsedMs: Date.now() - startedAt
+      };
+    }
     return {
       ok: false,
-      network: SELFTEST_NETWORK,
       stage: error instanceof SelftestFailure ? error.stage : stage,
       error: redactSelftestError(describeError(error)),
       elapsedMs: Date.now() - startedAt
     };
   }
+}
+
+// Runs the requested checks in parallel against mainnet for SELFTEST_WALLET.
+export async function runSelftest(
+  checks: readonly SelftestCheck[] = SELFTEST_CHECKS
+): Promise<SelftestResult> {
+  const startedAt = Date.now();
+  const results = await Promise.all(
+    checks.map(async (name) => [name, await runCheck(CHECKS[name])] as const)
+  );
+  return {
+    ok: results.every(([, result]) => result.ok),
+    network: SELFTEST_NETWORK,
+    elapsedMs: Date.now() - startedAt,
+    checks: Object.fromEntries(results)
+  };
 }

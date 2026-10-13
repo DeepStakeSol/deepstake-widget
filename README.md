@@ -500,7 +500,7 @@ Used by the Next.js backend.
 | `IMAGES_DIR` | No | Filesystem path served by `/api/images/`; Docker sets this to `/images`. |
 | `JPOOL_ELIGIBILITY_REQUIRE_MEMBERSHIP` | No | `true` also hides the JPool tab for validators outside the JPool pool (`isJpoolValidator: false`). Default `false`: only blocked or superminority validators are hidden. |
 | `SELFTEST_TOKEN` | For `/api/selftest` | Bearer token required by `POST /api/selftest`; the route returns 503 when unset. |
-| `SELFTEST_WALLET` | For `/api/selftest` | Address (no key) of a mainnet wallet holding more than the stake minimum plus fees; the selftest stakes from it in simulation only. |
+| `SELFTEST_WALLET` | For `/api/selftest` | Address (no key) of a mainnet wallet holding more than the native stake minimum (about 1.002 SOL) plus fees; the selftest stakes and deposits from it in simulation only. |
 | `SELFTEST_VOTE_ACCOUNT` | No | Vote account the selftest stakes to. Defaults to `NEXT_PUBLIC_VALIDATOR_ADDRESS`. |
 
 `backend/.env` supplies RPC endpoints, validator address, and optional provider token to production Compose. Compose overrides Redis, token, telemetry-host, and filesystem-path settings from the root `.env` or its service configuration. For a direct backend run, `backend/.env` can supply those settings. `frontend/.env.example` lists optional browser-side network and protocol overrides (never an RPC URL); Compose uses root `.env` for its build arguments.
@@ -518,15 +518,24 @@ status and latency, provider outcomes, validator and wallet cache operations, fi
 background refreshes. Validator profile failures are logged as one-line JSON.
 
 `POST /api/selftest` (header `Authorization: Bearer <SELFTEST_TOKEN>`) checks the
-backend stake path end to end without spending SOL. It builds a real mainnet native
-stake of the current minimum from `SELFTEST_WALLET` to `SELFTEST_VOTE_ACCOUNT`, using
-the same code as `/api/stake/generate`, then simulates it with `sigVerify: false` and
+backend transaction paths end to end without spending SOL. It runs two checks in
+parallel from `SELFTEST_WALLET` to `SELFTEST_VOTE_ACCOUNT` on mainnet:
+
+- `native`: a native stake of the current minimum, built with the same code as
+  `/api/stake/generate`.
+- `jpool`: a 0.01 SOL JPool deposit with the direct-stake memo, built with the same
+  code as `/api/jpool/stake/generate`.
+
+Each transaction is simulated with `sigVerify: false` and
 `replaceRecentBlockhash: true`. Nothing is signed or sent, and the server holds no
-key. It returns `200 { ok: true, network, minimumSol, unitsConsumed, elapsedMs }` or
-`503 { ok: false, network, stage, error, elapsedMs }`, where `stage` is `config`,
-`generate` or `simulate`. Errors never include the RPC URL or API key. Requests are
-limited to 10 per minute per client IP, counted before the token check. The limit is
-skipped when Redis is unavailable.
+key. `?check=native` or `?check=jpool` runs one check. The route returns `200` when
+every check passes, otherwise `503`, with the body
+`{ ok, network, elapsedMs, checks: { native, jpool } }`. A passed check reports
+`unitsConsumed` and its amounts. A failed check reports `stage` (`config`,
+`generate` or `simulate`) and `error`. While JPool updates the pool for a new epoch,
+`jpool` passes with `"skipped":"JPOOL_POOL_UPDATING"`. Errors never include the RPC
+URL or API key. Requests are limited to 10 per minute per client IP, counted before
+the token check. The limit is skipped when Redis is unavailable.
 
 Prometheus/Grafana are managed outside this repository. Alert rules are in
 `ops/prometheus/validator-profile-alerts.yml`; scrape configuration, failure

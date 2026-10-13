@@ -4,7 +4,11 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { clientIp, consumeRateLimit } from "@/utils/rateLimit";
 import { getRedisClient, isRedisConfigured } from "@/utils/redis";
-import { runNativeSelftest } from "@/utils/selftest";
+import {
+  runSelftest,
+  SELFTEST_CHECKS,
+  type SelftestCheck
+} from "@/utils/selftest";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,11 +52,17 @@ async function rateLimited(request: NextRequest): Promise<number | null> {
   }
 }
 
-// POST /api/selftest
+function isCheck(value: string): value is SelftestCheck {
+  return (SELFTEST_CHECKS as readonly string[]).includes(value);
+}
+
+// POST /api/selftest[?check=native|jpool]
 // Authorization: Bearer <SELFTEST_TOKEN>
-// Builds and simulates (no signatures, nothing sent) a mainnet native stake at
-// the current minimum for SELFTEST_WALLET. 200 { ok: true, network,
-// minimumSol, unitsConsumed, elapsedMs } or 503 { ok: false, network, stage:
+// Builds and simulates (no signatures, nothing sent) mainnet transactions for
+// SELFTEST_WALLET: a native stake at the current minimum and a JPool deposit;
+// `check` runs one of them. 200 when every check passes, else 503:
+// { ok, network, elapsedMs, checks: { native?, jpool? } }, each check
+// { ok: true, elapsedMs, unitsConsumed, ... } or { ok: false, stage:
 // "config"|"generate"|"simulate", error, elapsedMs }.
 export async function POST(request: NextRequest) {
   const retryAfterSeconds = await rateLimited(request);
@@ -86,11 +96,21 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const result = await runNativeSelftest();
-  if (!result.ok) {
-    console.error(
-      `Selftest failed at ${result.stage} after ${result.elapsedMs} ms: ${result.error}`
+  const check = request.nextUrl.searchParams.get("check");
+  if (check !== null && !isCheck(check)) {
+    return NextResponse.json(
+      { error: `check must be one of: ${SELFTEST_CHECKS.join(", ")}` },
+      { status: 400, headers: NO_STORE_HEADERS }
     );
+  }
+
+  const result = await runSelftest(check ? [check] : SELFTEST_CHECKS);
+  for (const [name, checkResult] of Object.entries(result.checks)) {
+    if (!checkResult.ok) {
+      console.error(
+        `Selftest ${name} failed at ${checkResult.stage} after ${checkResult.elapsedMs} ms: ${checkResult.error}`
+      );
+    }
   }
   return NextResponse.json(result, {
     status: result.ok ? 200 : 503,

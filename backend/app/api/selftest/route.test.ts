@@ -1,4 +1,4 @@
-import type { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { runMock, evalMock, redisState } = vi.hoisted(() => ({
@@ -7,7 +7,10 @@ const { runMock, evalMock, redisState } = vi.hoisted(() => ({
   redisState: { configured: true, down: false }
 }));
 
-vi.mock("@/utils/selftest", () => ({ runNativeSelftest: runMock }));
+vi.mock("@/utils/selftest", () => ({
+  runSelftest: runMock,
+  SELFTEST_CHECKS: ["native", "jpool"]
+}));
 vi.mock("@/utils/redis", () => ({
   isRedisConfigured: () => redisState.configured,
   getRedisClient: async () => {
@@ -21,18 +24,25 @@ import { POST } from "./route";
 const OK_RESULT = {
   ok: true,
   network: "mainnet",
-  minimumSol: 1.00228288,
-  unitsConsumed: 12_345,
-  elapsedMs: 900
+  elapsedMs: 900,
+  checks: {
+    native: {
+      ok: true,
+      minimumSol: 1.00228288,
+      unitsConsumed: 12_345,
+      elapsedMs: 900
+    },
+    jpool: { ok: true, skipped: "JPOOL_POOL_UPDATING", elapsedMs: 300 }
+  }
 };
 
-function request(token?: string) {
+function request(token?: string, query = "") {
   const headers = new Headers({ "x-real-ip": "203.0.113.7" });
   if (token !== undefined) headers.set("authorization", `Bearer ${token}`);
-  return new Request("http://localhost/api/selftest", {
+  return new NextRequest(`http://localhost/api/selftest${query}`, {
     method: "POST",
     headers
-  }) as unknown as NextRequest;
+  });
 }
 
 describe("POST /api/selftest", () => {
@@ -66,21 +76,45 @@ describe("POST /api/selftest", () => {
     expect(runMock).not.toHaveBeenCalled();
   });
 
-  it("returns 200 with the result", async () => {
+  it("runs every check and returns 200 with the result", async () => {
     const response = await POST(request("token"));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     await expect(response.json()).resolves.toEqual(OK_RESULT);
+    expect(runMock).toHaveBeenCalledWith(["native", "jpool"]);
   });
 
-  it("returns 503 and logs the stage on failure", async () => {
+  it("runs only the check named in the query", async () => {
+    await POST(request("token", "?check=jpool"));
+
+    expect(runMock).toHaveBeenCalledWith(["jpool"]);
+  });
+
+  it("rejects an unknown check", async () => {
+    const response = await POST(request("token", "?check=blaze"));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "check must be one of: native, jpool"
+    });
+    expect(runMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 and logs each failed check", async () => {
     const failure = {
       ok: false,
       network: "mainnet",
-      stage: "generate",
-      error: "MAINNET_RPC_ENDPOINT environment variable not set",
-      elapsedMs: 5
+      elapsedMs: 5,
+      checks: {
+        native: {
+          ok: false,
+          stage: "generate",
+          error: "MAINNET_RPC_ENDPOINT environment variable not set",
+          elapsedMs: 5
+        },
+        jpool: { ok: true, unitsConsumed: 40_000, elapsedMs: 4 }
+      }
     };
     runMock.mockResolvedValue(failure);
 
@@ -88,8 +122,9 @@ describe("POST /api/selftest", () => {
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toEqual(failure);
+    expect(console.error).toHaveBeenCalledTimes(1);
     expect(console.error).toHaveBeenCalledWith(
-      "Selftest failed at generate after 5 ms: MAINNET_RPC_ENDPOINT environment variable not set"
+      "Selftest native failed at generate after 5 ms: MAINNET_RPC_ENDPOINT environment variable not set"
     );
   });
 
