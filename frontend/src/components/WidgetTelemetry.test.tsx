@@ -25,7 +25,7 @@ const payload: WidgetMountTelemetry = {
   network: 'devnet',
   tabs: ['native', 'blaze'],
   theme: 'light',
-  version: '2.0.0',
+  version: '2.1.0',
 }
 
 describe('widget mount telemetry', () => {

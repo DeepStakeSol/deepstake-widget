@@ -7,6 +7,10 @@ updates:
     groups:
       frontend-minor-patch:
         update-types: [minor, patch]
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /backend
@@ -15,3 +19,7 @@ updates:
     groups:
       backend-minor-patch:
         update-types: [minor, patch]
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

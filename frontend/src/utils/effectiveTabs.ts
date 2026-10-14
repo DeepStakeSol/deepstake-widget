@@ -3,8 +3,8 @@ import type { NetworkType } from './config'
 
 // Every tab `data-options.tabs` may name, in display order.
 export const SUPPORTED_WIDGET_TABS: readonly WidgetTab[] = ['native', 'blaze', 'vault', 'jpool']
-// Tabs shown when `tabs` is missing or names nothing valid. JPool is opt-in
-// until 2.0.0 (J3 adds it here).
+// Tabs shown when `tabs` is missing or names nothing valid. JPool is opt-in:
+// an embed lists it in `tabs` to show it.
 export const DEFAULT_WIDGET_TABS: readonly WidgetTab[] = ['native', 'blaze', 'vault']
 // Tabs dropped (with a console warning) on devnet.
 export const MAINNET_ONLY_WIDGET_TABS: readonly WidgetTab[] = ['vault', 'jpool']

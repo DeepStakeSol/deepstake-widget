@@ -430,7 +430,7 @@ Used by Docker Compose for frontend and backend container configuration.
 | `IMAGE_URL_PREFIX` | `https://your-domain.example/api` | Optional prefix for local `/images/...` widget assets loaded from the backend image file server. Leave empty for same-origin assets. |
 | `METRICS_BEARER_TOKEN` | Random secret | Passed to the backend container to protect `/api/metrics`. |
 | `VITE_TELEMETRY_ENDPOINT` | `https://deepstake.info/api/telemetry` | Absolute telemetry collector URL embedded into the widget build. Defaults to the listed production URL. |
-| `VITE_WIDGET_VERSION` | Empty | Optional override. Leave empty in production so `frontend/package.json` supplies `2.0.0` to the browser API and telemetry. |
+| `VITE_WIDGET_VERSION` | Empty | Optional override. Leave empty in production so `frontend/package.json` supplies `2.1.0` to the browser API and telemetry. |
 | `TELEMETRY_STATS_TOKEN` | Separate random secret | Passed to the backend container to protect `/api/telemetry/stats`. |
 | `TELEMETRY_OWN_HOSTS` | `deepstake.info` | Comma-separated own hostnames, including their subdomains, for detailed telemetry classification. |
 | `REDIS_URL` | Empty | Optional Compose override; empty uses `redis://redis:6379`. |
@@ -555,7 +555,7 @@ Three levels, each catching a failure the others can miss:
 | Level | What | When | Alert |
 | --- | --- | --- | --- |
 | Deploy | `scripts/smoke.sh` against the public domain | After every deploy | The script exits non-zero (see [Production Deployment Behind Nginx](#production-deployment-behind-nginx)) |
-| Uptime | External monitor (UptimeRobot, Better Stack or healthchecks.io) on `GET https://<domain>/api/health` | Every 5 minutes | The service's Telegram integration |
+| Uptime | External monitor (UptimeRobot or Better Stack) on `GET https://<domain>/api/health` | Every 5 minutes | The service's Telegram integration |
 | Transactions | `ops/selftest-cron.sh` calls `POST /api/selftest` on the host | Every 15 minutes from cron | Telegram from the script on failure; healthchecks.io alerts when passing pings stop |
 
 The uptime monitor should require HTTP `200`. That catches a missing or unreachable mainnet RPC (`503`). Also matching the keyword `"status":"ok"` adds alerts for Redis outages, which report `degraded` with `200`.
